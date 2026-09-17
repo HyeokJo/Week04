@@ -1,201 +1,176 @@
 ﻿#pragma once
 
-#include <optional>
-
 #include "PCH.h"
 #include "ImGui/imgui.h"
 #include "IEditorPanel.h"
 #include "FEditorInfo.h"
-#include "Core/Channel/FMessageChannel.h"
+#include "FPropertyEditorContext.h"
 #include "Core/Channel/FStateChannel.h"
-#include "../../FEditorSelectionState.h"
-#include "../../FTransformEditRequestMessage.h"
-
+#include "Scene/AActor.h"
+#include "Scene/FWorldEditorContext.h"
+#include "Scene/Component/UActorComponent.h"
+#include "Scene/Component/UBoxColliderComponent.h"
+#include "Scene/Component/UCameraComponent.h"
+#include "Scene/Component/UDirectionalLightComponent.h"
+#include "Scene/Component/UPointLightComponent.h"
+#include "Scene/Component/USceneComponent.h"
+#include "Scene/Component/USpotLightComponent.h"
+#include "Scene/Component/UStaticMeshComponent.h"
+#include "Scene/Component/UBillboardTextComponent.h"
+#include "Scene/Component/UNameTagComponent.h"
+// 목록, 선택, 구조 변경만 담당합니다. 타입별 Details는 Component::DrawPanels()로 위임합니다.
 class FPropertyPanel : public IEditorPanel {
-	struct FTransformEditSession {
-		std::uint64_t SessionId = 0;
-		FObjectHandle TargetHandle{};
-		FMatrix InitialWorld{ FMatrix::Identity };
-		std::uint64_t InitialTransformRevision = 0;
-	};
-
 public:
-	FPropertyPanel(
-		FStateChannel<FEditorSelectionState>::FReader InSelectionReader,
-		FStateChannel<uint8>::FReadWriter InGizmoMode,
-		FMessageChannel::FSender InWorldCommandSender)
-		: SelectionReader(std::move(InSelectionReader))
-		, WorldCommandSender(std::move(InWorldCommandSender))
-		, GizmoMode(std::move(InGizmoMode)) {
-	}
+    FPropertyPanel(
+        FWorldEditorContext& InEditorContext,
+        FStateChannel<uint8>::FReadWriter InGizmoMode,
+        FStateChannel<uint8>::FReadWriter InGizmoCoordinateSpace)
+        : EditorContext(&InEditorContext)
+        , GizmoMode(std::move(InGizmoMode))
+        , GizmoCoordinateSpace(std::move(InGizmoCoordinateSpace)) {
+    }
 
-	void DrawPanel() override {
-		if (!SelectionReader.HasValue()) {
-			CancelTransformEdit();
-			return;
-		}
+    void DrawPanel() override {
+        if (EditorContext == nullptr) return;
 
-		const FEditorSelectionState& Selection = SelectionReader.Read();
-		if (!Selection.TransformTargetHandle.IsValid()) {
-			CancelTransformEdit();
-			return;
-		}
+        ImGui::Begin("Property Window");
+        AActor* Actor = EditorContext->GetSelectedActor();
+        if (Actor == nullptr) {
+            ImGui::TextDisabled("Select an actor to inspect its components.");
+            ImGui::End();
+            return;
+        }
 
-		if (ActiveTransformEdit.has_value() && ActiveTransformEdit->TargetHandle != Selection.TransformTargetHandle) {
-			CancelTransformEdit();
-		}
+        DrawGizmoControls();
+        DrawComponentList(*Actor);
+        ImGui::Separator();
 
-		if (!ActiveTransformEdit.has_value() && !UpdateTransformFields(Selection.TargetWorld)) {
-			return;
-		}
-
-		ImGui::Begin("Property Window");
-
-		ImGui::Text("Gizmo Mode");
-		CurrentGizmoMode = static_cast<EGizmoMode>(GizmoMode.Read());
-		int ModeIndex = static_cast<int>(CurrentGizmoMode);
-		bool bGizmoChanged = false;
-
-		bGizmoChanged |= ImGui::RadioButton("Translate", &ModeIndex, 0);
-		ImGui::SameLine();
-		bGizmoChanged |= ImGui::RadioButton("Rotate", &ModeIndex, 1);
-		ImGui::SameLine();
-		bGizmoChanged |= ImGui::RadioButton("Scale", &ModeIndex, 2);
-
-		if (bGizmoChanged) {
-			CurrentGizmoMode = static_cast<EGizmoMode>(ModeIndex);
-			GizmoMode.Emplace(static_cast<uint8>(CurrentGizmoMode));
-		}
-		ImGui::Separator();
-
-		ImGui::Text("Transform");
-
-		const bool bPositionModified = ImGui::DragFloat3("Position", &EditPosition.x, 0.1f);
-		const bool bPositionActivated = ImGui::IsItemActivated();
-		const bool bPositionDeactivated = ImGui::IsItemDeactivatedAfterEdit();
-
-		const bool bRotationModified = ImGui::DragFloat3("Rotation", &EditRotation.x, 0.5f);
-		const bool bRotationActivated = ImGui::IsItemActivated();
-		const bool bRotationDeactivated = ImGui::IsItemDeactivatedAfterEdit();
-
-		const bool bScaleModified = ImGui::DragFloat3("Scale", &EditScale.x, 0.05f);
-		const bool bScaleActivated = ImGui::IsItemActivated();
-		const bool bScaleDeactivated = ImGui::IsItemDeactivatedAfterEdit();
-
-		const bool bTransformActivated = bPositionActivated || bRotationActivated || bScaleActivated;
-		const bool bTransformModified = bPositionModified || bRotationModified || bScaleModified;
-		const bool bTransformDeactivated = bPositionDeactivated || bRotationDeactivated || bScaleDeactivated;
-
-		if (bTransformActivated && !ActiveTransformEdit.has_value()) {
-			BeginTransformEdit(Selection);
-		}
-
-		if (bTransformModified && ActiveTransformEdit.has_value()) {
-			UpdateTransformEdit();
-		}
-
-		if (bTransformDeactivated && ActiveTransformEdit.has_value()) {
-			CommitTransformEdit();
-		}
-
-		ImGui::End();
-	}
+        if (UActorComponent* Component = EditorContext->GetSelectedComponent(); Component != nullptr && Component->GetOwner() == Actor) {
+            ImGui::Text("Details: %s", GetComponentTypeName(*Component));
+            ImGui::PushID(Component);
+            Component->DrawPanels(PropertyEditor);
+            ImGui::Separator();
+            HandleDeleteShortcut(*Actor, *Component);
+            ImGui::PopID();
+        }
+        else {
+            ImGui::TextDisabled("Select a component.");
+        }
+        ImGui::End();
+    }
 
 private:
-	bool UpdateTransformFields(FMatrix WorldTransform) {
-		FQuat Rotation{};
-		if (!WorldTransform.Decompose(EditScale, Rotation, EditPosition)) {
-			return false;
-		}
+    static const char* GetComponentTypeName(const UActorComponent& Component) {
+        return Component.GetTypeInfo()->TypeName.data();
+    }
 
-		auto euler = Rotation.ToEuler();
-		EditRotation = FVector3(euler.x, euler.y, euler.z);
-		return true;
-	}
+    void DrawGizmoControls() {
+        ImGui::TextUnformatted("Gizmo Mode");
+        int ModeIndex = static_cast<int>(GizmoMode.Read());
+        bool bModeChanged = false;
+        bModeChanged |= ImGui::RadioButton("Translate", &ModeIndex, static_cast<int>(EGizmoMode::Translate));
+        ImGui::SameLine();
+        bModeChanged |= ImGui::RadioButton("Rotate", &ModeIndex, static_cast<int>(EGizmoMode::Rotate));
+        ImGui::SameLine();
+        bModeChanged |= ImGui::RadioButton("Scale", &ModeIndex, static_cast<int>(EGizmoMode::Scale));
+        if (bModeChanged) GizmoMode.Emplace(static_cast<uint8>(ModeIndex));
 
-	FMatrix BuildDesiredWorld() const {
-		return FMatrix::CreateScale(EditScale)
-			* FMatrix::CreateFromYawPitchRoll(EditRotation.y, EditRotation.x, EditRotation.z)
-			* FMatrix::CreateTranslation(EditPosition);
-	}
+        ImGui::TextUnformatted("Coordinate Mode");
+        int CoordinateSpaceIndex = static_cast<int>(GizmoCoordinateSpace.Read());
+        bool bCoordinateSpaceChanged = false;
+        bCoordinateSpaceChanged |= ImGui::RadioButton("World", &CoordinateSpaceIndex, static_cast<int>(EGizmoCoordinateSpace::World));
+        ImGui::SameLine();
+        bCoordinateSpaceChanged |= ImGui::RadioButton("Local", &CoordinateSpaceIndex, static_cast<int>(EGizmoCoordinateSpace::Local));
+        if (bCoordinateSpaceChanged) GizmoCoordinateSpace.Emplace(static_cast<uint8>(CoordinateSpaceIndex));
+        ImGui::Separator();
+    }
 
-	bool SendTransformEdit(
-		std::uint64_t SessionId,
-		ETransformEditPhase Phase,
-		FObjectHandle TargetHandle,
-		const FMatrix& DesiredWorld,
-		std::uint64_t ExpectedTransformRevision) {
-		return WorldCommandSender.TryEmplace<FTransformEditRequestMessage>(
-			SessionId,
-			Phase,
-			TargetHandle,
-			DesiredWorld,
-			ExpectedTransformRevision);
-	}
+    void DrawComponentList(AActor& Actor) {
+        ImGui::TextUnformatted("Components");
+        ImGui::SameLine();
+        if (ImGui::Button("+ Add Component")) ImGui::OpenPopup("AddComponentPopup");
 
-	void BeginTransformEdit(const FEditorSelectionState& Selection) {
-		const std::uint64_t SessionId = AcquireTransformEditSessionId();
-		if (!SendTransformEdit(
-			SessionId,
-			ETransformEditPhase::Begin,
-			Selection.TransformTargetHandle,
-			Selection.TargetWorld,
-			Selection.TransformRevision)) {
-			return;
-		}
+        if (ImGui::BeginPopup("AddComponentPopup")) {
+            ImGui::TextDisabled("Add to selected actor");
+            ImGui::Separator();
+            if (ImGui::MenuItem("Scene Component")) AddSceneComponent<USceneComponent>(Actor);
+            if (ImGui::MenuItem("Static Mesh Component")) AddSceneComponent<UStaticMeshComponent>(Actor);
+            if (ImGui::MenuItem("Camera Component")) AddSceneComponent<UCameraComponent>(Actor);
+			if (ImGui::MenuItem("Directional Light Component")) AddSceneComponent<UDirectionalLightComponent>(Actor);
+			if (ImGui::MenuItem("Point Light Component")) AddSceneComponent<UPointLightComponent>(Actor);
+			if (ImGui::MenuItem("Spot Light Component")) AddSceneComponent<USpotLightComponent>(Actor);
+            if (ImGui::MenuItem("Box Collider Component")) AddSceneComponent<UBoxColliderComponent>(Actor);
+            if (ImGui::MenuItem("Billboard Text Component")) AddSceneComponent<UBillboardTextComponent>(Actor);
+            if (ImGui::MenuItem("Name Tag Component")) AddSceneComponent<UNameTagComponent>(Actor);
+            ImGui::EndPopup();
+        }
 
-		ActiveTransformEdit = FTransformEditSession{
-			.SessionId = SessionId,
-			.TargetHandle = Selection.TransformTargetHandle,
-			.InitialWorld = Selection.TargetWorld,
-			.InitialTransformRevision = Selection.TransformRevision
-		};
-	}
+        ImGui::BeginChild("ComponentList", ImVec2(0.0f, 180.0f), true);
+        for (const std::unique_ptr<UActorComponent>& Component : Actor.GetComponents()) {
+            auto* SceneComponent = static_cast<USceneComponent*>(Component.get());
 
-	void UpdateTransformEdit() {
-		const FTransformEditSession& Session = *ActiveTransformEdit;
-		SendTransformEdit(
-			Session.SessionId,
-			ETransformEditPhase::Update,
-			Session.TargetHandle,
-			BuildDesiredWorld(),
-			Session.InitialTransformRevision);
-	}
+            if (SceneComponent == nullptr) {
+                DrawComponentNode(*Component, ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+            }
+            else if (SceneComponent->GetParent() == nullptr || SceneComponent->GetParent()->GetOwner() != &Actor) {
+                DrawSceneComponentTree(Actor, *SceneComponent);
+            }
+        }
+        ImGui::EndChild();
+    }
 
-	void CommitTransformEdit() {
-		const FTransformEditSession& Session = *ActiveTransformEdit;
-		SendTransformEdit(
-			Session.SessionId,
-			ETransformEditPhase::Commit,
-			Session.TargetHandle,
-			BuildDesiredWorld(),
-			Session.InitialTransformRevision);
-		ActiveTransformEdit.reset();
-	}
+    void DrawSceneComponentTree(AActor& Actor, USceneComponent& Component) {
+        const bool bHasOwnedChildren = std::ranges::any_of(Component.GetChildren(), [&Actor](const TObjectRef<USceneComponent>& Child) {
+            return Child.Get() != nullptr && Child.Get()->GetOwner() == &Actor;
+        });
+        ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (!bHasOwnedChildren) Flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+        if (EditorContext->GetSelectedComponent() == &Component) Flags |= ImGuiTreeNodeFlags_Selected;
 
-	void CancelTransformEdit() {
-		if (!ActiveTransformEdit.has_value()) {
-			return;
-		}
+        ImGui::PushID(&Component);
+        const bool bOpen = ImGui::TreeNodeEx("Component", Flags, "%s", GetComponentTypeName(Component));
+        if (ImGui::IsItemClicked()) EditorContext->SetSelectedComponent(&Component);
+        if (bHasOwnedChildren && bOpen) {
+            for (const TObjectRef<USceneComponent>& Child : Component.GetChildren()) {
+                if (USceneComponent* ChildComponent = Child.Get(); ChildComponent != nullptr && ChildComponent->GetOwner() == &Actor) {
+                    DrawSceneComponentTree(Actor, *ChildComponent);
+                }
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
 
-		const FTransformEditSession& Session = *ActiveTransformEdit;
-		SendTransformEdit(
-			Session.SessionId,
-			ETransformEditPhase::Cancel,
-			Session.TargetHandle,
-			Session.InitialWorld,
-			Session.InitialTransformRevision);
-		ActiveTransformEdit.reset();
-	}
+    void DrawComponentNode(UActorComponent& Component, ImGuiTreeNodeFlags Flags) {
+        if (EditorContext->GetSelectedComponent() == &Component) Flags |= ImGuiTreeNodeFlags_Selected;
+        ImGui::PushID(&Component);
+        ImGui::TreeNodeEx("Component", Flags, "%s", GetComponentTypeName(Component));
+        if (ImGui::IsItemClicked()) EditorContext->SetSelectedComponent(&Component);
+        ImGui::PopID();
+    }
+
+    template<typename T>
+    void AddSceneComponent(AActor& Actor) {
+        static_assert(std::is_base_of_v<USceneComponent, T>);
+        T* NewComponent = Actor.AddComponent<T>();
+        if (USceneComponent* Root = Actor.GetRootComponent()) NewComponent->AttachToComponent(Root);
+        else Actor.SetRootComponent(NewComponent);
+        EditorContext->SetSelectedComponent(NewComponent);
+    }
+
+    void HandleDeleteShortcut(AActor& Actor, UActorComponent& Component) {
+        const ImGuiIO& IO = ImGui::GetIO();
+        if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) || IO.WantTextInput || ImGui::IsAnyItemActive() || !ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+            return;
+        }
+
+        Component.DestroyComponent();
+        EditorContext->SetSelectedActor(&Actor);
+    }
 
 private:
-	FStateChannel<FEditorSelectionState>::FReader SelectionReader;
-	FStateChannel<uint8>::FReadWriter GizmoMode;
-	FMessageChannel::FSender WorldCommandSender;
-
-	std::optional<FTransformEditSession> ActiveTransformEdit;
-	FVector3 EditPosition{};
-	FVector3 EditRotation{};
-	FVector3 EditScale{ 1.0f, 1.0f, 1.0f };
-	EGizmoMode CurrentGizmoMode = EGizmoMode::Translate;
+    FWorldEditorContext* EditorContext = nullptr;
+    FPropertyEditorContext PropertyEditor;
+    FStateChannel<uint8>::FReadWriter GizmoMode;
+    FStateChannel<uint8>::FReadWriter GizmoCoordinateSpace;
 };

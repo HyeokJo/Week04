@@ -1,5 +1,5 @@
-#include "PCH.h"
-#include "../doctest/doctest.h"
+﻿#include "PCH.h"
+#include "doctest.h"
 
 #include "../Core/Asset/BasicGeometry/Capsule.h"
 #include "../Core/Asset/BasicGeometry/Corn.h"

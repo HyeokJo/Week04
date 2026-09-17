@@ -5,6 +5,7 @@
 #include "FAssetHandle.h"
 #include "FMaterialBuffer.h"
 #include "UMaterial.h"
+#include "Common.h"
 
 #include <d3d11.h>
 #include <filesystem>
@@ -14,7 +15,7 @@
 #include <utility>
 #include <ranges>
 
-class FAssetRegistry {
+class FAssetRegistry : public IAssetQuery {
 public:
     FAssetRegistry() = default;
     ~FAssetRegistry() = default;
@@ -28,6 +29,10 @@ public:
 public:
     bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
 
+    // Lazily creates the fallback render assets used by unconfigured static meshes.
+    FAssetHandle EnsureDefaultStaticMeshMaterial();
+    FAssetHandle EnsureDefaultStaticMeshPipeline();
+
     FAssetHandle AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset);
 
     template<typename T> requires std::is_base_of_v<UAsset, T>
@@ -38,8 +43,10 @@ public:
         return AdoptAsset(Device, FGuid::NewGuid(), Name, MetadataPath, std::move(Asset));
     }
 
-    FAssetHandle GetAsset(const FString& Name) const;
-    FAssetHandle GetAsset(const FGuid& ID) const;
+    virtual FAssetHandle GetAsset(const FString& Name) const override;
+    virtual FAssetHandle GetAsset(const FGuid& ID) const override;
+
+    virtual UAsset* GetUAsset(const FString& Name) override;
 
     bool RemoveAsset(FAssetHandle Handle);
 
@@ -105,6 +112,7 @@ public:
             return Pair.second.get();
             });
     }
+
     void Reset()
     {
         Assets.clear();
@@ -112,7 +120,11 @@ public:
         AssetNameToHandle.clear();
         AssetIDToHandle.clear();
         MaterialBuffer.Reset();
+        Device = nullptr;
     }
+
+    void Finalize();
+
 private:
     FAssetHandle AllocateHandle();
     void RemoveHandleMappings(FAssetHandle Handle);
@@ -125,4 +137,6 @@ private:
     TMap<FGuid, FAssetHandle> AssetIDToHandle{};
 
     FMaterialBuffer MaterialBuffer{};
+
+    ID3D11Device* Device{ nullptr };
 };

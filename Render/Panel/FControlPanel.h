@@ -4,27 +4,20 @@
 #include "ImGui/imgui.h"
 #include "IEditorPanel.h"
 #include "FEditorInfo.h"
-#include "Core/Channel/FStateChannel.h"
 #include "Core/Channel/FMessageChannel.h"
-
-std::string GetFilePathFromExplorer();
-FString OpenFileDialog();
+#include "../../Scene/FWorldEditorContext.h"
 
 class FControlPanel : public IEditorPanel
 {
 public:
     FControlPanel(
-        FStateChannel<FMessageEditorCameraState>::FWriter InCamWriter,
-        FStateChannel<FMessageEditorCameraState>::FReader InCamReader,
+        FWorldEditorContext& InEditorContext,
         HWND InputWindowHandle,
-        FMessageChannel::FSender InSpawnSender,
-        FMessageChannel::FSender InSceneSender
+        FMessageChannel::FSender InEditorToWorldSender
     )
-        : CamWriter(std::move(InCamWriter))
-        , CamReader(std::move(InCamReader))
+        : EditorContext(&InEditorContext)
         , WindowHandle(InputWindowHandle)
-        , SpawnSender(std::move(InSpawnSender))
-        , SceneSender(std::move(InSceneSender))
+        , EditorToWorldSender(std::move(InEditorToWorldSender))
     {
     }
 
@@ -33,18 +26,14 @@ public:
     FString OpenFileDialog();
 
 private:
-    FStateChannel<FMessageEditorCameraState>::FWriter CamWriter;
-    FStateChannel<FMessageEditorCameraState>::FReader CamReader;
-
-    //FMessageChannel::FSender WorldCommandSender;
-
-    FMessageChannel::FSender SpawnSender;
-    FMessageChannel::FSender SceneSender;
+    FWorldEditorContext* EditorContext = nullptr;
+    FMessageChannel::FSender EditorToWorldSender;
 
 private:
     char SceneNameBuffer[256] = "NewScene";
 
-    int SelectedPrimitiveIndex = 0;
+    int SelectedComponentIndex = -1;
+    int SelectedMeshIndex = 0;
     int SpawnCountToRequest = 1;
 
     FVector3 CachedCamPos{};
@@ -52,6 +41,13 @@ private:
 
     // UCameraComponent와 동일하게 radians
     float CachedFOV = 1.0472f;
+
+    float GridSize{};
+
+    size_t RenderModeIndex = 0;
+
+    // Components 체크리스트에서 컴포넌트 타입을 검색한다.
+    ImGuiTextFilter ComponentFilter;
 
     HWND WindowHandle;
 };

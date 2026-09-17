@@ -1,120 +1,108 @@
-﻿#pragma once
+#pragma once
 
 #include <filesystem>
+#include <memory>
 #include <optional>
 
+#include <d3d11.h>
+
+#include "AActor.h"
+#include "Component/UCameraComponent.h"
+#include "Component/UStaticMeshComponent.h"
+#include "Component/UCollisionComponent.h"
+#include "Core/Asset/FAssetRegistry.h"
+#include "Core/Asset/UMesh.h"
 #include "Core/Base/TObjectRef.h"
-#include "Core/Channel/FMessageChannel.h"
 #include "Core/Channel/FStateChannel.h"
 
 #include "Common.h"
 #include "Core/Base/UObject.h"
 #include "Core/Base/UObjectSystem.h"
 #include "Core/Base/FRenderProbe.h"
-#include "FEditorSelectionState.h"
+#include "FWorldEditorContext.h"
+#include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraRotateRequestMessage.h"
+#include "FMousePickRequestMessage.h"
 #include "Render/Panel/FEditorInfo.h"
 
 #include "../Render/RenderWindowInfo.h"
-#include "../Core/Channel/FStateChannel.h"
+
+#include "../Serialize/FEditorConfigManager.h"
 
 class AActor;
 class UCameraComponent;
 class UStaticMeshComponent;
 struct ID3D11Device;
 class FAssetRegistry;
-
-class UCollisionComponent;
-class FAssetRegistry;
-class UMesh;
-
-
-struct FMousePickRequestMessage;
-struct FMouseCameraRotateRequestMessage;
-struct FKeyboardCameraMoveRequestMessage;
-struct FMousePickReleaseRequestMessage;
-struct FTransformEditRequestMessage;
-
-struct FMessageSpawnPrimitive;
-struct FMessageNewScene;
-struct FMessageSaveScene;
-struct FMessageLoadScene;
-struct FMessageChangeGizmoMode;
-
+class UCameraSubsystem;
+class UCollisionSubsystem;
+class UPickingSubsystem;
+class URenderSubsystem;
+class UBillboardSubsystem;
+class UTextSubsystem;
+class ULightSubsystem;
 
 class UWorld : public UObject
 {
 public:
-    UWorld() = default;
+    UWorld();
     ~UWorld() override;
 
     AActor* AddActor(std::unique_ptr<AActor> InActor);
 
     template<typename T>
     requires std::is_base_of_v<AActor, T>
-    T* AdoptActor()
-    {
+    T* AdoptActor() {
         std::unique_ptr<T> NewActor = std::make_unique<T>();
 
         T* ActorPtr = NewActor.get();
 
-        if (AddActor(std::move(NewActor)) == nullptr)
-        {
+        if (AddActor(std::move(NewActor)) == nullptr) {
             return nullptr;
         }
+
+        ActorPtr->SetName(MakeUniqueObjectName(ActorPtr->GetTypeInfo()->TypeName));
 
         return ActorPtr;
     }
 
-    bool SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle,
-        const FVector3& Position, UMesh* Mesh, FAssetRegistry* AssetRegistry);
+    bool SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Position);
     bool DestroyActor(AActor* Actor);
     void FlushPendingDestroyActors();
 
     const TArray<std::unique_ptr<AActor>>& GetActors() const;
     FRenderProbe& BuildRenderProbe();
     
-    FStateChannel<FEditorSelectionState>::FReader GetEditorSelectionStateReader() const noexcept {
-		return EditorSelectionState.GetReader();
-    }
+    void SetEditorContext(FWorldEditorContext* InEditorContext);
+    FWorldEditorContext* GetEditorContext() const noexcept;
 
     void Tick(float DeltaTime);
 
-    void RegisterRenderable(UStaticMeshComponent* Component);
-    void UnregisterRenderable(UStaticMeshComponent* Component);
-    void SetMainCamera(UCameraComponent* InCamera);
-    void ClearMainCamera(UCameraComponent* InCamera);
+    URenderSubsystem& GetRenderSubsystem();
+    const URenderSubsystem& GetRenderSubsystem() const;
+    UCollisionSubsystem& GetCollisionSubsystem();
+    const UCollisionSubsystem& GetCollisionSubsystem() const;
+    UPickingSubsystem& GetPickingSubsystem();
+    const UPickingSubsystem& GetPickingSubsystem() const;
+    UCameraSubsystem& GetCameraSubsystem();
+    const UCameraSubsystem& GetCameraSubsystem() const;
+    UBillboardSubsystem& GetBillboardSubsystem();
+    const UBillboardSubsystem& GetBillboardSubsystem() const;
+
+    UTextSubsystem& GetTextSubsystem();
+    const UTextSubsystem& GetTextSubsystem() const;
+    ULightSubsystem& GetLightSubsystem();
+    const ULightSubsystem& GetLightSubsystem() const;
 
     bool SaveScene(const FString& SceneName, FAssetRegistry* AssetRegistry);
     bool LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Device, FAssetRegistry* AssetRegistry);
 
 	JG_DECLARE_DERIVED_TYPEINFO(UWorld, UObject);
 
-    void InitializeEditorEventSender(FMessageChannel::FSender&& InSender);
-    void InitializeEditorCameraState(
-        FStateChannel<FMessageEditorCameraState>::FWriter InWriter,
-        FStateChannel<FMessageEditorCameraState>::FReader InReader);
-
     void HandleMousePickRequest(const FMousePickRequestMessage& Message);
-
-	void HandleMousePickReleaseRequest(const FMousePickReleaseRequestMessage& Message);
-
-	void HandleTransformEditRequest(const FTransformEditRequestMessage& Message);
-
     void HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message);
-
     void HandleKeyboardCameraMoveRequest(const FKeyboardCameraMoveRequestMessage& Message);
-
-    void RegisterCollision(UCollisionComponent* Component);
-    void UnregisterCollision(UCollisionComponent* Component);
-
-    void HandleSpawnPrimitive(const FMessageSpawnPrimitive& Message, FAssetRegistry& AssetRegistry);
-    void HandleNewScene(const FMessageNewScene& Message);
-    void HandleLoadScene(const FMessageLoadScene& Message);
-
-    void HandleChangeGizmoMode(const FMessageChangeGizmoMode& Message);
-
-    std::optional<FStateChannel<FMessageEditorCameraState>::FWriter> EditorCameraWriter;
-    std::optional<FStateChannel<FMessageEditorCameraState>::FReader> EditorCameraReader;
+    void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
 
 	void UpdateEditorCameraState();
     void SetAssetRegistry(FAssetRegistry* InAssetRegistry);
@@ -124,43 +112,38 @@ public:
 
     void ResetWorld(FAssetRegistry* AssetRegistry, ID3D11Device* Device);
 
+    FName MakeUniqueObjectName(std::string_view SourceName);
+    AActor* FindActorByName(FName InName) const;
+
+    FEditorSettings& GetSettings() { return Settings; }
 private:
-	struct FActiveTransformEdit {
-		std::uint64_t SessionId = 0;
-		FObjectHandle TargetHandle{};
-		FMatrix OriginalWorld{ FMatrix::Identity };
-	};
+	void InitializeSubsystems();
+	void DeinitializeSubsystems();
 
-	void PublishEditorSelectionState();
+    void PublishEditorCameraState();
 
+private:
     TArray<std::unique_ptr<AActor>> Actors;
     TArray<AActor*> PendingDestroyActors;
+   
     TArray<UStaticMeshComponent*> RenderableComponents;
     TArray<TObjectRef<UCollisionComponent>> CollisionComponents;
 
-
-	TObjectRef<UCollisionComponent> SelectedCollider;
-	FStateChannel<FEditorSelectionState> EditorSelectionState;
 	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader;
 
-	std::optional<FActiveTransformEdit> ActiveTransformEdit;
-	std::uint64_t TransformRevision = 1;
+    FWorldEditorContext* EditorContext{ nullptr };
+    FAssetRegistry* AssetRegistry{ nullptr };
 
-    std::optional<FMessageChannel::FSender> EditorEventSender;
+    std::unique_ptr<URenderSubsystem> RenderSubsystem;
+    std::unique_ptr<UCollisionSubsystem> CollisionSubsystem;
+    std::unique_ptr<UPickingSubsystem> PickingSubsystem;
+    std::unique_ptr<UCameraSubsystem> CameraSubsystem;
 
-    FAssetRegistry* AssetRegistry = nullptr;
+    std::unique_ptr<UBillboardSubsystem> BillboardSubsystem;
+	std::unique_ptr<UTextSubsystem> TextSubsystem;
+    std::unique_ptr<ULightSubsystem> LightSubsystem;
 
-	//AActor* SelectedActor = nullptr;
-
-    UCameraComponent* Camera = nullptr;
     FRenderProbe Probe{};
 
-    void ApplyEditorCameraState();
-    void PublishEditorCameraState();
-
-    std::optional<FStateChannel<FMessageEditorCameraState>::FWriter>
-        EditorCameraStateWriter;
-
-    std::optional<FStateChannel<FMessageEditorCameraState>::FReader>
-        EditorCameraStateReader;
+    FEditorSettings Settings;
 };

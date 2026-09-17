@@ -360,3 +360,27 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Premake / Visual Studio generated project files
+/build/
+/bin-int/
+
+# Keep checked-in third-party static libraries despite the global bin/ and
+# configuration-directory build-output rules above.
+!/Externals/
+!/Externals/bin/
+!/Externals/bin/debug/
+!/Externals/bin/release/
+!/Externals/bin/debug/DirectXTex.lib
+!/Externals/bin/release/DirectXTex.lib
+
+*.sln
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.ini
+
+# Locally restored vcpkg tool and packages
+/.tools/
+/vcpkg_installed/

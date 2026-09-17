@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "../Core/Base/FGuid.h"
+#include "../FName.h"
 
 enum class EArchiveMode : uint8
 {
@@ -38,8 +39,8 @@ public:
     // ---------------------------------------------------
     // 2. 수학 코어 타입 (DirectX SimpleMath)
     // ---------------------------------------------------
-    virtual void Serialize(std::string_view Name, FVector2D& Value) = 0;
-    virtual void Serialize(std::string_view Name, FVector3& Value) = 0;
+    virtual void Serialize(std::string_view Name, FVector2& Value) = 0;
+    virtual void Serialize(std::string_view Name, FVector& Value) = 0;
     virtual void Serialize(std::string_view Name, FVector4& Value) = 0;
     virtual void Serialize(std::string_view Name, FQuat& Value) = 0;
     virtual void Serialize(std::string_view Name, FMatrix& Value) = 0;
@@ -68,6 +69,17 @@ public:
         }
 
         EndArrayScope();
+    }
+
+    void Serialize(std::string_view Name, FName& Value)
+    {
+        FString Str = Value.ToString();
+        Serialize(Name, Str);
+
+        if (IsLoading())
+        {
+            Value = FName(Str);
+        }
     }
 
     // ---------------------------------------------------
