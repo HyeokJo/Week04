@@ -4,6 +4,8 @@
 
 #include "Scene/Component/UCollisionComponent.h"
 
+#include "../AActor.h"
+
 void UCollisionSubsystem::RegisterComponent(UCollisionComponent* Component) {
     if (Component == nullptr || ContainsComponent(Component)) {
         return;
@@ -24,7 +26,7 @@ bool UCollisionSubsystem::Raycast(const FRay& Ray, UCollisionComponent*& OutComp
 
     for (const TObjectRef<UCollisionComponent>& ComponentRef : Components) {
         UCollisionComponent* Component = ComponentRef.Get();
-        if (Component == nullptr) {
+        if (Component == nullptr or not ComponentRef->IsActive()) {
             continue;
         }
 

@@ -65,6 +65,8 @@ FAssetHandle FAssetRegistry::AdoptAsset(ID3D11Device* Device, const FGuid& ID, c
         return {};
     }
 
+	Asset->RestoreGuid(ID);
+
     UAsset* TypedAsset = static_cast<UAsset*>(Asset.get());
 
     TypedAsset->SetAssetName(Name);

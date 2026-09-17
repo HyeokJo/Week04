@@ -113,5 +113,24 @@ void USubUVComponent::DrawPanels(FPropertyEditorContext& Context)
 	UBillboardComponent::DrawPanels(Context);
 	
 	Context.DrawFloat("FrameRate", FrameRate, 1.0f, 0.0f, 240.0f, [this](float NewRate) { SetFrameRate(NewRate); });
+	Context.DrawVector2("SubImage", FVector2{ static_cast<float>(SubImageHorizontal), static_cast<float>(SubImageVertical) }, 1.0f, 1.0f, 100.0f, [this](const FVector2& NewValue) {
+		SetSubImage(static_cast<int32>(NewValue.x), static_cast<int32>(NewValue.y), TotalFrame, FrameRate, bLooping);
+		});
+}
+
+void USubUVComponent::Serialize(FArchive& Archive) {
+	UBillboardComponent::Serialize(Archive);
+	Archive.Serialize("TotalFrame", TotalFrame);
+	Archive.Serialize("SubImageHorizontal", SubImageHorizontal);
+	Archive.Serialize("SubImageVertical", SubImageVertical);
+	Archive.Serialize("FrameRate", FrameRate);
+	Archive.Serialize("bLooping", bLooping);
+	Archive.Serialize("bPlaying", bPlaying);
 	
+	if (Archive.IsLoading())
+	{
+		ElapsedTime = 0.0f;
+		CurrentFrameIndex = 0;
+		UpdateUVFromCurrentFrame();
+	}
 }
