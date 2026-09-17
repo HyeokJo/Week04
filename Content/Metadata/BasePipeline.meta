@@ -1,3 +1,8 @@
 {
-	"FilePath" : "./Pipeline/Base.json",
+	"LitFilePath" : "./Pipeline/BaseLit.json",
+	"UnlitFilePath" : "./Pipeline/BaseUnlit.json",
+	"WireframeFilePath" : "./Pipeline/BaseWireframe.json",
+	"LitWireframeFilePath" : "./Pipeline/BaseWireframe.json",
+	"OutlineFilePath" : "./Pipeline/Outline.json",
+	"Primary" : 0,
 }

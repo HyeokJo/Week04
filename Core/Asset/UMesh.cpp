@@ -12,6 +12,7 @@
 #include "BasicGeometry/Plane.h"
 #include "BasicGeometry/Sphere.h"
 #include "BasicGeometry/Torus.h"
+#include "BasicGeometry/InverseSphere.h"
 
 void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
 	UAsset::Initialize(Device, metaData);
@@ -73,10 +74,31 @@ void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaDa
 			);
 		}
 		else if (MeshType == "Torus") {
+			float MajorRadius = MetadataParser.GetOr("MajorRadius",BasicGeometry::Torus::MajorRadius);
+			float MinorRadius = MetadataParser.GetOr("MinorRadius",BasicGeometry::Torus::MinorRadius);
+
+			if (MajorRadius <= 0.0f) 
+			{
+				MajorRadius = BasicGeometry::Torus::MajorRadius;
+			}
+
+			if (MinorRadius <= 0.0f)
+			{
+				MinorRadius = BasicGeometry::Torus::MinorRadius;
+			}
+
+			const BasicGeometry::Torus::FGeometry Geometry =BasicGeometry::Torus::GenerateGeometry(MajorRadius,MinorRadius);
 			UMesh::Make(Device, BasicGeometry::Torus::Indices,
-				MakeVertexAttribute<EVertexAttribute::Position>(BasicGeometry::Torus::Positions),
-				MakeVertexAttribute<EVertexAttribute::Normal>(BasicGeometry::Torus::Normals),
-				MakeVertexAttribute<EVertexAttribute::UV>(BasicGeometry::Torus::TexCoords)
+				MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+				MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+				MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords)
+			);
+		}
+		else if (MeshType == "SkyDome") {
+			UMesh::Make(Device, BasicGeometry::SkyDome::Indices,
+				MakeVertexAttribute<EVertexAttribute::Position>(BasicGeometry::SkyDome::Positions),
+				MakeVertexAttribute<EVertexAttribute::Normal>(BasicGeometry::SkyDome::Normals),
+				MakeVertexAttribute<EVertexAttribute::UV>(BasicGeometry::SkyDome::TexCoords)
 			);
 		}
 		else {
@@ -192,17 +214,4 @@ void UMesh::Reset() {
 	IndexBuffer.Reset();
 	Indices.clear();
 
-	LocalBoundingBox = DirectX::BoundingBox{};
-}
-
-void UMesh::CalculateBounds() {
-	const auto Positions = GetVertexAttributeData<EVertexAttribute::Position>();
-
-	std::vector<DirectX::XMFLOAT3> boundsPoints;
-    boundsPoints.reserve(Positions.size());
-    for (const FVector3& position : Positions)
-        boundsPoints.emplace_back(position.x, position.y, position.z);
-    LocalBoundingBox = {};
-    if (!boundsPoints.empty())
-        DirectX::BoundingBox::CreateFromPoints(LocalBoundingBox, boundsPoints.size(), boundsPoints.data(), sizeof(DirectX::XMFLOAT3));
 }

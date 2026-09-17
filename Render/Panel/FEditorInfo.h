@@ -7,7 +7,7 @@
 // =========================================================
 // [State] 양방향 상태 데이터 (TStateChannel 용)
 // =========================================================
-struct FMessageEditorCameraState
+struct FCameraSnapshot
 {
     FVector3 Position;
     FRotator Rotation;
@@ -24,30 +24,42 @@ struct FMessageEditorCameraState
     MessageType(MessageType&&) noexcept = default; \
     MessageType& operator=(MessageType&&) noexcept = default
 
-// =========================================================
-// [Event] 단방향 메시지 데이터 (FMessageChannel 용)
-// =========================================================
-struct FMessageSpawnPrimitive
+struct FMessageSetEditorCameraRequest
 {
-    FString PrimitiveType;
-    uint32 SpawnCount;
+    FVector3 Position;
+    FRotator Rotation;
+    float FOV;
 
-    JG_DECLARE_EDITOR_MESSAGE(FMessageSpawnPrimitive);
+    JG_DECLARE_EDITOR_MESSAGE(FMessageSetEditorCameraRequest);
 
-    FMessageSpawnPrimitive(FString InputType, uint32 InputCount) noexcept
-        : PrimitiveType(std::move(InputType)), SpawnCount(InputCount)
+    FMessageSetEditorCameraRequest(
+        const FVector3& InPosition,
+        const FRotator& InRotation,
+        float InFOV) noexcept
+        : Position(InPosition)
+        , Rotation(InRotation)
+        , FOV(InFOV)
     {
     }
 };
 
-struct FMessageDeletePrimitive
+// =========================================================
+// [Event] 단방향 메시지 데이터 (FMessageChannel 용)
+// =========================================================
+struct FMessageSpawnComponent
 {
-    JG_DECLARE_EDITOR_MESSAGE(FMessageDeletePrimitive);
-};
+    FString ComponentType;
+    FString MeshType;
+    uint32 SpawnCount;
 
-struct FMessageNewScene
-{
-    JG_DECLARE_EDITOR_MESSAGE(FMessageNewScene);
+    JG_DECLARE_EDITOR_MESSAGE(FMessageSpawnComponent);
+
+    FMessageSpawnComponent(FString InputComponentType, FString InputMeshType, uint32 InputCount) noexcept
+        : ComponentType(std::move(InputComponentType))
+        , MeshType(std::move(InputMeshType))
+        , SpawnCount(InputCount)
+    {
+    }
 };
 
 struct FMessageSaveScene
@@ -81,13 +93,8 @@ enum class EGizmoMode : uint8
     Scale
 };
 
-struct FMessageChangeGizmoMode
+enum class EGizmoCoordinateSpace : uint8
 {
-    EGizmoMode Mode;
-
-    JG_DECLARE_EDITOR_MESSAGE(FMessageChangeGizmoMode);
-    FMessageChangeGizmoMode(EGizmoMode InputMode) noexcept
-        : Mode(InputMode)
-    {
-    }
+    World,
+    Local
 };

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 
@@ -34,19 +34,5 @@ struct FMousePickRequestMessage
 		, ViewportWidth(InViewportWidth)
 		, ViewportHeight(InViewportHeight)
 	{
-	}
-};
-
-
-struct FMousePickReleaseRequestMessage
-{
-	inline static const FTypeInfo TypeInfo{
-		"FMousePickReleaseRequestMessage",
-		nullptr,
-		nullptr
-	};
-	static const FTypeInfo& StaticTypeInfo() noexcept
-	{
-		return TypeInfo;
 	}
 };

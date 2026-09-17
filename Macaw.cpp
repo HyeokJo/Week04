@@ -1,4 +1,4 @@
-﻿// Macaw.cpp : 애플리케이션에 대한 진입점을 정의합니다.
+// Macaw.cpp : 애플리케이션에 대한 진입점을 정의합니다.
 //
 #include "PCH.h"
  
@@ -27,7 +27,11 @@
 #include "Scene/AActor.h"
 #include "Scene/Component/UCameraComponent.h"
 #include "Scene/Component/UStaticMeshComponent.h"
-#include "Scene/Component/UCollisionComponent.h"
+#include "Scene/Component/UBoxColliderComponent.h"
+#include "Scene/Component/UDirectionalLightComponent.h"
+#include "Scene/Component/UPointLightComponent.h"
+#include "Scene/Component/USpotLightComponent.h"
+#include "Scene/FWorldEditorContext.h"
 
 #include "Core/Base/TypeRegistry.h"
 
@@ -39,11 +43,8 @@
 
 #include "FMousePickRequestMessage.h"
 #include "FMouseCameraRotateRequestMessage.h"
-#include "FWorldSelectionChangedMessage.h"
-#include "FTransformEditRequestMessage.h"
 #include "FKeyboardInput.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
-#include "Render/Panel/FEditorSelection.h"
 
 #include "Core/Base/UndoSystem/FUndoSystem.h"
 #include "Core/Base/UndoSystem/FUndoMessages.h"
@@ -53,8 +54,21 @@
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Asset/UMesh.h"
 #include "Core/Asset/UColorMaterial.h"
+#include "Core/Asset/UTexture.h"
+#include "Core/Asset/UTexturedMaterial.h"
 
 #include "Render/EditorView/EditorViewport.h"
+
+#include "Core/Asset/UFont.h"
+#include "Core/Asset/UFreeTypeFont.h"
+#include "Scene/Component/UBillBoardComponent.h"
+#include "Scene/Component/UBillBoardTextComponent.h"
+#include "Scene/Component/UNameTagComponent.h"
+
+#include "Serialize/FEditorConfigManager.h"
+
+#include "Scene/Component/UBillboardComponent.h"
+#include "Scene/Component/USubUVComponent.h"
 
 #define MAX_LOADSTRING 100
 
@@ -73,16 +87,6 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름�
 
 HWND hWnd = nullptr;
 
-struct FImGuiViewportMoveSnapshot
-{
-    HWND WindowHandle;
-    POINT Position;
-};
-
-POINT GMainWindowMoveStartPosition{};
-std::vector<FImGuiViewportMoveSnapshot> GImGuiViewportMoveSnapshots;
-bool GIsMovingMainWindow = false;
-
 FMouseInput GMouseInput;
 FKeyboardInput GKeyboardInput;
 
@@ -93,7 +97,92 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 HWND gHWND;
 FRenderer Renderer;
 
-//#define LOAD 
+namespace {
+    constexpr bool bEnableSceneSave = true;
+
+    void ConfigureTestStaticMesh(UStaticMeshComponent* MeshComponent, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Location) {
+        MeshComponent->SetMeshHandle(MeshHandle);
+        MeshComponent->SetPipelineHandle(PipelineHandle);
+        MeshComponent->SetMaterialHandle(MaterialHandle);
+        MeshComponent->SetRelativeLocation(Location);
+    }
+
+    UStaticMeshComponent* AddTestStaticMesh(AActor* Actor, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Location) {
+        UStaticMeshComponent* MeshComponent = Actor->AddComponent<UStaticMeshComponent>();
+        if (MeshComponent != nullptr) {
+            ConfigureTestStaticMesh(MeshComponent, MeshHandle, PipelineHandle, MaterialHandle, Location);
+        }
+        return MeshComponent;
+    }
+
+    void AddTestCollider(AActor* Actor, USceneComponent* Parent, UMeshComponent* MeshComponent) {
+        UBoxColliderComponent* Collider = Actor->AddComponent<UBoxColliderComponent>();
+        if (Collider == nullptr || !Collider->AttachToComponent(Parent)) {
+            return;
+        }
+        Collider->SetMeshComponent(MeshComponent);
+    }
+
+    void AddTestNameTag(AActor* Actor, USceneComponent* Root) {
+        if (Actor == nullptr || Root == nullptr) {
+            return;
+        }
+
+        UNameTagComponent* NameTag = Actor->AddComponent<UNameTagComponent>();
+        NameTag->AttachToComponent(Root);
+        NameTag->SetTargetActor(nullptr);
+        NameTag->SetVisible(true);
+        NameTag->SetActive(false);
+    }
+
+    void CreateComponentHierarchyTest(UWorld& World, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const UMesh* Mesh) {
+        AActor* Actor = World.AdoptActor<AActor>();
+        UStaticMeshComponent* Root = AddTestStaticMesh(Actor, MeshHandle, PipelineHandle, MaterialHandle, { -12.0f, 0.0f, 8.0f });
+        if (Root == nullptr || !Actor->SetRootComponent(Root)) {
+            return;
+        }
+
+        USceneComponent* Parent = Root;
+        for (uint32 Index = 0; Index < 4; ++Index) {
+            UStaticMeshComponent* Child = AddTestStaticMesh(Actor, MeshHandle, PipelineHandle, MaterialHandle, { 0.0f, 0.0f, 2.0f });
+            if (Child == nullptr || !Child->AttachToComponent(Parent)) {
+                return;
+            }
+            Parent = Child;
+        }
+
+        AddTestCollider(Actor, Root, Root);
+        AddTestNameTag(Actor, Root);
+    }
+
+    void CreateActorHierarchyTest(UWorld& World, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const UMesh* Mesh) {
+        AActor* ParentActor = World.AdoptActor<AActor>();
+        UStaticMeshComponent* ParentRoot = AddTestStaticMesh(ParentActor, MeshHandle, PipelineHandle, MaterialHandle, { 12.0f, 0.0f, 8.0f });
+        if (ParentRoot == nullptr || !ParentActor->SetRootComponent(ParentRoot)) {
+            return;
+        }
+        AddTestCollider(ParentActor, ParentRoot, ParentRoot);
+        AddTestNameTag(ParentActor, ParentRoot);
+
+        AActor* ChildActor = World.AdoptActor<AActor>();
+        UStaticMeshComponent* ChildRoot = AddTestStaticMesh(ChildActor, MeshHandle, PipelineHandle, MaterialHandle, { 0.0f, 0.0f, 3.0f });
+        if (ChildRoot == nullptr || !ChildActor->SetRootComponent(ChildRoot)) {
+            return;
+        }
+
+        if (!ChildRoot->AttachToComponent(ParentRoot)) {
+            return;
+        }
+
+        AddTestCollider(ChildActor, ChildRoot, ChildRoot);
+        AddTestNameTag(ChildActor, ChildRoot);
+    }
+
+    void CreateHierarchyTests(UWorld& World, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const UMesh* Mesh) {
+        CreateComponentHierarchyTest(World, MeshHandle, PipelineHandle, MaterialHandle, Mesh);
+        CreateActorHierarchyTest(World, MeshHandle, PipelineHandle, MaterialHandle, Mesh);
+    }
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -109,27 +198,27 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     TypeRegistry::Register(UMesh::StaticTypeInfo());
     TypeRegistry::Register(UPipeline::StaticTypeInfo());
 	TypeRegistry::Register(UColorMaterial::StaticTypeInfo());
+	TypeRegistry::Register(UTexturedMaterial::StaticTypeInfo());
+	TypeRegistry::Register(UTexture::StaticTypeInfo());
     TypeRegistry::Register(AActor::StaticTypeInfo());
+    TypeRegistry::Register(UFont::StaticTypeInfo());
+    TypeRegistry::Register(UFreeTypeFont::StaticTypeInfo());
 
 	TypeRegistry::Register(UWorld::StaticTypeInfo());
-	TypeRegistry::Register(AActor::StaticTypeInfo());
 	TypeRegistry::Register(UCameraComponent::StaticTypeInfo());
 	TypeRegistry::Register(UStaticMeshComponent::StaticTypeInfo());
     TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
+    TypeRegistry::Register(UBoxColliderComponent::StaticTypeInfo());
+	TypeRegistry::Register(UDirectionalLightComponent::StaticTypeInfo());
+	TypeRegistry::Register(UPointLightComponent::StaticTypeInfo());
+	TypeRegistry::Register(USpotLightComponent::StaticTypeInfo());
 	TypeRegistry::Register(UActorComponent::StaticTypeInfo());
 	TypeRegistry::Register(USceneComponent::StaticTypeInfo());
-	TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
+    TypeRegistry::Register(UBillboardTextComponent::StaticTypeInfo());
+    TypeRegistry::Register(UNameTagComponent::StaticTypeInfo());
 	
-
-
-    auto res = TypeRegistry::Find("UMesh")->Creator();
-	if (res->GetTypeInfo()->IsA(UMesh::StaticTypeInfo())) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "UMesh instance created successfully.");
-	}
-	else {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create UMesh instance.");
-	}
-
+    TypeRegistry::Register(UBillboardComponent::StaticTypeInfo());
+    TypeRegistry::Register(USubUVComponent::StaticTypeInfo());
 
     // 전역 문자열을 초기화합니다.
     //LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -152,6 +241,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // test
     UWorld World{};
+    FWorldEditorContext EditorContext{};
+    World.SetEditorContext(&EditorContext);
+	EditorContext.SetWorld(&World);
 
     Renderer.Create(gHWND, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
 
@@ -162,146 +254,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 
     FMessageChannel WorldCommandChannel{ 64 };
-    FMessageChannel EditorEventChannel{ 64 };
-    FEditorSelection EditorSelection;
-
-    FStateChannel<FMessageEditorCameraState> EditorCameraStateChannel;
-
-    FMessageChannel SpawnCommandChannel{ 64 };
-    FMessageChannel SceneCommandChannel{ 64 };
-    FMessageChannel GizmoCommandChannel{ 64 };
-
-    
-    
-    /*
-    FMessageChannel UndoCommandChannel{ 64 };
-    FUndoSystem::InitializeSenderToWorldChannel(UndoCommandChannel.GetSender());
-    UndoCommandChannel.TryBind<FMessageUndoObjectStateChanged>(
-        [&World, &AssetRegistry](const FMessageUndoObjectStateChanged& Message)
-        {
-            UObject* Target = UObjectSystem::Resolve(UObjectSystem::FindHandleByGuid(Message.TargetGuid));
-            if (Target)
-            {
-                FArchiveMemory ArchiveLoad(Message.SavedData);
-                Target->Load(ArchiveLoad);
-
-            }
-        });
-    UndoCommandChannel.TryBind<FMessageUndoObjectSpawned>(
-        [&World, &AssetRegistry](const FMessageUndoObjectSpawned& Message)
-        {
-            FGuid ActorGuid;
-            ActorGuid.Parse(Message.TargetGuid.ToString());
-            FString TypeName = Message.TargetTypeName;
-
-            std::unique_ptr<UObject> CreatedObject = TypeRegistry::Find(TypeName)->Creator();
-            std::unique_ptr<AActor> ActorPointer(static_cast<AActor*>(CreatedObject.release()));
-            UObjectSystem::RegisterWithGuid(ActorPointer.get(), ActorGuid);
-
-            const auto SavedData = Message.SavedData;
-            FArchiveMemory ArchiveLoad(SavedData);
-            ArchiveLoad.SetAssetRegistry(&AssetRegistry);
-            ActorPointer->Load(ArchiveLoad);
-            ActorPointer->SetWorld(&World);
-
-            World.AddActor(std::move(ActorPointer));
-        });
-    UndoCommandChannel.TryBind<FMessageUndoObjectDestroyed>(
-        [&World](const FMessageUndoObjectDestroyed& Message)
-        {
-            World.DestroyActor(static_cast<AActor*>(UObjectSystem::Resolve(UObjectSystem::FindHandleByGuid(Message.TargetGuid))));
-            World.FlushPendingDestroyActors();
-        });
-    WorldCommandChannel.TryBind<FMessageUndoApply>(
-        [](const FMessageUndoApply& Message)
-        {
-            if (Message.bIsUndo)
-                FUndoSystem::Undo();
-            else
-                FUndoSystem::Redo();
-        });
-
-        */
-
-
-    SpawnCommandChannel.TryBind<FMessageSpawnPrimitive>(
-        [&World, &AssetRegistry](const FMessageSpawnPrimitive& Message)
-        {
-            /*
-            FString TransactionName;
-            // "Spawn "(6자) + 32비트 정수 최대 길이(11자) + PrimitiveType 길이
-            TransactionName.reserve(17 + Message.PrimitiveType.size());
-            std::format_to(std::back_inserter(TransactionName), "Spawn {}{}(es)", Message.SpawnCount, Message.PrimitiveType);
-
-            FUndoSystem::BeginTransaction(TransactionName);
-            FUndoSystem::EndTransaction();
-            */
-            World.HandleSpawnPrimitive(Message, AssetRegistry);
-        }
-    );
-    SpawnCommandChannel.TryBind<FMessageDeletePrimitive>(
-        [&World](const FMessageDeletePrimitive& Message)
-        {
-            if (World.GetEditorSelectionStateReader().HasValue())
-            {
-                UCollisionComponent* SelectedActor = static_cast<UCollisionComponent*>(UObjectSystem::Resolve(World.GetEditorSelectionStateReader().Read().PickedColliderHandle));
-                World.DestroyActor(SelectedActor->GetOwner());
-                World.FlushPendingDestroyActors();
-            }
-
-        }
-    );
+    EditorContext.InitializeChannels(AssetRegistry, Renderer.GetDevice());
 
     
 
     EditorViewport EditorView{};
-    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), World.GetEditorSelectionStateReader(), WorldCommandChannel.GetSender());
+    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), EditorContext);
 
     FEditorUIManager EditorUIManager;
 
-    EditorUIManager.Initialize(
-        World,
-
-        EditorCameraStateChannel.GetWriter(),
-        EditorCameraStateChannel.GetReader(),
-
-        gHWND,
-
-        World.GetEditorSelectionStateReader(),
-        WorldCommandChannel.GetSender(),
-
-        SpawnCommandChannel.GetSender(),
-        SceneCommandChannel.GetSender(),
-        EditorView.GetGizmoMode()
-    );
-
-    World.InitializeEditorCameraState(
-        EditorCameraStateChannel.GetWriter(),
-        EditorCameraStateChannel.GetReader()
-    );
+    EditorUIManager.Initialize(World, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
-    World.InitializeEditorEventSender(EditorEventChannel.GetSender());
 	World.SetWindowInfoReader(Renderer.GetWindowInfoReader());
 	World.SetAssetRegistry(&AssetRegistry);
 
     WorldCommandChannel.TryBind<FMousePickRequestMessage>(
-        [&World](const FMousePickRequestMessage& Message)
-        {
-            World.HandleMousePickRequest(Message);
-        });
+        [&World](const FMousePickRequestMessage& Message) { World.HandleMousePickRequest(Message); });
 
     WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>(
         [&World](const FMouseCameraRotateRequestMessage& Message)
         {
             World.HandleMouseCameraRotateRequest(Message);
-        });
-
-    EditorEventChannel.TryBind<FWorldSelectionChangedMessage>(
-        [&EditorSelection](const FWorldSelectionChangedMessage& Message)
-        {
-            EditorSelection.HandleSelectionChanged(Message);
         });
 
     WorldCommandChannel.TryBind<
@@ -312,192 +287,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 World.HandleKeyboardCameraMoveRequest(Message);
             });
 
-    SceneCommandChannel.TryBind<FMessageNewScene>(
-        [&World](const FMessageNewScene& Message)
-        {
-            World.HandleNewScene(Message);
-        }
-    );
-
-    SceneCommandChannel.TryBind<FMessageSaveScene>(
-        [&World, &AssetRegistry](const FMessageSaveScene& Message)
-        {
-            World.SaveScene(
-                Message.SceneName,
-                &AssetRegistry
-            );
-        }
-    );
-	WorldCommandChannel.TryBind<FMousePickReleaseRequestMessage>(
-		[&World](const FMousePickReleaseRequestMessage& Message)
-		{
-			World.HandleMousePickReleaseRequest(Message);
-		});
-
-	WorldCommandChannel.TryBind<FTransformEditRequestMessage>(
-		[&World](const FTransformEditRequestMessage& Message) {
-			World.HandleTransformEditRequest(Message);
-		});
-
-
-
   
-    SceneCommandChannel.TryBind<FMessageLoadScene>(
-        [&World, &AssetRegistry](const FMessageLoadScene& Message)
-        {
-            World.LoadScene(
-                std::filesystem::path(Message.FilePath.c_str()),
-                Renderer.GetDevice(),
-                &AssetRegistry
-            );
-        }
-    );
-
-    GizmoCommandChannel.TryBind<FMessageChangeGizmoMode>(
-        [&World](const FMessageChangeGizmoMode& Message)
-        {
-            World.HandleChangeGizmoMode(Message);
-        }
-    );
 	
-#ifdef LOAD
-	World.LoadScene("./scenes/NewScene1234.json", Renderer.GetDevice(), &AssetRegistry);
-#else 
-	AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "BasePipeline", "./Content/Metadata/BasePipeline.meta");
-	AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "AlternatePipeline", "./Content/Metadata/AlternatePipeline.meta");
-    // Triangle
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "SphereMesh", "./Content/Metadata/SphereMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CubeMesh", "./Content/Metadata/CubeMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CylinderMesh", "./Content/Metadata/CylinderMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "PlaneMesh", "./Content/Metadata/PlaneMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "ConeMesh", "./Content/Metadata/ConeMesh.meta");
-   	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "TorusMesh", "./Content/Metadata/TorusMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CapsuleMesh", "./Content/Metadata/CapsuleMesh.meta");
-	AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "PyrimidMesh", "./Content/Metadata/PyramidMesh.meta");
-
-    
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "GreyMaterial", "./Content/Metadata/GreyMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "RedMaterial", "./Content/Metadata/RedMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "GreenMaterial", "./Content/Metadata/GreenMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "BlueMaterial", "./Content/Metadata/BlueMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "YellowMaterial", "./Content/Metadata/YellowMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "AmberMaterial", "./Content/Metadata/AmberMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "BrownMaterial", "./Content/Metadata/BrownMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "CyanMaterial", "./Content/Metadata/CyanMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "LimeMaterial", "./Content/Metadata/LimeMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "MagentaMaterial", "./Content/Metadata/MagentaMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "NavyMaterial", "./Content/Metadata/NavyMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "OrangeMaterial", "./Content/Metadata/OrangeMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "PinkMaterial", "./Content/Metadata/PinkMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "PurpleMaterial", "./Content/Metadata/PurpleMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "TealMaterial", "./Content/Metadata/TealMaterial.meta");
-    AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "WhiteMaterial", "./Content/Metadata/WhiteMaterial.meta");
-
-
-    AActor* CameraActor = World.AdoptActor<AActor>();
-    UCameraComponent* Camera = CameraActor->AddComponent<UCameraComponent>();
-
-    UCollisionComponent* TestCollision = nullptr;
-
-    CameraActor->SetRootComponent(Camera);
-
-    /*
-    {
-        constexpr uint32 InstanceCount = 120;
-        constexpr float MinInstanceX = -30.0f;
-        constexpr float MaxInstanceX = 30.0f;
-        constexpr float MinInstanceY = -12.0f;
-        constexpr float MaxInstanceY = 12.0f;
-        constexpr float NearInstanceDepth = 6.0f;
-        constexpr float FarInstanceDepth = 70.0f;
-
-        const FAssetHandle MeshHandle = AssetRegistry.GetAsset("SphereMesh");
-        const FAssetHandle BasePipelineHandle = AssetRegistry.GetAsset("BasePipeline");
-        const FAssetHandle AlternatePipelineHandle = AssetRegistry.GetAsset("AlternatePipeline");
-        const FAssetHandle MaterialHandle = AssetRegistry.GetAsset("GreyMaterial");
-
-
-        const auto Random01 = [](uint32 Seed) {
-            Seed ^= Seed >> 16;
-            Seed *= 0x7feb352dU;
-            Seed ^= Seed >> 15;
-            Seed *= 0x846ca68bU;
-            Seed ^= Seed >> 16;
-
-            return static_cast<float>(Seed & 0x00ffffffU) / static_cast<float>(0x00ffffffU);
-            };
-
-        UMesh* Mesh =
-            AssetRegistry.ResolveAsset<UMesh>( MeshHandle);
-
-        for (uint32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex) {
-            const float PositionX = MinInstanceX + Random01(InstanceIndex * 7U + 1U) * (MaxInstanceX - MinInstanceX);
-            const float PositionY = MinInstanceY + Random01(InstanceIndex * 7U + 2U) * (MaxInstanceY - MinInstanceY);
-            const float PositionZ = NearInstanceDepth + Random01(InstanceIndex * 7U + 3U) * (FarInstanceDepth - NearInstanceDepth);
-            const float ScaleFactor = 0.65f + Random01(InstanceIndex * 7U + 4U) * 0.7f;
-            const float Pitch = (Random01(InstanceIndex * 7U + 5U) - 0.5f) * 0.5f;
-            const float Yaw = (Random01(InstanceIndex * 7U + 6U) - 0.5f) * 0.5f;
-            const float Roll = (Random01(InstanceIndex * 7U + 7U) - 0.5f) * 1.3f;
-
-            AActor* InstanceActor = World.AdoptActor<AActor>();
-            UStaticMeshComponent* InstanceComponent = InstanceActor->AddComponent<UStaticMeshComponent>();
-            UCollisionComponent* CollisionComponent = InstanceActor->AddComponent<UCollisionComponent>();
-
-            InstanceActor->SetRootComponent(InstanceComponent);
-            CollisionComponent->AttachTo(InstanceComponent);
-
-            InstanceComponent->GetTransform().SetPosition({
-                PositionX,
-                PositionY,
-                PositionZ
-                });
-            InstanceComponent->GetTransform().SetRotation({ Pitch, Yaw, Roll });
-            InstanceComponent->GetTransform().SetScale({ ScaleFactor, ScaleFactor, ScaleFactor });
-
-            if (Mesh != nullptr)
-            {
-                CollisionComponent->SetBounds(Mesh->GetLocalBoundingBox());
-            }
-
-            InstanceComponent->SetMeshHandle(MeshHandle);
-
-
-
-
-
-            const bool bUseAlternatePipeline = InstanceIndex % 2 == 1;
-            InstanceComponent->SetPipelineHandle(bUseAlternatePipeline ? AlternatePipelineHandle : BasePipelineHandle);
-            InstanceComponent->SetMaterialHandle(MaterialHandle);
-
-            if (InstanceIndex == 0)
-            {
-                TestCollision = CollisionComponent;
-            }
-        }
-
-    }
-    World.SaveScene("test", &AssetRegistry);
-    */
-
-#endif 
-
-    FRenderProbe Probe = World.BuildRenderProbe();
-
-    std::string DebugText =
-        "Actor Count = " + std::to_string(Probe.ActorProbes.size()) + "\n";
-
-
+	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
+  
+    AssetRegistry.Finalize(); 
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplWin32_Init((void*)hWnd);
     ImGui_ImplDX11_Init(Renderer.GetDevice(), Renderer.GetDeviceContext());
+    
+    ImGui::StyleColorsDark();
+    
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; 
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    io.ConfigViewportsNoDefaultParent = false;
-
+    io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
     auto LastTickTime = std::chrono::steady_clock::now();
 
@@ -516,65 +322,74 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             const float DeltaTime = std::chrono::duration<float>(CurrentTickTime - LastTickTime).count();
             LastTickTime = CurrentTickTime;
 
-            Renderer.BeginFrame();
+			ImGui_ImplDX11_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+			EditorUIManager.Tick();
 
+            // 장면을 그릴 Imgui 창의 Resize 절차
+			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
+			ImGui::Begin("Viewport###SceneViewport");
+			const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
+			const ImVec2 SceneViewportSize = ImGui::GetContentRegionAvail();
+			const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
+			const bool bSceneViewportHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+			const bool bSceneViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+			const uint32 SceneViewportWidth = static_cast<uint32>(std::max(0.0f, SceneViewportSize.x));
+			const uint32 SceneViewportHeight = static_cast<uint32>(std::max(0.0f, SceneViewportSize.y));
+			Renderer.ResizeSceneSurface(SceneViewportWidth, SceneViewportHeight, SceneViewportPosition.x - MainViewportPosition.x, SceneViewportPosition.y - MainViewportPosition.y);
 
-            ImGui_ImplDX11_NewFrame();
-            ImGui_ImplWin32_NewFrame();
-            ImGui::NewFrame();
-			ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+			// 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
+			EditorView.ProcessInput(GKeyboardInput, GMouseInput, !bSceneViewportHovered);
 
-            // 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
-			EditorView.ProcessInput(GKeyboardInput, GMouseInput, ImGui::GetIO().WantCaptureMouse);
-
-            EditorUIManager.Tick();
-
-            GMouseInput.DispatchPendingWorldCommands(
-                DEFAULT_WINDOW_WIDTH,
-                DEFAULT_WINDOW_HEIGHT,
-                ImGui::GetIO().WantCaptureMouse);
-
-            GKeyboardInput.DispatchPendingWorldCommands(
-                DeltaTime,
-                ImGui::GetIO().WantCaptureKeyboard);
+			GMouseInput.DispatchPendingWorldCommands(SceneViewportWidth, SceneViewportHeight, !bSceneViewportHovered);
+			GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, !bSceneViewportFocused || ImGui::GetIO().WantCaptureKeyboard);
 
             WorldCommandChannel.Dispatch();
             World.Tick(DeltaTime);
 
-            EditorEventChannel.Dispatch();
+			EditorContext.Dispatch();
 
-            SpawnCommandChannel.Dispatch();
-            SceneCommandChannel.Dispatch();
-            GizmoCommandChannel.Dispatch();
-
-            //UndoCommandChannel.Dispatch();
+			//UndoCommandChannel.Dispatch();
 
 			FRenderProbe& Probe{ World.BuildRenderProbe() };
-            
 			EditorView.RenderInProbe(Probe);
-            Renderer.Render(Probe);
-            EditorView.Render(Renderer.GetDeviceContext(), Probe);
+			Renderer.BeginSceneRender();
 
-            ImGui::Render();
-            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+			Renderer.RenderScene(Probe);
+            EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
+			Renderer.RenderGizmos(Probe);
+            
+			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
 
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
+
+			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
+			ImGui::End();
+
+			ImGui::Render();
+			Renderer.BeginUiRender();
+			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
             
             Renderer.EndFrame();
 
             GMouseInput.EndFrame();
         }
     }
-   
+    
+    FEditorConfigManager::Save(World.GetSettings());
 
     // ImGui 소멸
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-	World.SaveScene("test", &AssetRegistry);
+    if constexpr (bEnableSceneSave) {
+		World.SaveScene("test", &AssetRegistry);
+    }
 
+    Renderer.Terminate();
+    Renderer.ReportLiveObjects(); 
     return (int) msg.wParam;
 }
 
@@ -697,77 +512,18 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
+    if (const auto result = ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
+        return result;
+    }
 
-    GMouseInput.ProcessWindowMessage(
-        message,
-        wParam,
-        lParam);
+    GMouseInput.ProcessWindowMessage(message, wParam, lParam);
 
-    GKeyboardInput.ProcessWindowMessage(
-        message,
-        wParam,
-        lParam);
+    GKeyboardInput.ProcessWindowMessage(message, wParam, lParam);
 
     switch (message)
     {
     case WM_DESTROY:
         PostQuitMessage(0);
-        break;
-    case WM_ENTERSIZEMOVE:
-    {
-        RECT mainWindowRect{};
-        if (!GetWindowRect(hWnd, &mainWindowRect))
-            break;
-
-        GMainWindowMoveStartPosition = { mainWindowRect.left, mainWindowRect.top };
-        GImGuiViewportMoveSnapshots.clear();
-        GIsMovingMainWindow = true;
-
-        if (ImGui::GetCurrentContext() == nullptr)
-            break;
-
-        ImGuiViewport* mainViewport = ImGui::GetMainViewport();
-        for (ImGuiViewport* viewport : ImGui::GetPlatformIO().Viewports)
-        {
-            if (viewport == mainViewport || viewport->PlatformHandle == nullptr)
-                continue;
-
-            HWND viewportWindow = static_cast<HWND>(viewport->PlatformHandle);
-            RECT viewportRect{};
-            if (GetWindowRect(viewportWindow, &viewportRect))
-                GImGuiViewportMoveSnapshots.push_back({ viewportWindow, { viewportRect.left, viewportRect.top } });
-        }
-        break;
-    }
-    case WM_MOVING:
-    {
-        if (!GIsMovingMainWindow)
-            break;
-
-        const RECT* movingMainWindowRect = reinterpret_cast<const RECT*>(lParam);
-        const int deltaX = movingMainWindowRect->left - GMainWindowMoveStartPosition.x;
-        const int deltaY = movingMainWindowRect->top - GMainWindowMoveStartPosition.y;
-
-        for (const FImGuiViewportMoveSnapshot& snapshot : GImGuiViewportMoveSnapshots)
-        {
-            if (!IsWindow(snapshot.WindowHandle))
-                continue;
-
-            SetWindowPos(
-                snapshot.WindowHandle,
-                nullptr,
-                snapshot.Position.x + deltaX,
-                snapshot.Position.y + deltaY,
-                0,
-                0,
-                SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
-        }
-        break;
-    }
-    case WM_EXITSIZEMOVE:
-        GImGuiViewportMoveSnapshots.clear();
-        GIsMovingMainWindow = false;
         break;
 	case WM_SIZE:
 		if (wParam != SIZE_MINIMIZED) {

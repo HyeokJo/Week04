@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "PCH.h"
 #include "IEditorPanel.h"
@@ -6,10 +6,10 @@
 #include "FPropertyPanel.h"
 #include "FConsolePanel.h"
 #include "FStatPanel.h"
+#include "Outliner.h"
 
 #include "Core/Channel/FStateChannel.h"
-#include "Core/Channel/FMessageChannel.h"
-#include "../../FEditorSelectionState.h"
+#include "../../Scene/FWorldEditorContext.h"
 
 class FEditorUIManager
 {
@@ -17,34 +17,27 @@ public:
     void Initialize(
         UWorld& World,
 
-        FStateChannel<FMessageEditorCameraState>::FWriter CamWriter,
-        FStateChannel<FMessageEditorCameraState>::FReader CamReader,
+        FWorldEditorContext& EditorContext,
 
         HWND WindowHandle,
 
-        FStateChannel<FEditorSelectionState>::FReader SelectionReader,
-        FMessageChannel::FSender WorldCommandSender,
-
-        FMessageChannel::FSender SpawnSender,
-        FMessageChannel::FSender SceneSender,
-        FStateChannel<uint8>::FReadWriter GizmoSender
+        FStateChannel<uint8>::FReadWriter GizmoSender,
+        FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender
     )
     {
         Panels.emplace_back(
             std::make_unique<FControlPanel>(
-                std::move(CamWriter),
-                std::move(CamReader),
+                EditorContext,
                 WindowHandle,
-                std::move(SpawnSender),
-                std::move(SceneSender)
+                EditorContext.GetEditorToWorldSender()
             )
         );
 
         Panels.emplace_back(
             std::make_unique<FPropertyPanel>(
-                std::move(SelectionReader),
+                EditorContext,
                 std::move(GizmoSender),
-                std::move(WorldCommandSender)
+                std::move(GizmoCoordinateSpaceSender)
             )
         );
 
@@ -57,6 +50,10 @@ public:
         Panels.emplace_back(
             std::make_unique<FStatPanel>(World)
         );
+
+		Panels.emplace_back(
+			std::make_unique<FOutlinerPanel>(World, EditorContext)
+		);
     }
 
     void Tick()
