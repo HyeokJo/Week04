@@ -35,19 +35,19 @@ namespace BasicGeometry {
 				const float T = static_cast<float>(Ring) / static_cast<float>(HemisphereRings);
 				const float Phi = T * std::numbers::pi_v<float> *0.5f;
 				const float RingRadius = std::sin(Phi) * Radius;
-				const float Y = HalfCylinderHeight + std::cos(Phi) * Radius;
-				const float NormalY = std::cos(Phi);
+				const float Z = HalfCylinderHeight + std::cos(Phi) * Radius;
+				const float NormalZ = std::cos(Phi);
 				const float NormalRadius = std::sin(Phi);
-				const float V = (Top - Y) / TotalHeight;
+				const float V = (Top - Z) / TotalHeight;
 
 				for (uint32 Segment = 0; Segment <= Segments; ++Segment) {
 					const float U = static_cast<float>(Segment) / static_cast<float>(Segments);
 					const float Theta = U * std::numbers::pi_v<float> *2.0f;
 					const float X = std::cos(Theta);
-					const float Z = std::sin(Theta);
+					const float Y = -std::sin(Theta);
 
-					Result.Positions[Vertex] = FVector3{ X * RingRadius, Y, Z * RingRadius };
-					Result.Normals[Vertex] = FVector3{ X * NormalRadius, NormalY, Z * NormalRadius };
+					Result.Positions[Vertex] = FVector3{ X * RingRadius, Y * RingRadius, Z };
+					Result.Normals[Vertex] = FVector3{ X * NormalRadius, Y * NormalRadius, NormalZ };
 					Result.TexCoords[Vertex++] = FVector2D{ U, V };
 				}
 			}
@@ -56,19 +56,19 @@ namespace BasicGeometry {
 				const float T = static_cast<float>(Ring) / static_cast<float>(HemisphereRings);
 				const float Phi = T * std::numbers::pi_v<float> *0.5f;
 				const float RingRadius = std::cos(Phi) * Radius;
-				const float Y = -HalfCylinderHeight - std::sin(Phi) * Radius;
-				const float NormalY = -std::sin(Phi);
+				const float Z = -HalfCylinderHeight - std::sin(Phi) * Radius;
+				const float NormalZ = -std::sin(Phi);
 				const float NormalRadius = std::cos(Phi);
-				const float V = (Top - Y) / TotalHeight;
+				const float V = (Top - Z) / TotalHeight;
 
 				for (uint32 Segment = 0; Segment <= Segments; ++Segment) {
 					const float U = static_cast<float>(Segment) / static_cast<float>(Segments);
 					const float Theta = U * std::numbers::pi_v<float> *2.0f;
 					const float X = std::cos(Theta);
-					const float Z = std::sin(Theta);
+					const float Y = -std::sin(Theta);
 
-					Result.Positions[Vertex] = FVector3{ X * RingRadius, Y, Z * RingRadius };
-					Result.Normals[Vertex] = FVector3{ X * NormalRadius, NormalY, Z * NormalRadius };
+					Result.Positions[Vertex] = FVector3{ X * RingRadius, Y * RingRadius, Z };
+					Result.Normals[Vertex] = FVector3{ X * NormalRadius, Y * NormalRadius, NormalZ };
 					Result.TexCoords[Vertex++] = FVector2D{ U, V };
 				}
 			}

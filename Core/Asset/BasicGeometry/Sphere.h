@@ -29,7 +29,7 @@ namespace BasicGeometry {
 				const float V = static_cast<float>(Ring) / Rings;
 				const float Phi = V * std::numbers::pi_v<float>;
 
-				const float Y = std::cos(Phi);
+				const float Z = std::cos(Phi);
 				const float RingRadius = std::sin(Phi);
 
 				for (uint32 Segment = 0; Segment <= Segments; ++Segment) {
@@ -37,7 +37,7 @@ namespace BasicGeometry {
 					const float Theta = U * std::numbers::pi_v<float> *2.0f;
 
 					const float X = RingRadius * std::cos(Theta);
-					const float Z = RingRadius * std::sin(Theta);
+					const float Y = -RingRadius * std::sin(Theta);
 
 					Geometry.Positions[VertexIndex] = FVector3{ X * Radius, Y * Radius, Z * Radius };
 					Geometry.Normals[VertexIndex] = FVector3{ X, Y, Z };

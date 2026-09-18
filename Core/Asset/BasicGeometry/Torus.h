@@ -41,8 +41,8 @@ namespace BasicGeometry {
 
 					const float RingRadius = InMajorRadius + InMinorRadius * CosPhi;
 
-					Result.Positions[Vertex] = FVector3{ RingRadius * CosTheta, InMinorRadius * SinPhi, RingRadius * SinTheta };
-					Result.Normals[Vertex] = FVector3{ CosPhi * CosTheta, SinPhi, CosPhi * SinTheta };
+					Result.Positions[Vertex] = FVector3{ RingRadius * CosTheta, -RingRadius * SinTheta, InMinorRadius * SinPhi };
+					Result.Normals[Vertex] = FVector3{ CosPhi * CosTheta, -CosPhi * SinTheta, SinPhi };
 					Result.TexCoords[Vertex++] = FVector2D{ U, V };
 				}
 			}

@@ -30,7 +30,7 @@ namespace BasicGeometry {
 				const float V = static_cast<float>(Latitude) / static_cast<float>(LatitudeSegments);
 				const float Phi = V * std::numbers::pi_v<float>;
 
-				const float Y = std::cos(Phi);
+				const float Z = std::cos(Phi);
 				const float RingRadius = std::sin(Phi);
 
 				for (uint32 Longitude = 0; Longitude <= LongitudeSegments; ++Longitude) {
@@ -38,7 +38,7 @@ namespace BasicGeometry {
 					const float Theta = U * std::numbers::pi_v<float> *2.0f;
 
 					const float X = std::cos(Theta) * RingRadius;
-					const float Z = std::sin(Theta) * RingRadius;
+					const float Y = -std::sin(Theta) * RingRadius;
 
 					Result.Positions[Vertex] = FVector3{
 						X * Radius,

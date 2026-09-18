@@ -1,22 +1,23 @@
 ﻿#pragma once
 
 #include <array>
+#include "ZUp.h"
 
 namespace BasicGeometry {
 	namespace Plane {
-		inline constexpr std::array<FVector3, 4> Positions = {
+		inline constexpr std::array<FVector3, 4> Positions = ToZUp(std::array<FVector3, 4>{
 			FVector3{ -0.5f, 0.0f, -0.5f },
 			FVector3{ -0.5f, 0.0f,  0.5f },
 			FVector3{  0.5f, 0.0f,  0.5f },
 			FVector3{  0.5f, 0.0f, -0.5f }
-		};
+		});
 
-		inline constexpr std::array<FVector3, 4> Normals = {
+		inline constexpr std::array<FVector3, 4> Normals = ToZUp(std::array<FVector3, 4>{
 			FVector3{ 0.0f, 1.0f, 0.0f },
 			FVector3{ 0.0f, 1.0f, 0.0f },
 			FVector3{ 0.0f, 1.0f, 0.0f },
 			FVector3{ 0.0f, 1.0f, 0.0f }
-		};
+		});
 
 		inline constexpr std::array<FVector2D, 4> TexCoords = {
 			FVector2D{ 0.0f, 1.0f },

@@ -31,47 +31,47 @@ namespace BasicGeometry {
 				const float U = static_cast<float>(Segment) / static_cast<float>(Segments);
 				const float Angle = U * std::numbers::pi_v<float> *2.0f;
 				const float X = std::cos(Angle);
-				const float Z = std::sin(Angle);
+				const float Y = -std::sin(Angle);
 
-				Result.Positions[Vertex] = FVector3{ X * Radius, -HalfHeight, Z * Radius };
-				Result.Normals[Vertex] = FVector3{ X, 0.0f, Z };
+				Result.Positions[Vertex] = FVector3{ X * Radius, Y * Radius, -HalfHeight };
+				Result.Normals[Vertex] = FVector3{ X, Y, 0.0f };
 				Result.TexCoords[Vertex++] = FVector2D{ U, 1.0f };
 
-				Result.Positions[Vertex] = FVector3{ X * Radius, HalfHeight, Z * Radius };
-				Result.Normals[Vertex] = FVector3{ X, 0.0f, Z };
+				Result.Positions[Vertex] = FVector3{ X * Radius, Y * Radius, HalfHeight };
+				Result.Normals[Vertex] = FVector3{ X, Y, 0.0f };
 				Result.TexCoords[Vertex++] = FVector2D{ U, 0.0f };
 			}
 
 			const uint32 TopStart = Vertex;
 
-			Result.Positions[Vertex] = FVector3{ 0.0f, HalfHeight, 0.0f };
-			Result.Normals[Vertex] = FVector3{ 0.0f, 1.0f, 0.0f };
+			Result.Positions[Vertex] = FVector3{ 0.0f, 0.0f, HalfHeight };
+			Result.Normals[Vertex] = FVector3{ 0.0f, 0.0f, 1.0f };
 			Result.TexCoords[Vertex++] = FVector2D{ 0.5f, 0.5f };
 
 			for (uint32 Segment = 0; Segment <= Segments; ++Segment) {
 				const float Angle = static_cast<float>(Segment) / static_cast<float>(Segments) * std::numbers::pi_v<float> *2.0f;
 				const float X = std::cos(Angle);
-				const float Z = std::sin(Angle);
+				const float Y = -std::sin(Angle);
 
-				Result.Positions[Vertex] = FVector3{ X * Radius, HalfHeight, Z * Radius };
-				Result.Normals[Vertex] = FVector3{ 0.0f, 1.0f, 0.0f };
-				Result.TexCoords[Vertex++] = FVector2D{ X * 0.5f + 0.5f, -Z * 0.5f + 0.5f };
+				Result.Positions[Vertex] = FVector3{ X * Radius, Y * Radius, HalfHeight };
+				Result.Normals[Vertex] = FVector3{ 0.0f, 0.0f, 1.0f };
+				Result.TexCoords[Vertex++] = FVector2D{ X * 0.5f + 0.5f, -Y * 0.5f + 0.5f };
 			}
 
 			const uint32 BottomStart = Vertex;
 
-			Result.Positions[Vertex] = FVector3{ 0.0f, -HalfHeight, 0.0f };
-			Result.Normals[Vertex] = FVector3{ 0.0f, -1.0f, 0.0f };
+			Result.Positions[Vertex] = FVector3{ 0.0f, 0.0f, -HalfHeight };
+			Result.Normals[Vertex] = FVector3{ 0.0f, 0.0f, -1.0f };
 			Result.TexCoords[Vertex++] = FVector2D{ 0.5f, 0.5f };
 
 			for (uint32 Segment = 0; Segment <= Segments; ++Segment) {
 				const float Angle = static_cast<float>(Segment) / static_cast<float>(Segments) * std::numbers::pi_v<float> *2.0f;
 				const float X = std::cos(Angle);
-				const float Z = std::sin(Angle);
+				const float Y = -std::sin(Angle);
 
-				Result.Positions[Vertex] = FVector3{ X * Radius, -HalfHeight, Z * Radius };
-				Result.Normals[Vertex] = FVector3{ 0.0f, -1.0f, 0.0f };
-				Result.TexCoords[Vertex++] = FVector2D{ X * 0.5f + 0.5f, Z * 0.5f + 0.5f };
+				Result.Positions[Vertex] = FVector3{ X * Radius, Y * Radius, -HalfHeight };
+				Result.Normals[Vertex] = FVector3{ 0.0f, 0.0f, -1.0f };
+				Result.TexCoords[Vertex++] = FVector2D{ X * 0.5f + 0.5f, Y * 0.5f + 0.5f };
 			}
 
 			uint32 Index = 0;
