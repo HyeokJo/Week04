@@ -72,6 +72,7 @@
 
 #include "FGraphicsContext.h"
 #include "FWindowResizeRequestMessage.h"
+#include <SSplitter.h>
 
 
 #define MAX_LOADSTRING 100
@@ -316,6 +317,82 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     auto LastTickTime = std::chrono::steady_clock::now();
 
+
+    std::array<SWindow, 4> ViewportRegions{};
+
+    SSplitterH RootSplit;
+    SSplitterV TopSplit;
+    SSplitterV BottomSplit;
+
+    TopSplit.SetChildren(&ViewportRegions[0], &ViewportRegions[1]); // 0: 좌측 위, 1: 우측 위
+    BottomSplit.SetChildren(&ViewportRegions[2], &ViewportRegions[3]); // 2: 좌측 아래, 3: 우측 아래
+
+    RootSplit.SetChildren(&TopSplit, &BottomSplit);
+    size_t AtciveViewportId = 0;
+
+#pragma region Splitter 그리기
+    auto DrawSplitter = [](
+        const char* Id,
+        SSplitter& Splitter,
+        ImGuiMouseCursor Cursor) -> bool
+        {
+            const FRect Rect = Splitter.GetHandleRect(); // 구분선 영역 가져오기
+
+            if (Rect.IsEmpty())
+            {
+                return false;
+            }
+
+            // imGui 커서 위치 지정
+            ImGui::SetCursorScreenPos(ImVec2(
+                static_cast<float>(Rect.Min.X),
+                static_cast<float>(Rect.Min.Y)));
+
+            // 투명한 입력 영역 생성
+            // 마우스 hover와 클릭은 감지함
+            // 마우스 입력을 담당
+            ImGui::InvisibleButton(
+                Id,
+                ImVec2(
+                    static_cast<float>(Rect.GetWidth()),
+                    static_cast<float>(Rect.GetHeight())));
+
+            // InvisibleButton 확인
+            const bool bHovered = ImGui::IsItemHovered();
+            const bool bActive = ImGui::IsItemActive();
+
+            if (bHovered || bActive)
+            {
+                ImGui::SetMouseCursor(Cursor);
+            }
+
+            // 드래그 중이면 Splitter 드래그
+            if (bActive && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                const ImVec2 Mouse = ImGui::GetMousePos();
+
+                Splitter.DragTo(FPoint{
+                    static_cast<int32>(Mouse.x),
+                    static_cast<int32>(Mouse.y)
+                    });
+            }
+
+            // DragTo()가 변경한 최신 위치에 구분선을 그린다.
+            const FRect Updated = Splitter.GetHandleRect();
+
+            // 사각형 그리기
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                ImVec2(static_cast<float>(Updated.Min.X), static_cast<float>(Updated.Min.Y)),
+                ImVec2(static_cast<float>(Updated.Max.X), static_cast<float>(Updated.Max.Y)),
+                bActive ? IM_COL32(100, 150, 220, 255) : bHovered ? IM_COL32(85, 85, 85, 255) : IM_COL32(55, 55, 55, 255)
+            );
+
+            return bActive;
+        };
+
+#pragma endregion
+
+
     while (true) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) {
@@ -398,6 +475,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
             std::array<FViewportFrame, 4> Frames{};
 
+#pragma region 기존 4개창
+/*
             const char* Titles[4] = {
                 "Viewport 1###SceneViewport0",
                 "Viewport 2###SceneViewport1",
@@ -415,7 +494,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 std::max(100.0f, (MainViewport->WorkSize.y - Gap * 3.0f) * 0.5f)
             };
 
-            size_t AtciveViewportId = 0;
+
 
             // 네 창의 크기를 구하고, 각 Surface를 UI에 연결
             for (uint32 Id = 0; Id < Frames.size(); ++Id)
@@ -483,8 +562,131 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 }
 
                 ImGui::End();
+            }*/
+#pragma endregion
+
+            const ImVec2 MainPosition = ImGui::GetMainViewport()->Pos;
+
+            bool bSplitterActive = false;
+
+            ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
+
+            const bool bExpanded = ImGui::Begin(
+                "Viewports###SplitSceneViewport",
+                nullptr,
+                ImGuiWindowFlags_NoScrollbar |
+                ImGuiWindowFlags_NoScrollWithMouse);
+
+            if (bExpanded)
+            {
+                const ImVec2 Origin = ImGui::GetCursorScreenPos();
+                const ImVec2 Available = ImGui::GetContentRegionAvail();
+
+                const int32 Width =
+                    static_cast<int32>(std::max(0.0f, Available.x));
+                const int32 Height =
+                    static_cast<int32>(std::max(0.0f, Available.y));
+
+                if (Width > 0 && Height > 0)
+                {
+                    const FPoint Min{
+                        static_cast<int32>(Origin.x),
+                        static_cast<int32>(Origin.y)
+                    };
+
+                    // RootSplit 크기 설정
+                    RootSplit.SetRect(FRect{
+                        Min,
+                        FPoint{ Min.X + Width, Min.Y + Height }
+                        });
+
+                    // 부모 splitter부터
+                    const bool bRootSplitActive = DrawSplitter(
+                        "##RootSplit", RootSplit, ImGuiMouseCursor_ResizeNS);
+
+                    const bool bTopSplitActive = DrawSplitter(
+                        "##TopSplit", TopSplit, ImGuiMouseCursor_ResizeEW);
+
+                    const bool bBottomSplitActive = DrawSplitter(
+                        "##BottomSplit", BottomSplit, ImGuiMouseCursor_ResizeEW);
+                    
+                    if (bTopSplitActive)
+                    {
+                        BottomSplit.SetRatio(TopSplit.GetRatio());
+                    }
+                    else if (bBottomSplitActive)
+                    {
+                        TopSplit.SetRatio(BottomSplit.GetRatio());
+                    }
+
+                    bSplitterActive =
+                        bRootSplitActive ||
+                        bTopSplitActive ||
+                        bBottomSplitActive;
+
+                    for (uint32 Id = 0; Id < Frames.size(); ++Id)
+                    {
+                        auto& Frame = Frames[Id];
+                        const FRect& Rect = ViewportRegions[Id].GetRect();
+
+                        if (Rect.IsEmpty())
+                        {
+                            continue;
+                        }
+
+                        Frame.Position = ImVec2(
+                            static_cast<float>(Rect.Min.X),
+                            static_cast<float>(Rect.Min.Y));
+
+                        Frame.Size = ImVec2(
+                            static_cast<float>(Rect.GetWidth()),
+                            static_cast<float>(Rect.GetHeight()));
+
+                        Frame.Width = static_cast<uint32>(Rect.GetWidth());
+                        Frame.Height = static_cast<uint32>(Rect.GetHeight());
+                        Frame.bVisible = true;
+
+                        Renderer.ResizeSceneSurface(
+                            Id,
+                            Frame.Width,
+                            Frame.Height,
+                            Frame.Position.x - MainPosition.x,
+                            Frame.Position.y - MainPosition.y);
+
+                        ImGui::SetCursorScreenPos(Frame.Position);
+
+                        ImGui::Image(
+                            reinterpret_cast<ImTextureID>(
+                                Renderer.GetSceneShaderResourceView(Id)),
+                            Frame.Size);
+
+                        Frame.bHovered =
+                            !bSplitterActive && ImGui::IsItemHovered();
+
+                        // 같은 부모 창 안이므로 클릭한 이미지로 활성 화면을 정한다.
+                        if (Frame.bHovered &&
+                            (ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
+                                ImGui::IsMouseClicked(ImGuiMouseButton_Right)))
+                        {
+                            AtciveViewportId = Id;
+                        }
+                    }
+
+                    const bool bParentFocused = ImGui::IsWindowFocused(
+                        ImGuiFocusedFlags_RootAndChildWindows);
+
+                    for (uint32 Id = 0; Id < Frames.size(); ++Id)
+                    {
+                        Frames[Id].bFocused =
+                            bParentFocused && Id == AtciveViewportId;
+                    }
+                }
             }
 
+            ImGui::End();
+
+
+            //////////
             const auto& InputFrame = Frames[AtciveViewportId];
 
             if (InputFrame.bVisible)
@@ -498,10 +700,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                     InputFrame.Position.y - MainPosition.y);
             }
 
-            const bool bBlockMouse =
+            // splitter 상태를 추가
+            const bool bBlockMouse = bSplitterActive ||
                 !InputFrame.bVisible || !InputFrame.bHovered;
 
             const bool bBlockKeyboard =
+                bSplitterActive ||
                 !InputFrame.bVisible ||
                 !InputFrame.bFocused ||
                 ImGui::GetIO().WantCaptureKeyboard;
