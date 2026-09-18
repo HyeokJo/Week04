@@ -590,7 +590,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
             if (InputFrame.bVisible)
             {
-                // 입력 처리가 첫 번째 창의 영역을 사용하도록 상태 갱신
+                // 입력 처리가 포커스된 창의 영역을 사용하도록 상태 갱신
                 Renderer.ResizeSceneSurface(
                     AtciveViewportId,
                     InputFrame.Width,
