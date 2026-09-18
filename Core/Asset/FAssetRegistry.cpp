@@ -4,6 +4,8 @@
 #include "UColorMaterial.h"
 #include "Render/Pipeline/UPipeline.h"
 
+#include <cctype>
+
 namespace {
 constexpr const char* DefaultStaticMeshMaterialName = "__DefaultStaticMeshMaterial";
 constexpr const char* DefaultStaticMeshPipelineName = "__DefaultStaticMeshPipeline";
@@ -17,6 +19,36 @@ bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
     }
 
     this->Device = Device;
+    return DiscoverAssets(std::filesystem::current_path() / "Content");
+}
+
+bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
+    std::error_code ErrorCode{};
+    const std::filesystem::path AbsoluteDirectory = std::filesystem::absolute(Directory, ErrorCode).lexically_normal();
+
+    if (ErrorCode || !std::filesystem::is_directory(AbsoluteDirectory, ErrorCode)) {
+        return false;
+    }
+
+    ContentRoot = AbsoluteDirectory;
+
+    std::filesystem::recursive_directory_iterator Iterator(ContentRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode);
+    const std::filesystem::recursive_directory_iterator End{};
+
+    while (!ErrorCode && Iterator != End) {
+        const std::filesystem::directory_entry Entry = *Iterator;
+
+        if (Entry.is_regular_file(ErrorCode)) {
+            DiscoverAssetFile(Entry.path());
+        }
+
+        Iterator.increment(ErrorCode);
+
+        if (ErrorCode) {
+            ErrorCode.clear();
+        }
+    }
+
     return true;
 }
 
@@ -57,16 +89,19 @@ FAssetHandle FAssetRegistry::GetAsset(const FGuid& ID) const {
 bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
     FAssetEntry* Entry = FindEntry(Handle);
 
-    if (Entry == nullptr || Entry->Asset == nullptr) {
+    if (Entry == nullptr) {
         return false;
     }
 
-    if (Entry->Asset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
+    if (Entry->Asset != nullptr && Entry->Asset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
         MaterialBuffer.UnregisterMaterial(static_cast<UMaterial*>(Entry->Asset.get()));
     }
 
     RemoveHandleMappings(Handle);
     Entry->Asset.reset();
+    Entry->AssetPath = {};
+    Entry->PhysicalPath.clear();
+    Entry->AssetType = EAssetType::END;
     Entry->Handle = FAssetHandle{ Handle.ID, Handle.Generation + 1 };
     FreeHandles.push_back(Entry->Handle);
 
@@ -81,6 +116,7 @@ void FAssetRegistry::Reset() {
     GuidToHandle.clear();
     MaterialBuffer.Reset();
     Device = nullptr;
+    ContentRoot.clear();
 }
 
 void FAssetRegistry::Finalize() {
@@ -169,6 +205,81 @@ bool FAssetRegistry::AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FSt
 
 FAssetPath FAssetRegistry::MakeLegacyAssetPath(const FString& Name) {
     return FAssetPath{ FString{ "/Engine/Legacy/" } + Name };
+}
+
+bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
+    const EAssetType AssetType = GetAssetType(FilePath);
+
+    if (AssetType == EAssetType::END) {
+        return true;
+    }
+
+    return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, AssetType);
+}
+
+bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, EAssetType AssetType) {
+    if (!AssetPath || AssetType == EAssetType::END || PathToHandle.contains(AssetPath)) {
+        return false;
+    }
+
+    const FAssetHandle Handle = AllocateHandle();
+    FAssetEntry Entry{};
+    Entry.AssetPath = AssetPath;
+    Entry.PhysicalPath = PhysicalPath;
+    Entry.AssetType = AssetType;
+    Entry.Handle = Handle;
+
+    if (Handle.ID < Assets.size()) {
+        Assets[Handle.ID] = std::move(Entry);
+    }
+    else {
+        Assets.emplace_back(std::move(Entry));
+    }
+
+    PathToHandle[AssetPath] = Handle;
+    return true;
+}
+
+FAssetPath FAssetRegistry::MakeAssetPath(const std::filesystem::path& PhysicalPath) const {
+    std::error_code ErrorCode{};
+    std::filesystem::path RelativePath = std::filesystem::relative(PhysicalPath, ContentRoot, ErrorCode).lexically_normal();
+
+    if (ErrorCode || RelativePath.empty() || *RelativePath.begin() == "..") {
+        return {};
+    }
+
+    RelativePath.replace_extension();
+    return FAssetPath{ FString{ "/Game/" } + RelativePath.generic_string().c_str() };
+}
+
+EAssetType FAssetRegistry::GetAssetType(const std::filesystem::path& FilePath) {
+    FString Extension = FilePath.extension().generic_string().c_str();
+
+    std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) {
+        return static_cast<char>(std::tolower(Character));
+    });
+
+    if (Extension == ".obj") {
+        return EAssetType::Mesh;
+    }
+
+    if (Extension == ".mtl") {
+        return EAssetType::Material;
+    }
+
+    if (Extension == ".png" || Extension == ".jpg" || Extension == ".jpeg" || Extension == ".dds" || Extension == ".tga" || Extension == ".bmp" || Extension == ".tif" || Extension == ".tiff" || Extension == ".gif" || Extension == ".hdr") {
+        return EAssetType::Texture;
+    }
+
+    if (Extension == ".ttf" || Extension == ".otf") {
+        return EAssetType::Font;
+    }
+
+    if (Extension == ".json" && FilePath.parent_path().filename() == "Pipeline") {
+        return EAssetType::Pipeline;
+    }
+
+    return EAssetType::END;
 }
 
 FAssetHandle FAssetRegistry::AllocateHandle() {

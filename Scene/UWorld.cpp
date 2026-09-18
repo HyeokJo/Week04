@@ -340,17 +340,19 @@ bool UWorld::SaveScene(const FString& SceneName, FAssetRegistry* AssetRegistry)
 	FArchiveJson ArchiveSave(Document, Allocator);
 	ArchiveSave.SetAssetRegistry(AssetRegistry);
 
-	auto AssetList = AssetRegistry->GetAssetList();
-
-	size_t ArraySize = static_cast<size_t>(AssetList.size());
+	size_t ArraySize = 0;
+	for (UObject* Asset : AssetRegistry->GetAssetList())
+	{
+		++ArraySize;
+	}
 	ArchiveSave.BeginArrayScope("Assets", ArraySize);
 
-	for (size_t Index : std::views::iota(size_t{ 0 }, std::ranges::size(AssetList))) {
-		UObject* Asset = AssetList[Index];
-
-		ArchiveSave.BeginObjectScope(std::to_string(Index));
+	size_t AssetIndex = 0;
+	for (UObject* Asset : AssetRegistry->GetAssetList()) {
+		ArchiveSave.BeginObjectScope(std::to_string(AssetIndex));
 		Asset->Save(ArchiveSave);
 		ArchiveSave.EndObjectScope();
+		++AssetIndex;
 	}
 
 	ArchiveSave.EndArrayScope();

@@ -28,6 +28,16 @@ public:
 public:
     bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
 
+    bool DiscoverAssets(const std::filesystem::path& Directory);
+
+    const std::filesystem::path& GetContentRoot() const {
+        return ContentRoot;
+    }
+
+    const TArray<FAssetEntry>& GetAssetEntries() const {
+        return Assets;
+    }
+
     FAssetHandle FindAsset(const FAssetPath& AssetPath) const override;
     UAsset* GetUAsset(const FString& Name) override;
     FAssetHandle GetAsset(const FString& Name) const override;
@@ -123,8 +133,10 @@ public:
         return MaterialBuffer;
     }
 
-    auto GetAssetList() {
-        return Assets | std::ranges::views::transform([](FAssetEntry& Entry) -> UObject* {
+    auto GetAssetList() const {
+        return Assets | std::ranges::views::filter([](const FAssetEntry& Entry) {
+            return Entry.Asset != nullptr;
+        }) | std::ranges::views::transform([](const FAssetEntry& Entry) -> UObject* {
             return Entry.Asset.get();
         });
     }
@@ -141,6 +153,11 @@ public:
 private:
     static FAssetPath MakeLegacyAssetPath(const FString& Name);
 
+    bool DiscoverAssetFile(const std::filesystem::path& FilePath);
+    bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, EAssetType AssetType);
+    FAssetPath MakeAssetPath(const std::filesystem::path& PhysicalPath) const;
+    static EAssetType GetAssetType(const std::filesystem::path& FilePath);
+
     FAssetHandle AllocateHandle();
     FAssetEntry* FindEntry(FAssetHandle Handle);
     const FAssetEntry* FindEntry(FAssetHandle Handle) const;
@@ -156,4 +173,5 @@ private:
 
     FMaterialBuffer MaterialBuffer{};
     ID3D11Device* Device{ nullptr };
+    std::filesystem::path ContentRoot{};
 };
