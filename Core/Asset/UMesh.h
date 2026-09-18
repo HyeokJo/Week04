@@ -50,6 +50,9 @@ private:
 	};
 
 public:
+	using SubMesh = uint32; 
+
+public:
 	UMesh() = default; 
 	~UMesh() = default;
 
@@ -152,6 +155,14 @@ public:
 		return Indices;
 	}
 
+	const TArray<SubMesh>& GetSubMeshes() const {
+		return SubMeshes;
+	}
+
+	void SetSubMeshes(const std::span<SubMesh>& InSubMeshes) {
+		SubMeshes.assign(InSubMeshes.begin(), InSubMeshes.end());
+	}
+
 protected:
 	virtual void Serialize(FArchive& Ar) override;
 
@@ -228,5 +239,6 @@ private:
 
 	TArray<uint32> Indices{};
 
+	TArray<SubMesh> SubMeshes{};
 };
 

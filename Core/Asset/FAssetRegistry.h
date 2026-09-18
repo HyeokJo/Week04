@@ -14,10 +14,14 @@
 #include <type_traits>
 #include <utility>
 #include <ranges>
+#include <functional>
 
 class FAssetRegistry : public IAssetQuery {
+	const std::filesystem::path ContentPath = std::filesystem::current_path() / "Content";
+    using FAssetLoader = std::function<std::unique_ptr<UObject>(const std::filesystem::path&)>;
+
 public:
-    FAssetRegistry() = default;
+    FAssetRegistry();
     ~FAssetRegistry() = default;
 
     FAssetRegistry(const FAssetRegistry&) = delete;
@@ -29,26 +33,8 @@ public:
 public:
     bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
 
-    // Lazily creates the fallback render assets used by unconfigured static meshes.
-    FAssetHandle EnsureDefaultStaticMeshMaterial();
-    FAssetHandle EnsureDefaultStaticMeshPipeline();
-
-    FAssetHandle AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset);
-
-    template<typename T> requires std::is_base_of_v<UAsset, T>
-    FAssetHandle EmplaceAsset(ID3D11Device* Device, const FString& Name, const std::filesystem::path& MetadataPath = {}) {
-        std::unique_ptr<T> NewAsset = std::make_unique<T>();
-        std::unique_ptr<UObject> Asset = std::move(NewAsset);
-
-        const auto guid = Asset->GetGuid();
-
-        return AdoptAsset(Device, guid, Name, MetadataPath, std::move(Asset));
-    }
-
     virtual FAssetHandle GetAsset(const FString& Name) const override;
     virtual FAssetHandle GetAsset(const FGuid& ID) const override;
-
-    virtual UAsset* GetUAsset(const FString& Name) override;
 
     bool RemoveAsset(FAssetHandle Handle);
 
@@ -115,8 +101,7 @@ public:
             });
     }
 
-    void Reset()
-    {
+    void Reset() {
         Assets.clear();
         FreeHandles.clear();
         AssetNameToHandle.clear();
@@ -132,12 +117,22 @@ private:
     FAssetHandle AllocateHandle();
     void RemoveHandleMappings(FAssetHandle Handle);
 
+    void LoadDefaults();
+    void LoadIterate(const std::filesystem::path& dir);
+
+	std::unique_ptr<UObject> LoadMaterial(const std::filesystem::path& filePath);
+	std::unique_ptr<UObject> LoadMesh(const std::filesystem::path& filePath);
+	std::unique_ptr<UObject> LoadTexture(const std::filesystem::path& filePath);
+	std::unique_ptr<UObject> LoadPipelineState(const std::filesystem::path& filePath);
+	std::unique_ptr<UObject> LoadMaterial(const std::filesystem::path& filePath);
 private:
     TArray<TPair<FAssetHandle, std::unique_ptr<UObject>>> Assets{};
     TArray<FAssetHandle> FreeHandles{};
 
-    TMap<FString, FAssetHandle> AssetNameToHandle{};
-    TMap<FGuid, FAssetHandle> AssetIDToHandle{};
+    TMap<FString, FAssetLoader> AssetLoaders{}; 
+
+    TMap<FString, FAssetHandle> AssetMap{};
+    TMap<FAssetHandle, FString> AssetSerialize{};
 
     FMaterialBuffer MaterialBuffer{};
 
