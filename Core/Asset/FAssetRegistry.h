@@ -1,27 +1,22 @@
 ﻿#pragma once
 
 #include "../Base/UObject.h"
-#include "UAsset.h"
-#include "FAssetHandle.h"
+#include "Common.h"
+#include "FAssetEntry.h"
 #include "FMaterialBuffer.h"
 #include "UMaterial.h"
-#include "Common.h"
 
 #include <d3d11.h>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <ranges>
 #include <type_traits>
 #include <utility>
-#include <ranges>
-#include <functional>
 
 class FAssetRegistry : public IAssetQuery {
-	const std::filesystem::path ContentPath = std::filesystem::current_path() / "Content";
-    using FAssetLoader = std::function<std::unique_ptr<UObject>(const std::filesystem::path&)>;
-
 public:
-    FAssetRegistry();
+    FAssetRegistry() = default;
     ~FAssetRegistry() = default;
 
     FAssetRegistry(const FAssetRegistry&) = delete;
@@ -33,50 +28,83 @@ public:
 public:
     bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
 
-    virtual FAssetHandle GetAsset(const FString& Name) const override;
-    virtual FAssetHandle GetAsset(const FGuid& ID) const override;
+    FAssetHandle FindAsset(const FAssetPath& AssetPath) const override;
+    UAsset* GetUAsset(const FString& Name) override;
+    FAssetHandle GetAsset(const FString& Name) const override;
+    FAssetHandle GetAsset(const FGuid& ID) const override;
 
     bool RemoveAsset(FAssetHandle Handle);
 
-    template<typename T> requires std::is_base_of_v<UAsset, T>
+    template<typename T, typename... TArgs>
+    requires std::is_base_of_v<UAsset, T>
+    FAssetHandle EmplaceAsset(ID3D11Device* Device, const FString& Name, const std::filesystem::path& MetadataPath, TArgs&&... Args) {
+        return EmplaceAssetAtPath<T>(Device, MakeLegacyAssetPath(Name), Name, MetadataPath, std::forward<TArgs>(Args)...);
+    }
+
+    template<typename T, typename... TArgs>
+    requires std::is_base_of_v<UAsset, T>
+    FAssetHandle EmplaceAssetAtPath(ID3D11Device* Device, const FAssetPath& AssetPath, const FString& Name, const std::filesystem::path& MetadataPath, TArgs&&... Args) {
+        if (Device == nullptr || !AssetPath || PathToHandle.contains(AssetPath)) {
+            return {};
+        }
+
+        std::unique_ptr<T> NewAsset = std::make_unique<T>(std::forward<TArgs>(Args)...);
+        NewAsset->SetAssetName(Name);
+        NewAsset->Initialize(Device, MetadataPath);
+
+        if constexpr (std::is_base_of_v<UMaterial, T>) {
+            if (!MaterialBuffer.RegisterMaterial(NewAsset.get())) {
+                return {};
+            }
+        }
+
+        const FAssetHandle Handle = AllocateHandle();
+        FAssetEntry Entry{};
+        Entry.AssetPath = AssetPath;
+        Entry.PhysicalPath = MetadataPath;
+        Entry.Handle = Handle;
+        Entry.Asset = std::move(NewAsset);
+
+        if (Handle.ID < Assets.size()) {
+            Assets[Handle.ID] = std::move(Entry);
+        }
+        else {
+            Assets.emplace_back(std::move(Entry));
+        }
+
+        PathToHandle[AssetPath] = Handle;
+        LegacyNameToHandle[Name] = Handle;
+        GuidToHandle[Assets[Handle.ID].Asset->GetGuid()] = Handle;
+
+        return Handle;
+    }
+
+    template<typename T>
+    requires std::is_base_of_v<UAsset, T>
     T* ResolveAsset(FAssetHandle Handle) {
-        if (Handle.ID >= Assets.size()) {
+        FAssetEntry* Entry = FindEntry(Handle);
+
+        if (Entry == nullptr || Entry->Asset == nullptr || !Entry->Asset->GetTypeInfo()->IsA(T::StaticTypeInfo())) {
             return nullptr;
         }
 
-        auto& Entry = Assets[Handle.ID];
-
-        if (Entry.first != Handle || Entry.second == nullptr) {
-            return nullptr;
-        }
-
-        if (!Entry.second->GetTypeInfo()->IsA(T::StaticTypeInfo())) {
-            return nullptr;
-        }
-
-        return static_cast<T*>(Entry.second.get());
+        return static_cast<T*>(Entry->Asset.get());
     }
 
-    template<typename T> requires std::is_base_of_v<UAsset, T>
+    template<typename T>
+    requires std::is_base_of_v<UAsset, T>
     const T* ResolveAsset(FAssetHandle Handle) const {
-        if (Handle.ID >= Assets.size()) {
+        const FAssetEntry* Entry = FindEntry(Handle);
+
+        if (Entry == nullptr || Entry->Asset == nullptr || !Entry->Asset->GetTypeInfo()->IsA(T::StaticTypeInfo())) {
             return nullptr;
         }
 
-        const auto& Entry = Assets[Handle.ID];
-
-        if (Entry.first != Handle || Entry.second == nullptr) {
-            return nullptr;
-        }
-
-        if (!Entry.second->GetTypeInfo().IsA(T::StaticTypeInfo())) {
-            return nullptr;
-        }
-
-        return static_cast<const T*>(Entry.second.get());
+        return static_cast<const T*>(Entry->Asset.get());
     }
 
-    template<typename T, typename Func> requires std::is_base_of_v<UAsset, T>
+    template<typename T, typename Func>
+    requires std::is_base_of_v<UAsset, T>
     void ModifyAsset(FAssetHandle Handle, Func&& Modifier) {
         T* Asset = ResolveAsset<T>(Handle);
 
@@ -96,45 +124,36 @@ public:
     }
 
     auto GetAssetList() {
-        return Assets | std::ranges::views::transform([](auto& Pair) -> UObject* {
-            return Pair.second.get();
-            });
+        return Assets | std::ranges::views::transform([](FAssetEntry& Entry) -> UObject* {
+            return Entry.Asset.get();
+        });
     }
 
-    void Reset() {
-        Assets.clear();
-        FreeHandles.clear();
-        AssetNameToHandle.clear();
-        AssetIDToHandle.clear();
-        MaterialBuffer.Reset();
-        Device = nullptr;
-    }
-
+    void Reset();
     void Finalize();
 
+    FAssetHandle EnsureDefaultStaticMeshMaterial();
+    FAssetHandle EnsureDefaultStaticMeshPipeline();
+
+    bool AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset);
+
 
 private:
+    static FAssetPath MakeLegacyAssetPath(const FString& Name);
+
     FAssetHandle AllocateHandle();
+    FAssetEntry* FindEntry(FAssetHandle Handle);
+    const FAssetEntry* FindEntry(FAssetHandle Handle) const;
     void RemoveHandleMappings(FAssetHandle Handle);
 
-    void LoadDefaults();
-    void LoadIterate(const std::filesystem::path& dir);
-
-	std::unique_ptr<UObject> LoadMaterial(const std::filesystem::path& filePath);
-	std::unique_ptr<UObject> LoadMesh(const std::filesystem::path& filePath);
-	std::unique_ptr<UObject> LoadTexture(const std::filesystem::path& filePath);
-	std::unique_ptr<UObject> LoadPipelineState(const std::filesystem::path& filePath);
-	std::unique_ptr<UObject> LoadMaterial(const std::filesystem::path& filePath);
 private:
-    TArray<TPair<FAssetHandle, std::unique_ptr<UObject>>> Assets{};
+    TArray<FAssetEntry> Assets{};
     TArray<FAssetHandle> FreeHandles{};
 
-    TMap<FString, FAssetLoader> AssetLoaders{}; 
-
-    TMap<FString, FAssetHandle> AssetMap{};
-    TMap<FAssetHandle, FString> AssetSerialize{};
+    TMap<FAssetPath, FAssetHandle> PathToHandle{};
+    TMap<FString, FAssetHandle> LegacyNameToHandle{};
+    TMap<FGuid, FAssetHandle> GuidToHandle{};
 
     FMaterialBuffer MaterialBuffer{};
-
     ID3D11Device* Device{ nullptr };
 };

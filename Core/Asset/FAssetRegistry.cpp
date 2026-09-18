@@ -1,33 +1,18 @@
 ﻿#include "PCH.h"
 #include "FAssetRegistry.h"
-#include "../../ErrorHandler.h"
+
 #include "UColorMaterial.h"
 #include "Render/Pipeline/UPipeline.h"
 
-#include "FAssetRegistry.h"
-
-#include "../../ErrorHandler.h"
-
 namespace {
-    constexpr const char* DefaultStaticMeshMaterialName = "__DefaultStaticMeshMaterial";
-    constexpr const char* DefaultStaticMeshPipelineName = "__DefaultStaticMeshPipeline";
-    constexpr const char* DefaultStaticMeshMaterialMetadataPath = "./Content/Metadata/DefaultStaticMeshMaterial.meta";
-    constexpr const char* DefaultStaticMeshPipelineMetadataPath = "./Content/Metadata/DefaultStaticMeshPipeline.meta";
-}
-
-FAssetRegistry::FAssetRegistry() {
-	AssetLoaders["Material"] = [this](const std::filesystem::path& filePath) { return LoadMaterial(filePath); };
-	AssetLoaders["Mesh"] = [this](const std::filesystem::path& filePath) { return LoadMesh(filePath); };
-	AssetLoaders["Texture"] = [this](const std::filesystem::path& filePath) { return LoadTexture(filePath); };
-	AssetLoaders["Pipeline"] = [this](const std::filesystem::path& filePath) { return LoadPipelineState(filePath); };
+constexpr const char* DefaultStaticMeshMaterialName = "__DefaultStaticMeshMaterial";
+constexpr const char* DefaultStaticMeshPipelineName = "__DefaultStaticMeshPipeline";
+constexpr const char* DefaultStaticMeshMaterialMetadataPath = "./Content/Metadata/DefaultStaticMeshMaterial.meta";
+constexpr const char* DefaultStaticMeshPipelineMetadataPath = "./Content/Metadata/DefaultStaticMeshPipeline.meta";
 }
 
 bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
-    if (Device == nullptr) {
-        return false;
-    }
-
-    if (!MaterialBuffer.Initialize(Device, MaxMaterialCount)) {
+    if (Device == nullptr || !MaterialBuffer.Initialize(Device, MaxMaterialCount)) {
         return false;
     }
 
@@ -35,126 +20,24 @@ bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
     return true;
 }
 
+FAssetHandle FAssetRegistry::FindAsset(const FAssetPath& AssetPath) const {
+    const auto It = PathToHandle.find(AssetPath);
 
-
-void FAssetRegistry::LoadDefaults() {
-    // 기본 기하 도형들 마치 있는 것 처럼 로드할 것 
-}
-
-void FAssetRegistry::LoadIterate(const std::filesystem::path& dir) {
-    // 주어진 dir 을 순회할 재귀함수. 
-    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-        if (std::filesystem::is_directory(entry)) {
-            LoadIterate(entry.path());
-        }
-
-        FString Type = FString{ dir.filename().generic_string() } ;
-		FString Name = FString{ entry.path().stem().generic_string() };
-
-		FString Key = Type + "." + Name;
-
-        std::unique_ptr<UObject> newAsset{}; 
-        if (auto It = AssetLoaders.find(Type); It != AssetLoaders.end()) {
-			newAsset = std::move(std::invoke(It->second, entry.path()));
-		}
-		else {
-			ErrorHandler::Report("[ AssetRegistry ]", "No loader found for asset type: " + Type, ErrorHandler::EErrorLevel::Warning);
-		}
-
-
-
+    if (It == PathToHandle.end()) {
+        return {};
     }
+
+    return It->second;
 }
 
-std::unique_ptr<UObject> FAssetRegistry::LoadMaterial(const std::filesystem::path& filePath) {
-
-    return std::unique_ptr<UObject>();
+UAsset* FAssetRegistry::GetUAsset(const FString& Name) {
+    return ResolveAsset<UAsset>(GetAsset(Name));
 }
-
-std::unique_ptr<UObject> FAssetRegistry::LoadMesh(const std::filesystem::path& filePath) {
-
-    return std::unique_ptr<UObject>();
-}
-
-std::unique_ptr<UObject> FAssetRegistry::LoadTexture(const std::filesystem::path& filePath) {
-
-    return std::unique_ptr<UObject>();
-}
-
-std::unique_ptr<UObject> FAssetRegistry::LoadPipelineState(const std::filesystem::path& filePath) {
-
-    return std::unique_ptr<UObject>();
-}
-
-
-//FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshMaterial() {
-//    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshMaterialName);
-//    if (ResolveAsset<UMaterial>(ExistingHandle) != nullptr) {
-//        return ExistingHandle;
-//    }
-//
-//    if (ExistingHandle || Device == nullptr) {
-//        return {};
-//    }
-//
-//    return EmplaceAsset<UColorMaterial>(Device, DefaultStaticMeshMaterialName, DefaultStaticMeshMaterialMetadataPath);
-//}
-//
-//FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshPipeline() {
-//    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshPipelineName);
-//    if (ResolveAsset<UPipeline>(ExistingHandle) != nullptr) {
-//        return ExistingHandle;
-//    }
-//
-//    if (ExistingHandle || Device == nullptr) {
-//        return {};
-//    }
-//
-//    return EmplaceAsset<UPipeline>(Device, DefaultStaticMeshPipelineName, DefaultStaticMeshPipelineMetadataPath);
-//}
-//
-//FAssetHandle FAssetRegistry::AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset) {
-//    if (Device == nullptr || Asset == nullptr || !ID.IsValid()) {
-//        return {};
-//    }
-//
-//    if (AssetNameToHandle.contains(Name) || AssetIDToHandle.contains(ID)) {
-//        return {};
-//    }
-//
-//    if (!Asset->GetTypeInfo()->IsA(UAsset::StaticTypeInfo())) {
-//        return {};
-//    }
-//
-//    UAsset* TypedAsset = static_cast<UAsset*>(Asset.get());
-//
-//    TypedAsset->SetAssetName(Name);
-//    TypedAsset->Initialize(Device, MetadataPath);
-//
-//    if (Asset->GetTypeInfo()->IsA<UMaterial>()) {
-//        UMaterial* Material = static_cast<UMaterial*>(Asset.get());
-//		ErrorHandler::Report(not MaterialBuffer.RegisterMaterial(Material), "FAssetRegistry::AdoptAsset", "Failed to register material in the material buffer.", ErrorHandler::EErrorLevel::Error);
-//    }
-//
-//    const FAssetHandle Handle = AllocateHandle();
-//
-//    if (Handle.ID < Assets.size()) {
-//        Assets[Handle.ID] = {Handle, std::move(Asset)};
-//    }
-//    else {
-//        Assets.emplace_back(Handle, std::move(Asset));
-//    }
-//
-//    AssetNameToHandle[Name] = Handle;
-//    AssetIDToHandle[ID] = Handle;
-//
-//    return Handle;
-//}
 
 FAssetHandle FAssetRegistry::GetAsset(const FString& Name) const {
-    const auto It = AssetNameToHandle.find(Name);
+    const auto It = LegacyNameToHandle.find(Name);
 
-    if (It == AssetNameToHandle.end()) {
+    if (It == LegacyNameToHandle.end()) {
         return {};
     }
 
@@ -162,9 +45,9 @@ FAssetHandle FAssetRegistry::GetAsset(const FString& Name) const {
 }
 
 FAssetHandle FAssetRegistry::GetAsset(const FGuid& ID) const {
-    const auto It = AssetIDToHandle.find(ID);
+    const auto It = GuidToHandle.find(ID);
 
-    if (It == AssetIDToHandle.end()) {
+    if (It == GuidToHandle.end()) {
         return {};
     }
 
@@ -172,43 +55,120 @@ FAssetHandle FAssetRegistry::GetAsset(const FGuid& ID) const {
 }
 
 bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
-    if (Handle.ID >= Assets.size()) {
+    FAssetEntry* Entry = FindEntry(Handle);
+
+    if (Entry == nullptr || Entry->Asset == nullptr) {
         return false;
     }
 
-    auto& Entry = Assets[Handle.ID];
-
-    if (Entry.first != Handle || Entry.second == nullptr) {
-        return false;
-    }
-
-    if (Entry.second->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
-        UMaterial* Material = static_cast<UMaterial*>(Entry.second.get());
-        MaterialBuffer.UnregisterMaterial(Material);
+    if (Entry->Asset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
+        MaterialBuffer.UnregisterMaterial(static_cast<UMaterial*>(Entry->Asset.get()));
     }
 
     RemoveHandleMappings(Handle);
-
-    Entry.second.reset();
-
-    Entry.first = FAssetHandle{
-        Handle.ID,
-        Handle.Generation + 1
-    };
-
-    FreeHandles.push_back(Entry.first);
+    Entry->Asset.reset();
+    Entry->Handle = FAssetHandle{ Handle.ID, Handle.Generation + 1 };
+    FreeHandles.push_back(Entry->Handle);
 
     return true;
 }
 
+void FAssetRegistry::Reset() {
+    Assets.clear();
+    FreeHandles.clear();
+    PathToHandle.clear();
+    LegacyNameToHandle.clear();
+    GuidToHandle.clear();
+    MaterialBuffer.Reset();
+    Device = nullptr;
+}
+
 void FAssetRegistry::Finalize() {
-	for (auto& [Handle, Asset] : Assets) {
-		if(Asset->GetTypeInfo()->IsA<UMaterial>()) {
-			auto* mat = static_cast<UMaterial*>(Asset.get());
-            mat->Finalize(this); 
-            mat->MarkGPUDataDirty(); 
-		}
-	}
+    for (FAssetEntry& Entry : Assets) {
+        if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
+            continue;
+        }
+
+        UMaterial* Material = static_cast<UMaterial*>(Entry.Asset.get());
+        Material->Finalize(this);
+        Material->MarkGPUDataDirty();
+    }
+}
+
+FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshMaterial() {
+    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshMaterialName);
+
+    if (ResolveAsset<UMaterial>(ExistingHandle) != nullptr) {
+        return ExistingHandle;
+    }
+
+    if (ExistingHandle || Device == nullptr) {
+        return {};
+    }
+
+    return EmplaceAsset<UColorMaterial>(Device, DefaultStaticMeshMaterialName, DefaultStaticMeshMaterialMetadataPath);
+}
+
+FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshPipeline() {
+    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshPipelineName);
+
+    if (ResolveAsset<UPipeline>(ExistingHandle) != nullptr) {
+        return ExistingHandle;
+    }
+
+    if (ExistingHandle || Device == nullptr) {
+        return {};
+    }
+
+    return EmplaceAsset<UPipeline>(Device, DefaultStaticMeshPipelineName, DefaultStaticMeshPipelineMetadataPath);
+}
+
+bool FAssetRegistry::AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset) {
+    if (Device == nullptr || Asset == nullptr || !ID.IsValid() || GetAsset(Name)) {
+        return false;
+    }
+
+    if (!Asset->GetTypeInfo()->IsA(UAsset::StaticTypeInfo())) {
+        return false;
+    }
+
+    std::unique_ptr<UAsset> TypedAsset(static_cast<UAsset*>(Asset.release()));
+    const FAssetPath AssetPath = MakeLegacyAssetPath(Name);
+
+    if (!AssetPath || PathToHandle.contains(AssetPath)) {
+        return false;
+    }
+
+    TypedAsset->SetAssetName(Name);
+    TypedAsset->Initialize(Device, MetadataPath);
+
+    if (TypedAsset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo()) && !MaterialBuffer.RegisterMaterial(static_cast<UMaterial*>(TypedAsset.get()))) {
+        return false;
+    }
+
+    const FAssetHandle Handle = AllocateHandle();
+    FAssetEntry Entry{};
+    Entry.AssetPath = AssetPath;
+    Entry.PhysicalPath = MetadataPath;
+    Entry.Handle = Handle;
+    Entry.Asset = std::move(TypedAsset);
+
+    if (Handle.ID < Assets.size()) {
+        Assets[Handle.ID] = std::move(Entry);
+    }
+    else {
+        Assets.emplace_back(std::move(Entry));
+    }
+
+    PathToHandle[AssetPath] = Handle;
+    LegacyNameToHandle[Name] = Handle;
+    GuidToHandle[ID] = Handle;
+
+    return true;
+}
+
+FAssetPath FAssetRegistry::MakeLegacyAssetPath(const FString& Name) {
+    return FAssetPath{ FString{ "/Engine/Legacy/" } + Name };
 }
 
 FAssetHandle FAssetRegistry::AllocateHandle() {
@@ -218,29 +178,52 @@ FAssetHandle FAssetRegistry::AllocateHandle() {
         return Handle;
     }
 
-    return FAssetHandle{
-        static_cast<uint32>(Assets.size()),
-        0
-    };
+    return FAssetHandle{ static_cast<uint32>(Assets.size()), 0 };
+}
+
+FAssetEntry* FAssetRegistry::FindEntry(FAssetHandle Handle) {
+    if (Handle.ID >= Assets.size()) {
+        return nullptr;
+    }
+
+    FAssetEntry& Entry = Assets[Handle.ID];
+    return Entry.Handle == Handle ? &Entry : nullptr;
+}
+
+const FAssetEntry* FAssetRegistry::FindEntry(FAssetHandle Handle) const {
+    if (Handle.ID >= Assets.size()) {
+        return nullptr;
+    }
+
+    const FAssetEntry& Entry = Assets[Handle.ID];
+    return Entry.Handle == Handle ? &Entry : nullptr;
 }
 
 void FAssetRegistry::RemoveHandleMappings(FAssetHandle Handle) {
-    for (auto It = AssetNameToHandle.begin(); It != AssetNameToHandle.end();) {
+    for (auto It = PathToHandle.begin(); It != PathToHandle.end();) {
         if (It->second == Handle) {
-            It = AssetNameToHandle.erase(It);
+            It = PathToHandle.erase(It);
         }
         else {
             ++It;
         }
     }
 
-    for (auto It = AssetIDToHandle.begin(); It != AssetIDToHandle.end();) {
+    for (auto It = LegacyNameToHandle.begin(); It != LegacyNameToHandle.end();) {
         if (It->second == Handle) {
-            It = AssetIDToHandle.erase(It);
+            It = LegacyNameToHandle.erase(It);
+        }
+        else {
+            ++It;
+        }
+    }
+
+    for (auto It = GuidToHandle.begin(); It != GuidToHandle.end();) {
+        if (It->second == Handle) {
+            It = GuidToHandle.erase(It);
         }
         else {
             ++It;
         }
     }
 }
-
