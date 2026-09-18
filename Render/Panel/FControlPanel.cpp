@@ -12,6 +12,9 @@
 #include "../../Scene/Component/UActorComponent.h"
 #include "../../Scene/Component/UStaticMeshComponent.h"
 #include "../../Scene/UWorld.h"
+
+#include "../../Core/Console/Console.h"
+
 void FControlPanel::DrawPanel()  
 {
     // 1. 상태 채널에서 카메라 정보 읽기 (Engine -> UI)
@@ -318,6 +321,13 @@ void FControlPanel::DrawPanel()
     if (ImGui::Combo("Render Mode", &RenderIndex, RenderModes, IM_ARRAYSIZE(RenderModes)))
     {
         EditorContext->SetRenderModeState(static_cast<size_t>(RenderIndex));
+    }
+
+    if (ImGui::Button("Import"))
+    {
+        Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Import Button Click");
+                
+        EditorToWorldSender.TryEmplace<FMessageImportMesh>(FString("ObjImport"), FString("./Content/Metadata/MonkeyMesh.meta"));
     }
 
     // 남은 공간의 오른쪽 끝에 성능 정보를 고정한다.

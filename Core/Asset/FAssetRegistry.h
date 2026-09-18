@@ -127,6 +127,7 @@ public:
 
     void Finalize();
 
+
 private:
     FAssetHandle AllocateHandle();
     void RemoveHandleMappings(FAssetHandle Handle);
