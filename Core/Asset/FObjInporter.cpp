@@ -89,6 +89,7 @@ bool FObjInporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		{
 			if (Tokens.size() != 4) continue;
 			FVector Normal = FVector(std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()), std::stof(Tokens[3].c_str()));
+			Normal = FVector(Normal.Dot(PositionCoordTrans_X), Normal.Dot(PositionCoordTrans_Y), Normal.Dot(PositionCoordTrans_Z));
 			ObjInfo.Normals.push_back(Normal);
 		}
 		else if (Tag == "vt") // vt u v
@@ -227,6 +228,11 @@ bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	OutGeometry.TexCoords.reserve(ObjInfo.FaceVertices.size());
 	OutGeometry.Indices.reserve(ObjInfo.FaceVertices.size());
 
+	/*OutGeometry.Positions.resize(ObjInfo.Positions.size());
+	OutGeometry.Normals.resize(ObjInfo.Positions.size());
+	OutGeometry.TexCoords.resize(ObjInfo.Positions.size());
+	OutGeometry.Indices.resize(ObjInfo.FaceVertices.size());*/
+
 	for (const FFaceVertex& Face : ObjInfo.FaceVertices)
 	{
 		//기본값(-1)이면 파싱이 깨진 코너이므로 건너뛴다.
@@ -267,11 +273,8 @@ bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 		OutGeometry.Normals.push_back(
 			(NormalizedNormal >= 0 && NormalizedNormal < NormalCount) ? ObjInfo.Normals[NormalizedNormal] : FVector(0.f, 0.f, 0.f));
 
-		/*VertexCache.emplace(Key, NewIndex);
-		OutGeometry.Indices.push_back(NewIndex);*/
-
-		VertexCache.emplace(Key, NormalizedPosition);
-		OutGeometry.Indices.push_back(NormalizedPosition);
+		VertexCache.emplace(Key, NewIndex);
+		OutGeometry.Indices.push_back(NewIndex);
 	}
 
 	if (OutGeometry.Positions.empty() || OutGeometry.Indices.empty())

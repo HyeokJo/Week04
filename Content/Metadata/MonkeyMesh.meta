@@ -1,5 +1,5 @@
 {
 	"BasicMesh" : false , 
-	"FilePath" : "./Content/ModelingFiles/Plane.obj" , 
+	"FilePath" : "./Content/ModelingFiles/Monkey.obj" , 
 	"MeshType" : "Monkey" ,
 }

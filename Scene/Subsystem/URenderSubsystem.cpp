@@ -31,6 +31,7 @@ void URenderSubsystem::BuildRenderProbes(FAssetRegistry* AssetRegistry, FRenderP
         FActorProbe ActorProbe{};
         Component->MakeRender(ActorProbe);
 
+
         if (not Component->IsActive() or not Component->IsVisible()) continue;
 
         if (AssetRegistry != nullptr && EditorContext != nullptr) {
