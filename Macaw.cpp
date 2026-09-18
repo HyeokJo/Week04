@@ -70,6 +70,10 @@
 #include "Scene/Component/UBillboardComponent.h"
 #include "Scene/Component/USubUVComponent.h"
 
+#include "FGraphicsContext.h"
+#include "FWindowResizeRequestMessage.h"
+
+
 #define MAX_LOADSTRING 100
 
 
@@ -96,6 +100,10 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 HWND gHWND;
 FRenderer Renderer;
+
+FGraphicsContext GraphicsContext;
+FMessageChannel::FSender GraphicsSender =
+GraphicsContext.GetWindowToGraphicsSender();
 
 namespace {
     constexpr bool bEnableSceneSave = true;
@@ -246,7 +254,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	EditorContext.SetWorld(&World);
 
     Renderer.Create(gHWND, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-
+    GraphicsContext.SetRenderer(Renderer);
 
     FAssetRegistry AssetRegistry;
     AssetRegistry.Initialize(Renderer.GetDevice(), 128);
@@ -256,6 +264,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     FMessageChannel WorldCommandChannel{ 64 };
     EditorContext.InitializeChannels(AssetRegistry, Renderer.GetDevice());
 
+    
     
 
     EditorViewport EditorView{};
@@ -318,6 +327,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
         else {
+
+            GraphicsContext.Dispatch();
+
             const auto CurrentTickTime = std::chrono::steady_clock::now();
             const float DeltaTime = std::chrono::duration<float>(CurrentTickTime - LastTickTime).count();
             LastTickTime = CurrentTickTime;
@@ -327,45 +339,256 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			ImGui::NewFrame();
 			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 			EditorUIManager.Tick();
+#pragma region 기존 Imgui
+/*
+            ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
+            ImGui::Begin("Viewport###SceneViewport");
+            const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
+            const ImVec2 SceneViewportSize = ImGui::GetContentRegionAvail();
+            const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
+            const bool bSceneViewportHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+            const bool bSceneViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            const uint32 SceneViewportWidth = static_cast<uint32>(std::max(0.0f, SceneViewportSize.x));
+            const uint32 SceneViewportHeight = static_cast<uint32>(std::max(0.0f, SceneViewportSize.y));
+            Renderer.ResizeSceneSurface(SceneViewportWidth, SceneViewportHeight, SceneViewportPosition.x - MainViewportPosition.x, SceneViewportPosition.y - MainViewportPosition.y);
 
-            // 장면을 그릴 Imgui 창의 Resize 절차
-			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Viewport###SceneViewport");
-			const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
-			const ImVec2 SceneViewportSize = ImGui::GetContentRegionAvail();
-			const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
-			const bool bSceneViewportHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-			const bool bSceneViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-			const uint32 SceneViewportWidth = static_cast<uint32>(std::max(0.0f, SceneViewportSize.x));
-			const uint32 SceneViewportHeight = static_cast<uint32>(std::max(0.0f, SceneViewportSize.y));
-			Renderer.ResizeSceneSurface(SceneViewportWidth, SceneViewportHeight, SceneViewportPosition.x - MainViewportPosition.x, SceneViewportPosition.y - MainViewportPosition.y);
+            // 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
+            EditorView.ProcessInput(GKeyboardInput, GMouseInput, !bSceneViewportHovered);
 
-			// 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
-			EditorView.ProcessInput(GKeyboardInput, GMouseInput, !bSceneViewportHovered);
-
-			GMouseInput.DispatchPendingWorldCommands(SceneViewportWidth, SceneViewportHeight, !bSceneViewportHovered);
-			GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, !bSceneViewportFocused || ImGui::GetIO().WantCaptureKeyboard);
+            GMouseInput.DispatchPendingWorldCommands(SceneViewportWidth, SceneViewportHeight, !bSceneViewportHovered);
+            GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, !bSceneViewportFocused || ImGui::GetIO().WantCaptureKeyboard);
 
             WorldCommandChannel.Dispatch();
             World.Tick(DeltaTime);
 
-			EditorContext.Dispatch();
+            EditorContext.Dispatch();
 
-			//UndoCommandChannel.Dispatch();
+            //UndoCommandChannel.Dispatch();
 
-			FRenderProbe& Probe{ World.BuildRenderProbe() };
-			EditorView.RenderInProbe(Probe);
-			Renderer.BeginSceneRender();
+            FRenderProbe& Probe{ World.BuildRenderProbe() };
+            EditorView.RenderInProbe(Probe);
+            Renderer.BeginSceneRender();
 
-			Renderer.RenderScene(Probe);
-            EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
-			Renderer.RenderGizmos(Probe);
+            Renderer.RenderScene(Probe);
+            EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
+            Renderer.RenderGizmos(Probe);
+            Renderer.RenderText(Probe);
+            EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
+
+
+            ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
+            ImGui::End();*/
+
+#pragma endregion
+
+#pragma region 신규
+
+            struct FViewportFrame
+            {
+                ImVec2 Position{};
+                ImVec2 Size{};
+
+                uint32 Width = 0;
+                uint32 Height = 0;
+
+                bool bVisible = false;
+                bool bHovered = false;
+                bool bFocused = false;
+            };
+
+            std::array<FViewportFrame, 4> Frames{};
+
+            const char* Titles[4] = {
+                "Viewport 1###SceneViewport0",
+                "Viewport 2###SceneViewport1",
+                "Viewport 3###SceneViewport2",
+                "Viewport 4###SceneViewport3"
+            };
+
+            const ImGuiViewport* MainViewport = ImGui::GetMainViewport();
+            const ImVec2 MainPosition = MainViewport->Pos;
+
+            constexpr float Gap = 8.0f;
+
+            const ImVec2 InitialSize{
+                std::max(100.0f, (MainViewport->WorkSize.x - Gap * 3.0f) * 0.5f),
+                std::max(100.0f, (MainViewport->WorkSize.y - Gap * 3.0f) * 0.5f)
+            };
+
+            size_t AtciveViewportId = 0;
+
+            // 네 창의 크기를 구하고, 각 Surface를 UI에 연결
+            for (uint32 Id = 0; Id < Frames.size(); ++Id)
+            {
+                auto& Frame = Frames[Id];
+
+                const float Column = static_cast<float>(Id % 2);
+                const float Row = static_cast<float>(Id / 2);
+
+                // 첫 사용 시 2×2로 배치. 이후 사용자가 이동·크기 변경 가능.
+                ImGui::SetNextWindowPos(
+                    ImVec2{
+                        MainViewport->WorkPos.x + Gap
+                            + Column * (InitialSize.x + Gap),
+                        MainViewport->WorkPos.y + Gap
+                            + Row * (InitialSize.y + Gap)
+                    },
+                    ImGuiCond_FirstUseEver);
+
+                ImGui::SetNextWindowSize(
+                    InitialSize,
+                    ImGuiCond_FirstUseEver);
+
+                const bool bExpanded = ImGui::Begin(Titles[Id]);
+
+
+                if (bExpanded)
+                {
+                    Frame.Position = ImGui::GetCursorScreenPos();
+                    Frame.Size = ImGui::GetContentRegionAvail();
+
+                    Frame.Width =
+                        static_cast<uint32>(std::max(0.0f, Frame.Size.x));
+
+                    Frame.Height =
+                        static_cast<uint32>(std::max(0.0f, Frame.Size.y));
+
+                    Frame.bVisible = Frame.Width > 0 && Frame.Height > 0;
+
+                    Frame.bFocused =
+                        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+                    if (Frame.bVisible)
+                    {
+                        // Image에 넣기 전에 Surface 크기를 확정한다.
+                        Renderer.ResizeSceneSurface(
+                            Id,
+                            Frame.Width,
+                            Frame.Height,
+                            Frame.Position.x - MainPosition.x,
+                            Frame.Position.y - MainPosition.y);
+
+                        ImGui::Image(
+                            reinterpret_cast<ImTextureID>(
+                                Renderer.GetSceneShaderResourceView(Id)),
+                            Frame.Size);
+
+                        Frame.bHovered = ImGui::IsItemHovered();
+                    }
+                }
+
+                if (ImGui::IsWindowFocused()) {
+                    AtciveViewportId = Id;
+
+                }
+
+                ImGui::End();
+            }
+
+            const auto& InputFrame = Frames[AtciveViewportId];
+
+            if (InputFrame.bVisible)
+            {
+                // 입력 처리가 첫 번째 창의 영역을 사용하도록 상태 갱신
+                Renderer.ResizeSceneSurface(
+                    AtciveViewportId,
+                    InputFrame.Width,
+                    InputFrame.Height,
+                    InputFrame.Position.x - MainPosition.x,
+                    InputFrame.Position.y - MainPosition.y);
+            }
+
+            const bool bBlockMouse =
+                !InputFrame.bVisible || !InputFrame.bHovered;
+
+            const bool bBlockKeyboard =
+                !InputFrame.bVisible ||
+                !InputFrame.bFocused ||
+                ImGui::GetIO().WantCaptureKeyboard;
+
+            EditorView.ProcessInput(
+                GKeyboardInput,
+                GMouseInput,
+                bBlockMouse);
+
+            GMouseInput.DispatchPendingWorldCommands(
+                InputFrame.Width,
+                InputFrame.Height,
+                bBlockMouse);
+
+            GKeyboardInput.DispatchPendingWorldCommands(
+                DeltaTime,
+                bBlockKeyboard);
+
+            // 월드는 프레임당 한 번 갱신
+            WorldCommandChannel.Dispatch();
+            World.Tick(DeltaTime);
+            EditorContext.Dispatch();
+
+            // 같은 카메라의 장면을 네 Surface에 각각 렌더링
+            for (uint32 Id = 0; Id < Frames.size(); ++Id)
+            {
+                const auto& Frame = Frames[Id];
+
+                if (!Frame.bVisible)
+                {
+                    continue;
+                }
+
+                // 그리드·기즈모가 현재 Surface 크기를 읽도록 갱신
+                Renderer.ResizeSceneSurface(
+                    Id,
+                    Frame.Width,
+                    Frame.Height,
+                    Frame.Position.x - MainPosition.x,
+                    Frame.Position.y - MainPosition.y);
+
+                // 기존 Probe 수정이 다른 화면에 누적되지 않도록 다시 구성
+                FRenderProbe& Probe = World.BuildRenderProbe();
+                EditorView.RenderInProbe(Probe);
+
+                Renderer.BeginSceneRender(Id);
+                Renderer.RenderScene(Probe);
+
+                EditorView.RenderSceneGuides(
+                    Renderer.GetDeviceContext(),
+                    Probe);
+
+                Renderer.RenderGizmos(Probe);
+                Renderer.RenderText(Probe);
+
+                EditorView.RenderOrientationAxis(
+                    Renderer.GetDeviceContext(),
+                    Probe.MainCameraProbe);
+            }
+
+#pragma endregion
+
+			
             
-			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
+            //ImGui::Begin("FName Test");      
+            //ImGui::Separator();
+            //
+            //ImGui::InputText("String A", BufferA, sizeof(BufferA));
+            //ImGui::InputText("String B", BufferB, sizeof(BufferB));
 
+            //FName NameA(BufferA);
+            //FName NameB(BufferB);
 
-			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
-			ImGui::End();
+            //bool bIsEqual = (NameA == NameB);
+            //if (bIsEqual)
+            //{
+            //    ImGui::Text("operator== : true");               
+            //}
+            //else
+            //{
+            //    ImGui::Text("operator== : false");            
+            //}
+
+            //ImGui::Text("=== 2. Display Result (Case Preservation) ===");
+            //ImGui::Text("A.ToString() : \"%s\"", NameA.ToString().c_str());
+            //ImGui::Text("B.ToString() : \"%s\"", NameB.ToString().c_str());
+            //ImGui::End();
 
 			ImGui::Render();
 			Renderer.BeginUiRender();
@@ -527,9 +750,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 	case WM_SIZE:
 		if (wParam != SIZE_MINIMIZED) {
-			uint32 width = LOWORD(lParam);
+			/*uint32 width = LOWORD(lParam);
 			uint32 height = HIWORD(lParam);
-			Renderer.ReSize(width, height);
+			Renderer.ReSize(width, height);*/
+            GraphicsSender.TryEmplace<FWindowResizeRequestMessage>(
+                static_cast<std::uint32_t>(LOWORD(lParam)),
+                static_cast<std::uint32_t>(HIWORD(lParam)));
 		}
 		break;
     default:
