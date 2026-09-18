@@ -47,15 +47,6 @@ enum class ERenderObjectFlags : uint32 {
 	Unlit = 1u << 1
 };
 
-enum class ERenderLayer : uint32 {
-	None = 0,
-    Sky = 1,
-	Opaque = 2,
-	Transparent = 3,
-	Gizmo = 4
-};
-
-
 enum class ELightType : uint32 {
     Directional,
     Point,
@@ -80,8 +71,7 @@ struct CameraProbe {
 	FMatrix Projection{};
 };
 
-// World-space, renderer-facing light data. This layout deliberately matches
-// the StructuredBuffer element consumed by the lighting shader.
+
 struct FLightProbe {
     FVector3 Color{ 1.0f, 1.0f, 1.0f };
     float Intensity{ 1.0f };
@@ -106,8 +96,6 @@ struct FRenderProbe {
     TArray<FBillboardProbe> BillboardProbes{};
 	TArray<FLightProbe> LightProbes{};
 
-	// The editor's global render mode. Billboard and text passes are already
-	// unlit; this flag disables lighting for every mesh material pass.
 	bool bForceUnlit{ false };
 
 	CameraProbe MainCameraProbe{}; 

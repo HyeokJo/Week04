@@ -24,6 +24,7 @@ public:
 
     void DrawBool(const char* Label, bool Value, const std::function<void(bool)>& Setter) const;
     void DrawFloat(const char* Label, float Value, float Speed, float Min, float Max, const std::function<void(float)>& Setter) const;
+	void DrawVector2(const char* Label, const FVector2& Value, float Speed, float Min, float Max, const std::function<void(const FVector2&)>& Setter) const;
     void DrawVector3(const char* Label, const FVector3& Value, float Speed, float Min, float Max, const std::function<void(const FVector3&)>& Setter) const;
     void DrawColor(const char* Label, const FVector4& Value, const std::function<void(const FVector4&)>& Setter) const;
     void DrawText(const char* Label, const FString& Value, const std::function<void(const FString&)>& Setter) const;

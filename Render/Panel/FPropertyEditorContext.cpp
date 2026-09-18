@@ -35,6 +35,13 @@ void FPropertyEditorContext::DrawFloat(const char* Label, float Value, float Spe
     }
 }
 
+void FPropertyEditorContext::DrawVector2(const char* Label, const FVector2& Value, float Speed, float Min, float Max, const std::function<void(const FVector2&)>& Setter) const {
+	FVector2 EditedValue = Value;
+	if (ImGui::DragFloat2(Label, &EditedValue.x, Speed, Min, Max)) {
+		Setter(EditedValue);
+	}
+}
+
 void FPropertyEditorContext::DrawVector3(const char* Label, const FVector3& Value, float Speed, float Min, float Max, const std::function<void(const FVector3&)>& Setter) const {
     FVector3 EditedValue = Value;
     if (ImGui::DragFloat3(Label, &EditedValue.x, Speed, Min, Max)) {

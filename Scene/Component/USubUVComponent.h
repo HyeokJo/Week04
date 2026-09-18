@@ -4,6 +4,8 @@
 #include "Core/Asset/FAssetHandle.h"
 #include "Core/Base/FRenderProbe.h"
 
+#include "../../Serialize/FArchive.h"
+
 class FPropertyEditorContext;
 
 class USubUVComponent : public UBillboardComponent
@@ -32,6 +34,9 @@ public:
 	void Tick(float DeltaTime) override;
 
 	void DrawPanels(FPropertyEditorContext& Context) override;
+
+protected:
+	void Serialize(FArchive& Archive) override;
 
 private:
 	int32 SubImageHorizontal = 1;
