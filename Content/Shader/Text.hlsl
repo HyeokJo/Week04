@@ -49,9 +49,11 @@ void mainGS(point VS_OUTPUT Input[1], inout TriangleStream<PS_INPUT> Stream) // 
 {
     VS_OUTPUT Glyph = Input[0];
     
-    float3 Origin = mul(float4(0.0f, 0.0f, 0.0f, 1.0f), World).xyz;
-    float3 CameraRight = normalize(CameraWorld[0].xyz);
-    float3 CameraUp = normalize(CameraWorld[1].xyz);
+    float3 Origin = mul(float4(0.0f, 0.0f, 1.0f, 1.0f), World).xyz;
+    float3 WorldUp = float3(0.0f, 0.0f, 1.0f);
+    float3 CameraForward = normalize(CameraWorld[2].xyz);
+    float3 CameraRight = normalize(cross(WorldUp, CameraForward));
+    float3 CameraUp = WorldUp;
    
     float Left = Glyph.LocalPosition.x;
     float Right = Left + Glyph.Size.x;

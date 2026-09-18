@@ -361,6 +361,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
 			Renderer.RenderGizmos(Probe);
             
+
+			Renderer.RenderText(Probe);
+            
+
 			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
 
 

@@ -8,10 +8,14 @@
 
 UCameraComponent::UCameraComponent() {
     SetRelativeLocation({ 5.0f, 5.0f, 5.0f });
+
+    
+
+
 }
 
 FMatrix UCameraComponent::GetViewMatrix() const {
-    return GetComponentToWorld().Invert();
+    return (CameraBasis * GetComponentToWorld()).Invert();
 }
 
 FMatrix UCameraComponent::GetProjectionMatrix() const {

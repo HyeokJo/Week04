@@ -87,8 +87,8 @@ void FRenderer::RenderScene(FRenderProbe& Probe) {
 	RenderOutline(Probe.ActorProbes, Probe.MainCameraProbe);
 
 	if (AssetRegistry != nullptr) {
-		TextRenderer.Render(DeviceContext.Get(),Probe.TextProbes,Probe.MainCameraProbe, AssetRegistry);
-		BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Probe.MainCameraProbe, AssetRegistry);
+		//TextRenderer.Render(DeviceContext.Get(),Probe.TextProbes,Probe.MainCameraProbe, AssetRegistry);
+		//BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Probe.MainCameraProbe, AssetRegistry);
 	}
 }
 
@@ -390,5 +390,6 @@ void FRenderer::RenderText(const FRenderProbe& Probe)
 	if (AssetRegistry != nullptr)
 	{
 		TextRenderer.Render(DeviceContext.Get(),Probe.TextProbes,Probe.MainCameraProbe,AssetRegistry);
+		BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Probe.MainCameraProbe, AssetRegistry);
 	}
 }
