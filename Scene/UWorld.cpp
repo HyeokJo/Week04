@@ -25,6 +25,8 @@
 #include "Render/Panel/FEditorInfo.h"
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Asset/UMesh.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
 
 #include "../Serialize/FArchiveJson.h"
 #include "../Core/Base/TypeRegistry.h"
@@ -683,6 +685,57 @@ void UWorld::HandleKeyboardCameraMoveRequest(
 	PublishEditorCameraState();
 }
 
+void UWorld::HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message)
+{
+	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+	if (Camera == nullptr)
+	{
+		return;
+	}
+
+	const FMatrix CameraWorld = Camera->GetComponentToWorld();
+
+	FVector3 Right = CameraWorld.Right();
+	FVector3 Up = CameraWorld.Up();
+	Right.Normalize();
+	Up.Normalize();
+
+	
+	const float PanScale = Settings.MoveSensitivity * 0.01f;
+
+	FTransform& CameraTransform = Camera->GetRelativeTransform();
+
+	const FVector3 Offset =
+		Right * (-Message.DeltaX * PanScale)
+		+ Up * (-Message.DeltaY * PanScale);
+
+	CameraTransform.SetPosition(CameraTransform.GetPosition() + Offset);
+
+	PublishEditorCameraState();
+}
+
+void UWorld::HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message)
+{
+	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+	if (Camera == nullptr)
+	{
+		return;
+	}
+
+	const FMatrix CameraWorldMatrix = Camera->GetComponentToWorld();
+
+	FVector3 ForwardDirection = CameraWorldMatrix.Forward();
+	ForwardDirection.Normalize();
+
+	const float DollySpeed = Settings.MoveSensitivity * 0.3f;
+
+	FTransform& CameraTransform = Camera->GetRelativeTransform();
+	CameraTransform.SetPosition(
+		CameraTransform.GetPosition() + ForwardDirection * (Message.Steps* DollySpeed));
+
+	PublishEditorCameraState();
+}
+
 
 void UWorld::HandleSpawnComponent(
 	const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry)
@@ -766,6 +819,8 @@ void UWorld::HandleSpawnComponent(
 
 	FlushPendingDestroyActors();
 }
+
+
 
 
 FAssetRegistry* UWorld::GetAssetRegistry() const {

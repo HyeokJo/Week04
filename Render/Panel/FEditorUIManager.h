@@ -7,6 +7,7 @@
 #include "FConsolePanel.h"
 #include "FStatPanel.h"
 #include "Outliner.h"
+#include "FViewerToolBar.h"
 
 #include "Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
@@ -54,6 +55,14 @@ public:
 		Panels.emplace_back(
 			std::make_unique<FOutlinerPanel>(World, EditorContext)
 		);
+    }
+
+    void InitializeViewer(UWorld& World, FWorldEditorContext& EditorContext)
+    {
+        Panels.emplace_back(
+            std::make_unique<FViewerToolBar>(EditorContext)
+        );
+
     }
 
     void Tick()

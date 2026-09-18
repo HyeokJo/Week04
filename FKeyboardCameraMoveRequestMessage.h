@@ -17,6 +17,7 @@ struct FKeyboardCameraMoveRequestMessage
 
     float ForwardAxis = 0.0f;
     float RightAxis = 0.0f;
+    float UpAxis = 0.0f;
     float DeltaTime = 0.0f;
 
     FKeyboardCameraMoveRequestMessage() = default;
@@ -30,4 +31,8 @@ struct FKeyboardCameraMoveRequestMessage
         , DeltaTime(InDeltaTime)
     {
     }
+
+
+
+
 };

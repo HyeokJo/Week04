@@ -45,6 +45,8 @@
 #include "FMouseCameraRotateRequestMessage.h"
 #include "FKeyboardInput.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
 
 #include "Core/Base/UndoSystem/FUndoSystem.h"
 #include "Core/Base/UndoSystem/FUndoMessages.h"
@@ -262,8 +264,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), EditorContext);
 
     FEditorUIManager EditorUIManager;
+    #ifdef OBJ_VIEWER
+        EditorUIManager.InitializeViewer(World, EditorContext);
+    #else
+        EditorUIManager.Initialize(World, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+    #endif
+    
+    
 
-    EditorUIManager.Initialize(World, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
@@ -287,7 +295,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 World.HandleKeyboardCameraMoveRequest(Message);
             });
 
-  
+    WorldCommandChannel.TryBind<
+        FMouseCameraMoveRequestMessage>(
+            [&World](
+                const FMouseCameraMoveRequestMessage& Message)
+            {
+                World.HandleMouseCameraMoveRequestMessage(Message);
+            });
+
+    WorldCommandChannel.TryBind<
+        FMouseCameraDollyRequestMessage>(
+            [&World](
+                const FMouseCameraDollyRequestMessage& Message)
+            {
+                World.HandleMouseCameraDollyRequestMessage(Message);
+            });
 	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
   
@@ -354,15 +376,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			//UndoCommandChannel.Dispatch();
 
 			FRenderProbe& Probe{ World.BuildRenderProbe() };
-			EditorView.RenderInProbe(Probe);
-			Renderer.BeginSceneRender();
-
-			Renderer.RenderScene(Probe);
-            EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
-			Renderer.RenderGizmos(Probe);
-            
-			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
-
+            #ifndef OBJ_VIEWER
+                EditorView.RenderInProbe(Probe);
+            #endif
+                Renderer.BeginSceneRender();
+                Renderer.RenderScene(Probe);
+            #ifndef OBJ_VIEWER
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
+                Renderer.RenderGizmos(Probe);
+                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
+            #endif
 
 			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
 			ImGui::End();

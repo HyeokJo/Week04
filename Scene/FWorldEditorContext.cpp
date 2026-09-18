@@ -23,6 +23,8 @@ void FWorldEditorContext::InitializeChannels(FAssetRegistry& AssetRegistry, ID3D
     EditorToWorld.TryBind<FMessageLoadScene>([this, &AssetRegistry, Device](const FMessageLoadScene& Message) {
         World->LoadScene(std::filesystem::path(Message.FilePath.c_str()), Device, &AssetRegistry);
     });
+
+
 }
 
 void FWorldEditorContext::Dispatch() {

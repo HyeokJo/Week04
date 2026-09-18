@@ -320,11 +320,17 @@ void FControlPanel::DrawPanel()
         EditorContext->SetRenderModeState(static_cast<size_t>(RenderIndex));
     }
 
+
     // 남은 공간의 오른쪽 끝에 성능 정보를 고정한다.
     const char* FpsText = "FPS: %.1f";
     const float FpsWidth = ImGui::CalcTextSize("FPS: 000.0").x;
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - FpsWidth - ImGui::GetStyle().WindowPadding.x);
     ImGui::Text(FpsText, ImGui::GetIO().Framerate);
+
+
+
+
+   
 
     ImGui::EndMainMenuBar();
 }
