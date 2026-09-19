@@ -54,9 +54,7 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UPipeline, UAsset);
 
-	virtual void Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) override;
-	bool InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& PipelinePath);
-	bool InitializeFromFamilyDirectory(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory);
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& PipelinePath);
 
     void Bind(ID3D11DeviceContext* Context) const;
     void Reset();
@@ -65,6 +63,7 @@ public:
     bool RenderModeSettable(ERenderMode mode);
 
 private:
+	bool InitializeFamily(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory);
     bool LoadPipelineDescription(const std::filesystem::path& Path, FPipelineDescription& OutDescription);
 
 	bool Make(ID3D11Device* Device, const FPipelineDescription& Description, PipelineUnit& PipelineUnit);

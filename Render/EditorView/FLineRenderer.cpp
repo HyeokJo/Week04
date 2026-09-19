@@ -18,8 +18,8 @@ void FLineRenderer::Initialize(ID3D11Device* InDevice, uint32 InitialLineCapacit
 	DepthTestedPipeline = std::make_unique<UPipeline>();
 	OverlayPipeline = std::make_unique<UPipeline>();
 
-	ErrorHandler::Report(!DepthTestedPipeline->InitializeFromFile(Device, "./Content/Pipeline/LineDepthTested.json"), "[ FLineRenderer ]", "Failed to initialize the depth-tested line pipeline.", ErrorHandler::EErrorLevel::Critical);
-	ErrorHandler::Report(!OverlayPipeline->InitializeFromFile(Device, "./Content/Pipeline/LineOverlay.json"), "[ FLineRenderer ]", "Failed to initialize the overlay line pipeline.", ErrorHandler::EErrorLevel::Critical);
+	ErrorHandler::Report(!DepthTestedPipeline->Initialize(Device, "./Content/Pipeline/LineDepthTested.json"), "[ FLineRenderer ]", "Failed to initialize the depth-tested line pipeline.", ErrorHandler::EErrorLevel::Critical);
+	ErrorHandler::Report(!OverlayPipeline->Initialize(Device, "./Content/Pipeline/LineOverlay.json"), "[ FLineRenderer ]", "Failed to initialize the overlay line pipeline.", ErrorHandler::EErrorLevel::Critical);
 
 	InitialLineCapacity = std::max(InitialLineCapacity, 1u);
 

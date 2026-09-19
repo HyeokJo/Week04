@@ -1,9 +1,6 @@
 ﻿#include "PCH.h"
 #include "UFreeTypeFont.h"
 
-#include "Core/Asset/FAssetMetadataParser.h"
-#include "ErrorHandler.h"
-
 UFreeTypeFont::~UFreeTypeFont()
 {
 	Reset();
@@ -43,27 +40,13 @@ void UFreeTypeFont::Reset()
 	bAtlasDirty = false;
 	bInitialized = false;
 }
-void UFreeTypeFont::Initialize(ID3D11Device* Device, const std::filesystem::path& MetaDataPath)
+bool UFreeTypeFont::Initialize(ID3D11Device* Device, const std::filesystem::path& FontPath, uint32 BakePixelHeight, uint32 AtlasWidth, uint32 AtlasHeight)
 {
-	UFont::Initialize(Device, MetaDataPath);
-
-	FAssetMetadataParser Parser;
-	if (!Parser.Load(MetaDataPath))
-	{
-		ErrorHandler::Report("[UKFont]", "Falied to load font metadata",ErrorHandler::EErrorLevel::Error);
-		return;
+	if (!UAsset::Initialize(Device, FontPath)) {
+		return false;
 	}
-	const std::filesystem::path FontPath = Parser.ResolvePath("FilePath");
-	const uint32 BakePixelHeight = Parser.GetOr("BakePixelHeight", uint32{ 32 });
-	const uint32 InAtlasWidth = Parser.GetOr("AtlasWidth", uint32{ 4096 });
-	const uint32 InAtlasHeight = Parser.GetOr("AtlasHeight", uint32{ 4096 });
-	InitializeFont(Device, FontPath, BakePixelHeight, InAtlasWidth, InAtlasHeight);
-}
 
-bool UFreeTypeFont::InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& FontPath)
-{
-	UFont::Initialize(Device, FontPath);
-	return InitializeFont(Device, FontPath, 32, 4096, 4096);
+	return InitializeFont(Device, FontPath, BakePixelHeight, AtlasWidth, AtlasHeight);
 }
 
 bool UFreeTypeFont::InitializeFont(ID3D11Device* Device, const std::filesystem::path& FontPath, uint32 BakePixelHeight, uint32 InAtlasWidth, uint32 InAtlasHeight)

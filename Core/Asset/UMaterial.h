@@ -27,10 +27,9 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UMaterial, UAsset);
 
-    virtual void Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) override;
-    using FTextureResolver = std::function<FAssetHandle(const std::filesystem::path& TexturePath)>;
+	using FTextureResolver = std::function<FAssetHandle(const std::filesystem::path& TexturePath)>;
 
-    bool InitializeFromMtlFile(ID3D11Device* Device, const std::filesystem::path& MtlPath, const FTextureResolver& TextureResolver);
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& MtlPath, const FTextureResolver& TextureResolver);
     virtual void BuildGPUData(FMaterialGPUSlot& OutSlot) const;
     virtual void BuildGPUData(uint32 GroupIndex, FMaterialGPUSlot& OutSlot) const;
     virtual FMaterialChunkSignature BuildChunkSignature() const;
@@ -50,6 +49,8 @@ protected:
 	virtual void Serialize(FArchive& Ar) override;
 
 private:
+	void Reset();
+
     friend class FMaterialBuffer;
 
     TArray<FMaterialGroup> Groups{};

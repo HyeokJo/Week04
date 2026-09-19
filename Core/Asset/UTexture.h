@@ -35,13 +35,12 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UTexture, UAsset);
 
-    virtual void Initialize(ID3D11Device* device, const std::filesystem::path& metaData) override;
-    void InitializeFromFile(ID3D11Device* device, const std::filesystem::path& imagePath, const std::filesystem::path& metaData = {});
-    void Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension, const std::filesystem::path& imagePath = {}, bool bGenerateMipMap = true);
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& ImagePath, ETextureFormat TextureFormat = ETextureFormat::UNORM, bool bGenerateMipMap = true);
 
 	ID3D11ShaderResourceView* GetSRV() const { return ShaderResourceView.Get(); }
 protected:
 	virtual void Serialize(FArchive& Ar) override;
 private:
+	bool InitializeInternal(ID3D11Device* Device, const std::filesystem::path& ImagePath, ETextureFormat TextureFormat, ETextureExtension TextureExtension, bool bGenerateMipMap);
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ShaderResourceView{};
 };

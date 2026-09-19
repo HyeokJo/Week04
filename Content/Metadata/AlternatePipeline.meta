@@ -1,8 +1,0 @@
-{
-    "LitFilePath" : "./Pipeline/Alternate/Alternate_Lit.json",
-    "UnlitFilePath" : "./Pipeline/Alternate/Alternate_Unlit.json",
-    "WireframeFilePath" : "./Pipeline/Alternate/Alternate_Wireframe.json",
-    "LitWireframeFilePath" : "",
-    "OutlineFilePath" : "./Pipeline/Alternate/Alternate_Outline.json",
-	"Primary" : 0,
-}

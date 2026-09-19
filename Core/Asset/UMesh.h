@@ -75,8 +75,7 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UMesh, UAsset);
 	
-	virtual void Initialize(ID3D11Device* device, const std::filesystem::path& metaData) override;
-	bool InitializeFromObjFile(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver);
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver);
 
 	template<CVertexAttributeView... TAttributes>
 	bool Make(ID3D11Device* Device, const std::span<const uint32>& InIndices, const TAttributes&... InAttributes) {

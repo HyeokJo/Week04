@@ -46,41 +46,6 @@ public:
 
     bool RemoveAsset(FAssetHandle Handle);
 
-    template<typename T, typename... TArgs>
-    requires std::is_base_of_v<UAsset, T>
-    FAssetHandle EmplaceAssetAtPath(ID3D11Device* Device, const FAssetPath& AssetPath, const FString& Name, const std::filesystem::path& MetadataPath, TArgs&&... Args) {
-        if (Device == nullptr || !AssetPath || PathToHandle.contains(AssetPath)) {
-            return {};
-        }
-
-        std::unique_ptr<T> NewAsset = std::make_unique<T>(std::forward<TArgs>(Args)...);
-        NewAsset->SetAssetName(Name);
-        NewAsset->Initialize(Device, MetadataPath);
-
-        if constexpr (std::is_base_of_v<UMaterial, T>) {
-            if (!MaterialBuffer.RegisterMaterial(NewAsset.get())) {
-                return {};
-            }
-        }
-
-        const FAssetHandle Handle = AllocateHandle();
-        FAssetEntry Entry{};
-        Entry.AssetPath = AssetPath;
-        Entry.PhysicalPath = MetadataPath;
-        Entry.Handle = Handle;
-        Entry.Asset = std::move(NewAsset);
-
-        if (Handle.ID < Assets.size()) {
-            Assets[Handle.ID] = std::move(Entry);
-        }
-        else {
-            Assets.emplace_back(std::move(Entry));
-        }
-
-        PathToHandle[AssetPath] = Handle;
-        return Handle;
-    }
-
     template<typename T>
     requires std::is_base_of_v<UAsset, T>
     T* ResolveAsset(FAssetHandle Handle) {

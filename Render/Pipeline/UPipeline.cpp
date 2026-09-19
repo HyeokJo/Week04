@@ -5,47 +5,15 @@
 
 #include <memory>
 
-#include "../../Core/Asset/FAssetMetadataParser.h"
-#include "../../Externals/Include/range/v3/view/zip.hpp"
+bool UPipeline::Initialize(ID3D11Device* Device, const std::filesystem::path& PipelinePath) {
+	if (std::filesystem::is_directory(PipelinePath)) {
+		return InitializeFamily(Device, PipelinePath);
+	}
 
-void UPipeline::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
-	UAsset::Initialize(Device, metaData);
-	Reset();
-
-	FAssetMetadataParser MetadataParser{};
-	ErrorHandler::Report(not MetadataParser.Load(AssetMetaDataPath), " [ UPipeline ]", "Failed to load metadata", ErrorHandler::EErrorLevel::Critical);
-
-    const TFixedArray<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)> ParsePath{
-        MetadataParser.ResolvePath("LitFilePath"),
-        MetadataParser.ResolvePath("OutlineFilePath"),
-        MetadataParser.ResolvePath("UnlitFilePath"),
-        MetadataParser.ResolvePath("WireframeFilePath"),
-        MetadataParser.ResolvePath("LitWireframeFilePath")
-    };
-
-    Pipelines.resize(static_cast<size_t>(ERenderMode::Max));
-
-    for (auto&& [path, pipeline] : ranges::views::zip(ParsePath, Pipelines)) {
-        if (path == "")  continue;
-        FPipelineDescription Description{};
-        
-        ErrorHandler::Report(not UPipeline::LoadPipelineDescription(path, Description), " [ UPipeline ]", "Failed to load pipeline description", ErrorHandler::EErrorLevel::Critical);
-
-        ErrorHandler::Report(not UPipeline::Make(Device, Description, pipeline), " [ UPipeline ]", "Failed to create pipeline", ErrorHandler::EErrorLevel::Critical);
-
-        //ErrorHandler::Report(not MetadataParser.TryGet<UINT>("StencilRef", pipeline.StencilRef), "[ UPipeline ]", "Failed to load StencilRef", ErrorHandler::EErrorLevel::Critical);
-    }
-    ErrorHandler::Report(not MetadataParser.TryGet<size_t>("Primary", PrimaryIndex), "[ UPipeline ]", "Failed to load primary Index", ErrorHandler::EErrorLevel::Critical);
-
-	ModeIndex = PrimaryIndex;
-}
-
-bool UPipeline::InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& PipelinePath) {
-	if (Device == nullptr || PipelinePath.empty()) {
+	if (!UAsset::Initialize(Device, PipelinePath)) {
 		return false;
 	}
 
-	UAsset::Initialize(Device, PipelinePath);
 	Reset();
 
 	FPipelineDescription Description{};
@@ -66,8 +34,8 @@ bool UPipeline::InitializeFromFile(ID3D11Device* Device, const std::filesystem::
 	return true;
 }
 
-bool UPipeline::InitializeFromFamilyDirectory(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory) {
-	if (Device == nullptr || FamilyDirectory.empty() || !std::filesystem::is_directory(FamilyDirectory)) {
+bool UPipeline::InitializeFamily(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory) {
+	if (!UAsset::Initialize(Device, FamilyDirectory) || !std::filesystem::is_directory(FamilyDirectory)) {
 		return false;
 	}
 
@@ -94,7 +62,6 @@ bool UPipeline::InitializeFromFamilyDirectory(ID3D11Device* Device, const std::f
 		return Path.filename().generic_string();
 	});
 
-	UAsset::Initialize(Device, FamilyDirectory);
 	Reset();
 
 	for (const std::filesystem::path& UnitPath : UnitPaths) {

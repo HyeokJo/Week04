@@ -10,7 +10,6 @@
 
 #include "../../Core/Asset/BasicGeometry/Corn.h"
 #include "../../Core/Asset/BasicGeometry/Cylinder.h"
-#include "../../Core/Asset/UColorMaterial.h"
 #include "../../Scene/Component/UPrimitiveComponent.h"
 #include "../../Scene/UWorld.h"
 

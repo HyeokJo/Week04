@@ -44,19 +44,18 @@ namespace {
 	}
 }
 
-void UMaterial::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
-	UAsset::Initialize(Device, metaData);
+void UMaterial::Reset() {
 	Groups.clear();
 	GPUIndices.clear();
 	bGPUDataDirty = true;
 }
 
-bool UMaterial::InitializeFromMtlFile(ID3D11Device* Device, const std::filesystem::path& MtlPath, const FTextureResolver& TextureResolver) {
-	if (Device == nullptr || MtlPath.empty() || !TextureResolver) {
+bool UMaterial::Initialize(ID3D11Device* Device, const std::filesystem::path& MtlPath, const FTextureResolver& TextureResolver) {
+	if (!TextureResolver || !UAsset::Initialize(Device, MtlPath)) {
 		return false;
 	}
 
-	UMaterial::Initialize(Device, MtlPath);
+	Reset();
 
 	std::ifstream File(MtlPath);
 	if (!File.is_open()) {

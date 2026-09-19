@@ -285,7 +285,7 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
 bool FAssetRegistry::LoadTexture(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>();
 	Texture->SetAssetName(Entry.AssetPath.Path);
-	Texture->InitializeFromFile(Device, Entry.PhysicalPath, Entry.SidecarPath);
+	Texture->Initialize(Device, Entry.PhysicalPath);
 
 	if (Texture->GetSRV() == nullptr) {
 		return false;
@@ -300,7 +300,7 @@ bool FAssetRegistry::LoadFont(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UFreeTypeFont> Font = std::make_unique<UFreeTypeFont>();
 	Font->SetAssetName(Entry.AssetPath.Path);
 
-	if (!Font->InitializeFromFile(Device, Entry.PhysicalPath) || Font->GetAtlasSRV() == nullptr) {
+	if (!Font->Initialize(Device, Entry.PhysicalPath) || Font->GetAtlasSRV() == nullptr) {
 		return false;
 	}
 
@@ -313,9 +313,7 @@ bool FAssetRegistry::LoadPipeline(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UPipeline> Pipeline = std::make_unique<UPipeline>();
 	Pipeline->SetAssetName(Entry.AssetPath.Path);
 
-	const bool bInitialized = std::filesystem::is_directory(Entry.PhysicalPath)
-		? Pipeline->InitializeFromFamilyDirectory(Device, Entry.PhysicalPath)
-		: Pipeline->InitializeFromFile(Device, Entry.PhysicalPath);
+	const bool bInitialized = Pipeline->Initialize(Device, Entry.PhysicalPath);
 
 	if (!bInitialized) {
 		return false;
@@ -335,7 +333,7 @@ bool FAssetRegistry::LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device) {
 		return false;
 	}
 
-	const bool bInitialized = Material->InitializeFromMtlFile(Device, Entry.PhysicalPath, [this, CheckerboardHandle](const std::filesystem::path& TexturePath) {
+	const bool bInitialized = Material->Initialize(Device, Entry.PhysicalPath, [this, CheckerboardHandle](const std::filesystem::path& TexturePath) {
 		const FAssetHandle TextureHandle = FindAsset(MakeAssetPath(TexturePath));
 		return ResolveAsset<UTexture>(TextureHandle) != nullptr ? TextureHandle : CheckerboardHandle;
 	});
@@ -353,7 +351,7 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UMesh> Mesh = std::make_unique<UMesh>();
 	Mesh->SetAssetName(Entry.AssetPath.Path);
 
-	const bool bInitialized = Mesh->InitializeFromObjFile(
+	const bool bInitialized = Mesh->Initialize(
 		Device,
 		Entry.PhysicalPath,
 		[this](const std::filesystem::path& MaterialPath) {

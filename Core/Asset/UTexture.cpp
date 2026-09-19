@@ -1,7 +1,6 @@
 ﻿#include "PCH.h"
 #include "UTexture.h"
 
-#include "FAssetMetadataParser.h"
 #include "../../ErrorHandler.h"
 
 #include <cctype>
@@ -79,77 +78,30 @@ namespace {
 	}
 }
 
-void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& metaData) {
-	FAssetMetadataParser Parser{};
-
-	if (!Parser.Load(metaData)) {
-		ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
-		return;
-	}
-
-	const std::filesystem::path ImagePath = Parser.ResolvePath("FilePath");
+bool UTexture::Initialize(ID3D11Device* Device, const std::filesystem::path& ImagePath, ETextureFormat TextureFormat, bool bGenerateMipMap) {
 	ETextureExtension TextureExtension{};
 	const bool bValidExtension = GetTextureExtension(ImagePath, TextureExtension);
 	ErrorHandler::Report(!bValidExtension, "[ UTexture ]", "Unsupported texture extension: " + ImagePath.string(), ErrorHandler::EErrorLevel::Critical);
 
 	if (!bValidExtension) {
-		return;
+		return false;
 	}
 
-	const ETextureFormat TextureFormat = Parser.GetOr("SRGB", false) ? ETextureFormat::SRGB : ETextureFormat::UNORM;
-	Initialize(device, metaData, TextureFormat, TextureExtension, ImagePath, Parser.GetOr("GenerateMipMap", true));
+	return InitializeInternal(Device, ImagePath, TextureFormat, TextureExtension, bGenerateMipMap);
 }
 
-void UTexture::InitializeFromFile(ID3D11Device* device, const std::filesystem::path& imagePath, const std::filesystem::path& metaData) {
-	ETextureExtension TextureExtension{};
-	const bool bValidExtension = GetTextureExtension(imagePath, TextureExtension);
-	ErrorHandler::Report(!bValidExtension, "[ UTexture ]", "Unsupported texture extension: " + imagePath.string(), ErrorHandler::EErrorLevel::Critical);
-
-	if (!bValidExtension) {
-		return;
+bool UTexture::InitializeInternal(ID3D11Device* Device, const std::filesystem::path& ImagePath, ETextureFormat TextureFormat, ETextureExtension TextureExtension, bool bGenerateMipMap) {
+	if (!UAsset::Initialize(Device, ImagePath)) {
+		ErrorHandler::Report("[ UTexture ]", "Texture device or image path is invalid: " + ImagePath.string(), ErrorHandler::EErrorLevel::Critical);
+		return false;
 	}
 
-	FAssetMetadataParser Parser{};
-	bool bSRGB = false;
-	bool bGenerateMipMap = true;
-
-	if (!metaData.empty() && std::filesystem::exists(metaData)) {
-		if (!Parser.Load(metaData)) {
-			ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
-			return;
-		}
-
-		bSRGB = Parser.GetOr("SRGB", false);
-		bGenerateMipMap = Parser.GetOr("GenerateMipMap", true);
-	}
-
-	Initialize(device, metaData, bSRGB ? ETextureFormat::SRGB : ETextureFormat::UNORM, TextureExtension, imagePath, bGenerateMipMap);
-}
-
-void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension, const std::filesystem::path& imagePath, bool bGenerateMipMap) {
-	UAsset::Initialize(device, metaData);
-
-	std::filesystem::path path = imagePath;
-	if (path.empty()) {
-		FAssetMetadataParser Parser{};
-
-		if (!Parser.Load(metaData)) {
-			ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
-			return;
-		}
-
-		path = Parser.ResolvePath("FilePath");
-	}
-	if (device == nullptr) {
-		ErrorHandler::Report("[ UTexture ]", "Texture device is null: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-		return;
-	}
-
-	const DXGI_FORMAT TargetFormat = GetDXGIFormat(textureFormat);
+	const std::filesystem::path& path = ImagePath;
+	const DXGI_FORMAT TargetFormat = GetDXGIFormat(TextureFormat);
 
 	if (TargetFormat == DXGI_FORMAT_UNKNOWN) {
 		ErrorHandler::Report("[ UTexture ]", "Unsupported texture format setting: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-		return;
+		return false;
 	}
 
 	DirectX::ScratchImage SourceImage{};
@@ -159,32 +111,32 @@ void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& met
 	DirectX::TexMetadata SourceImageMetaData{};
 	HRESULT Result = S_OK;
 
-	if (textureExtension == ETextureExtension::DDS) {
+	if (TextureExtension == ETextureExtension::DDS) {
 		Result = DirectX::LoadFromDDSFile(path.wstring().c_str(), DirectX::DDS_FLAGS_NONE, &SourceImageMetaData, SourceImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to load DDS texture: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 	}
-	else if (textureExtension == ETextureExtension::TGA) {
+	else if (TextureExtension == ETextureExtension::TGA) {
 		Result = DirectX::LoadFromTGAFile(path.wstring().c_str(), DirectX::TGA_FLAGS_NONE, &SourceImageMetaData, SourceImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to load TGA texture: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 	}
-	else if (textureExtension == ETextureExtension::BMP || textureExtension == ETextureExtension::PNG || textureExtension == ETextureExtension::GIF || textureExtension == ETextureExtension::TIF || textureExtension == ETextureExtension::TIFF || textureExtension == ETextureExtension::JPG || textureExtension == ETextureExtension::JPEG) {
+	else if (TextureExtension == ETextureExtension::BMP || TextureExtension == ETextureExtension::PNG || TextureExtension == ETextureExtension::GIF || TextureExtension == ETextureExtension::TIF || TextureExtension == ETextureExtension::TIFF || TextureExtension == ETextureExtension::JPG || TextureExtension == ETextureExtension::JPEG) {
 		Result = DirectX::LoadFromWICFile(path.wstring().c_str(), DirectX::WIC_FLAGS_NONE, &SourceImageMetaData, SourceImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to load WIC texture: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 	}
-	else if (textureExtension == ETextureExtension::HDR) {
+	else if (TextureExtension == ETextureExtension::HDR) {
 		Result = DirectX::LoadFromHDRFile(path.wstring().c_str(), &SourceImageMetaData, SourceImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to load HDR texture: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 	}
 	else {
 		ErrorHandler::Report("[ UTexture ]", "Unsupported texture extension setting: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-		return;
+		return false;
 	}
 
 	const DirectX::Image* Images = SourceImage.GetImages();
 	size_t ImageCount = SourceImage.GetImageCount();
 	const DirectX::TexMetadata* ImageMetaData = &SourceImageMetaData;
 
-	if (textureExtension != ETextureExtension::DDS and ImageMetaData->format != TargetFormat) {
+	if (TextureExtension != ETextureExtension::DDS and ImageMetaData->format != TargetFormat) {
 		Result = DirectX::Convert(Images, ImageCount, *ImageMetaData, TargetFormat, DirectX::TEX_FILTER_FANT, DirectX::TEX_THRESHOLD_DEFAULT, ConvertedImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to convert image to DDS pixel format: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 
@@ -202,7 +154,7 @@ void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& met
 		ImageMetaData = &GeneratedMipChain.GetMetadata();
 	}
 
-	if (textureExtension != ETextureExtension::DDS) {
+	if (TextureExtension != ETextureExtension::DDS) {
 		DirectX::Blob DDSData{};
 		Result = DirectX::SaveToDDSMemory(Images, ImageCount, *ImageMetaData, DirectX::DDS_FLAGS_FORCE_DX10_EXT, DDSData);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to convert image to DDS: " + path.string(), ErrorHandler::EErrorLevel::Critical);
@@ -215,9 +167,9 @@ void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& met
 		ImageMetaData = &DDSImage.GetMetadata();
 	}
 
-	Result = DirectX::CreateShaderResourceView(device, Images, ImageCount, *ImageMetaData, ShaderResourceView.ReleaseAndGetAddressOf());
+	Result = DirectX::CreateShaderResourceView(Device, Images, ImageCount, *ImageMetaData, ShaderResourceView.ReleaseAndGetAddressOf());
 	ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to create texture shader resource view: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-
+	return SUCCEEDED(Result) && ShaderResourceView != nullptr;
 }
 
 void UTexture::Serialize(FArchive& Ar) {
