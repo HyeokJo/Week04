@@ -137,43 +137,82 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
         return;
     }
 
- 
-    std::erase_if(ActorProbes, [this](const FActorProbe& Probe) {
-        return AssetRegistry->ResolveAsset<UMaterial>(Probe.MaterialHandle) == nullptr ||
-            AssetRegistry->ResolveAsset<UPipeline>(Probe.PipelineHandle) == nullptr ||
-            AssetRegistry->ResolveAsset<UMesh>(Probe.MeshHandle) == nullptr;
-    });
+    struct FDrawItem {
+        FActorProbe Probe{};
+        FAssetHandle MaterialHandle{};
+        uint32 MaterialGroupIndex{ 0 };
+        uint32 FirstIndex{ 0 };
+        uint32 IndexCount{ 0 };
+    };
 
-    if (ActorProbes.empty()) {
+    TArray<FDrawItem> DrawItems{};
+    for (const FActorProbe& Probe : ActorProbes) {
+        UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(Probe.MeshHandle);
+        if (Mesh == nullptr || AssetRegistry->ResolveAsset<UPipeline>(Probe.PipelineHandle) == nullptr) {
+            continue;
+        }
+
+        const auto AddDrawItem = [&DrawItems, &Probe, this](FAssetHandle MaterialHandle, uint32 MaterialGroupIndex, uint32 FirstIndex, uint32 IndexCount) {
+            UMaterial* Material = AssetRegistry->ResolveAsset<UMaterial>(MaterialHandle);
+            if (Material == nullptr || Material->GetGPUIndex(MaterialGroupIndex) == UINT32_MAX || IndexCount == 0) {
+                return;
+            }
+
+            DrawItems.push_back(FDrawItem{
+                .Probe = Probe,
+                .MaterialHandle = MaterialHandle,
+                .MaterialGroupIndex = MaterialGroupIndex,
+                .FirstIndex = FirstIndex,
+                .IndexCount = IndexCount
+            });
+        };
+
+        const TArray<UMesh::FSubMesh>& SubMeshes = Mesh->GetSubMeshes();
+        if (SubMeshes.empty()) {
+            AddDrawItem(Probe.MaterialHandle, 0, 0, static_cast<uint32>(Mesh->GetIndices().size()));
+            continue;
+        }
+
+		for (const UMesh::FSubMesh& SubMesh : SubMeshes) {
+			AddDrawItem(Probe.MaterialHandle, SubMesh.MaterialGroupIndex, SubMesh.FirstIndex, SubMesh.IndexCount);
+		}
+    }
+
+    if (DrawItems.empty()) {
         return;
     }
 
-	auto GetRenderChunkKey = [this](const FActorProbe& Data) {
-		const FMaterialChunkSignature Signature = AssetRegistry->ResolveAsset<UMaterial>(Data.MaterialHandle)->BuildChunkSignature();
+	auto GetRenderChunkKey = [this](const FDrawItem& Data) {
+		const FMaterialChunkSignature Signature = AssetRegistry->ResolveAsset<UMaterial>(Data.MaterialHandle)->BuildChunkSignature(Data.MaterialGroupIndex);
 		return TTuple{
-			Data.PipelineHandle.ID,
-			Data.PipelineHandle.Generation,
+			Data.Probe.PipelineHandle.ID,
+			Data.Probe.PipelineHandle.Generation,
 			Signature.TextureFieldCount,
 			Signature.TextureHandles,
-			Data.MeshHandle.ID,
-			Data.MeshHandle.Generation
+			Data.Probe.MeshHandle.ID,
+			Data.Probe.MeshHandle.Generation,
+			Data.MaterialHandle.ID,
+			Data.MaterialHandle.Generation,
+			Data.MaterialGroupIndex,
+			Data.FirstIndex,
+			Data.IndexCount
 			};
-		};
+	};
 
-	std::ranges::sort(ActorProbes, {}, GetRenderChunkKey);
+	std::ranges::sort(DrawItems, {}, GetRenderChunkKey);
 
-	auto Groups = ActorProbes | ranges::views::chunk_by([&GetRenderChunkKey](const FActorProbe& A, const FActorProbe& B) {
+	auto Groups = DrawItems | ranges::views::chunk_by([&GetRenderChunkKey](const FDrawItem& A, const FDrawItem& B) {
 		return GetRenderChunkKey(A) == GetRenderChunkKey(B);
-		});
+	});
 
 	FrameContexts.clear();
-	FrameContexts.reserve(ActorProbes.size());
+	FrameContexts.reserve(DrawItems.size());
 
 	std::ranges::transform(Groups | std::views::join, std::back_inserter(FrameContexts), [&](const auto& AC) {
 		return ModelContext{
-			.World = AC.World,
-			.MaterialIndex = AssetRegistry->ResolveAsset<UMaterial>(AC.MaterialHandle)->GetGPUIndex(),
-			.Flags = AC.Flags
+			.World = AC.Probe.World,
+			.MaterialIndex = AssetRegistry->ResolveAsset<UMaterial>(AC.MaterialHandle)->GetGPUIndex(AC.MaterialGroupIndex),
+			.Flags = AC.Probe.Flags
 		};
 	});
 
@@ -211,16 +250,16 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 	BindSamplerStates();
 
 	for (auto g : Groups) {
-		const FActorProbe& First = g.front();
-		const FMaterialChunkSignature Signature = AssetRegistry->ResolveAsset<UMaterial>(First.MaterialHandle)->BuildChunkSignature();
+		const FDrawItem& First = g.front();
+		const FMaterialChunkSignature Signature = AssetRegistry->ResolveAsset<UMaterial>(First.MaterialHandle)->BuildChunkSignature(First.MaterialGroupIndex);
 		
 		
-		UPipeline* Pipeline = AssetRegistry->ResolveAsset<UPipeline>(First.PipelineHandle);
+		UPipeline* Pipeline = AssetRegistry->ResolveAsset<UPipeline>(First.Probe.PipelineHandle);
 		if (bOutline) {
 			Pipeline->SetRenderMode(ERenderMode::Outline);
 		}
 		
-		UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(First.MeshHandle);
+		UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(First.Probe.MeshHandle);
 		
 		Pipeline->Bind(DeviceContext.Get());
 
@@ -263,7 +302,7 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 
 		RootConstants.Commit(DeviceContext.Get());
 
-		DeviceContext->DrawIndexedInstanced(static_cast<uint32>(Mesh->GetIndices().size()), static_cast<uint32>(g.size()), 0, 0, 0);
+		DeviceContext->DrawIndexedInstanced(First.IndexCount, static_cast<uint32>(g.size()), First.FirstIndex, 0, 0);
 
 		InstanceCount += static_cast<uint32>(g.size());
 	}

@@ -36,7 +36,8 @@ public:
 	JG_DECLARE_DERIVED_TYPEINFO(UTexture, UAsset);
 
     virtual void Initialize(ID3D11Device* device, const std::filesystem::path& metaData) override;
-	void Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension);
+    void InitializeFromFile(ID3D11Device* device, const std::filesystem::path& imagePath, const std::filesystem::path& metaData = {});
+    void Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension, const std::filesystem::path& imagePath = {}, bool bGenerateMipMap = true);
 
 	ID3D11ShaderResourceView* GetSRV() const { return ShaderResourceView.Get(); }
 protected:

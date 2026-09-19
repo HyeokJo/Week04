@@ -5,8 +5,10 @@
 #include "../Base/FVertexAttribute.h"
 
 #include <array>
+#include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <span>
 #include <type_traits>
 #include <utility>
@@ -16,6 +18,7 @@
 #include <wrl/client.h>
 
 #include "UAsset.h"
+#include "FAssetHandle.h"
 #include "../Base/TypeInfo.h"
 
 class UMesh : public UAsset {
@@ -50,7 +53,14 @@ private:
 	};
 
 public:
-	using SubMesh = uint32; 
+	struct FSubMesh {
+		uint32 FirstIndex{ 0 };
+		uint32 IndexCount{ 0 };
+		uint32 MaterialGroupIndex{ 0 };
+	};
+
+	using FMaterialResolver = std::function<FAssetHandle(const std::filesystem::path& MaterialPath)>;
+	using FMaterialGroupResolver = std::function<std::optional<uint32>(FAssetHandle MaterialHandle, const FString& GroupName)>;
 
 public:
 	UMesh() = default; 
@@ -66,6 +76,7 @@ public:
 	JG_DECLARE_DERIVED_TYPEINFO(UMesh, UAsset);
 	
 	virtual void Initialize(ID3D11Device* device, const std::filesystem::path& metaData) override;
+	bool InitializeFromObjFile(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver);
 
 	template<CVertexAttributeView... TAttributes>
 	bool Make(ID3D11Device* Device, const std::span<const uint32>& InIndices, const TAttributes&... InAttributes) {
@@ -155,11 +166,11 @@ public:
 		return Indices;
 	}
 
-	const TArray<SubMesh>& GetSubMeshes() const {
+	const TArray<FSubMesh>& GetSubMeshes() const {
 		return SubMeshes;
 	}
 
-	void SetSubMeshes(const std::span<SubMesh>& InSubMeshes) {
+	void SetSubMeshes(const std::span<FSubMesh>& InSubMeshes) {
 		SubMeshes.assign(InSubMeshes.begin(), InSubMeshes.end());
 	}
 
@@ -239,6 +250,6 @@ private:
 
 	TArray<uint32> Indices{};
 
-	TArray<SubMesh> SubMeshes{};
+	TArray<FSubMesh> SubMeshes{};
 };
 

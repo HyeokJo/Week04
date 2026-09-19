@@ -18,12 +18,22 @@ FAssetHandle UStaticMeshComponent::GetPipelineHandle() const { return PipelineHa
 void UStaticMeshComponent::SetMaterialHandle(FAssetHandle InHandle)
 {
     MaterialHandle = InHandle;
+    AActor* Owner = GetOwner();
+    UWorld* World = Owner != nullptr ? Owner->GetWorld() : nullptr;
+    FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    MaterialAssetPath = Registry != nullptr && Registry->GetAssetPath(MaterialHandle) != nullptr ? *Registry->GetAssetPath(MaterialHandle) : FAssetPath{};
+    MaterialAssetGuid = Registry != nullptr && Registry->GetAssetGuid(MaterialHandle) != nullptr ? *Registry->GetAssetGuid(MaterialHandle) : FGuid{};
     EnsureDefaultRenderAssets();
 }
 
 void UStaticMeshComponent::SetPipelineHandle(FAssetHandle InHandle)
 {
     PipelineHandle = InHandle;
+    AActor* Owner = GetOwner();
+    UWorld* World = Owner != nullptr ? Owner->GetWorld() : nullptr;
+    FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    PipelineAssetPath = Registry != nullptr && Registry->GetAssetPath(PipelineHandle) != nullptr ? *Registry->GetAssetPath(PipelineHandle) : FAssetPath{};
+    PipelineAssetGuid = Registry != nullptr && Registry->GetAssetGuid(PipelineHandle) != nullptr ? *Registry->GetAssetGuid(PipelineHandle) : FGuid{};
     EnsureDefaultRenderAssets();
 }
 
@@ -110,34 +120,34 @@ void UStaticMeshComponent::Serialize(FArchive& Archive)
 {
     UMeshComponent::Serialize(Archive);
 
-    FString GuidMaterialHandle;
-    if (MaterialHandle.ID != std::numeric_limits<uint32>::max()) {
-        if (UAsset* Asset = Archive.GetAssetRegistry()->ResolveAsset<UAsset>(MaterialHandle)) {
-            GuidMaterialHandle = Asset->GetGuid().ToString();
+    FAssetRegistry* Registry = Archive.GetAssetRegistry();
+    if (Archive.IsSaving() && Registry != nullptr) {
+        if (const FAssetPath* AssetPath = Registry->GetAssetPath(MaterialHandle)) {
+            MaterialAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = Registry->GetAssetGuid(MaterialHandle)) {
+            MaterialAssetGuid = *AssetGuid;
+        }
+        if (const FAssetPath* AssetPath = Registry->GetAssetPath(PipelineHandle)) {
+            PipelineAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = Registry->GetAssetGuid(PipelineHandle)) {
+            PipelineAssetGuid = *AssetGuid;
         }
     }
 
-    Archive.Serialize("GuidMaterialHandle", GuidMaterialHandle);
-    if (Archive.IsLoading())
-    {
-        FGuid Guid;
-        if (Guid.Parse(GuidMaterialHandle)) {
-            MaterialHandle = Archive.GetAssetRegistry()->GetAsset(Guid);
+    Archive.Serialize("MaterialAssetGuid", MaterialAssetGuid);
+    Archive.Serialize("MaterialAssetPath", MaterialAssetPath.Path);
+    Archive.Serialize("PipelineAssetGuid", PipelineAssetGuid);
+    Archive.Serialize("PipelineAssetPath", PipelineAssetPath.Path);
+    if (Archive.IsLoading()) {
+        MaterialHandle = Registry != nullptr ? Registry->FindAsset(MaterialAssetGuid) : FAssetHandle{};
+        if (!MaterialHandle && Registry != nullptr) {
+            MaterialHandle = Registry->FindAsset(MaterialAssetPath);
         }
-    }
-
-    FString GuidPipelineHandle;
-    if (PipelineHandle.ID != std::numeric_limits<uint32>::max()) {
-        if (UAsset* Asset = Archive.GetAssetRegistry()->ResolveAsset<UAsset>(PipelineHandle)) {
-            GuidPipelineHandle = Asset->GetGuid().ToString();
-        }
-    }
-    Archive.Serialize("GuidPipelineHandle", GuidPipelineHandle);
-    if (Archive.IsLoading())
-    {
-        FGuid Guid;
-        if (Guid.Parse(GuidPipelineHandle)) {
-            PipelineHandle = Archive.GetAssetRegistry()->GetAsset(Guid);
+        PipelineHandle = Registry != nullptr ? Registry->FindAsset(PipelineAssetGuid) : FAssetHandle{};
+        if (!PipelineHandle && Registry != nullptr) {
+            PipelineHandle = Registry->FindAsset(PipelineAssetPath);
         }
     }
 }

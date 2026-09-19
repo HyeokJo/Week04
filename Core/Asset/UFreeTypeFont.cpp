@@ -45,50 +45,56 @@ void UFreeTypeFont::Reset()
 }
 void UFreeTypeFont::Initialize(ID3D11Device* Device, const std::filesystem::path& MetaDataPath)
 {
-	//UAsset Initialize
 	UFont::Initialize(Device, MetaDataPath);
-	bInitialized = false;
 
-	//이전 상태 초기화
-	Reset();
-	if (Device == nullptr)
-	{
-		return;
-	}
-	// MetaData 읽기
 	FAssetMetadataParser Parser;
 	if (!Parser.Load(MetaDataPath))
 	{
 		ErrorHandler::Report("[UKFont]", "Falied to load font metadata",ErrorHandler::EErrorLevel::Error);
 		return;
 	}
-	// MetaData에서 폰트 파일과 설정 가져오기
 	const std::filesystem::path FontPath = Parser.ResolvePath("FilePath");
-	const uint32_t BakePixelHeight = Parser.GetOr("BakePixelHeight", uint32_t{32}); // 없으면 32
-	AtlasWidth = Parser.GetOr("AtlasWidth", uint32_t{ 4096 });
-	AtlasHeight = Parser.GetOr("AtlasHeight", uint32_t{ 4096 });
-	// 검증
-	if (Device == nullptr || FontPath.empty() || BakePixelHeight == 0 || AtlasHeight == 0 || AtlasWidth == 0)
+	const uint32 BakePixelHeight = Parser.GetOr("BakePixelHeight", uint32{ 32 });
+	const uint32 InAtlasWidth = Parser.GetOr("AtlasWidth", uint32{ 4096 });
+	const uint32 InAtlasHeight = Parser.GetOr("AtlasHeight", uint32{ 4096 });
+	InitializeFont(Device, FontPath, BakePixelHeight, InAtlasWidth, InAtlasHeight);
+}
+
+bool UFreeTypeFont::InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& FontPath)
+{
+	UFont::Initialize(Device, FontPath);
+	return InitializeFont(Device, FontPath, 32, 4096, 4096);
+}
+
+bool UFreeTypeFont::InitializeFont(ID3D11Device* Device, const std::filesystem::path& FontPath, uint32 BakePixelHeight, uint32 InAtlasWidth, uint32 InAtlasHeight)
+{
+	Reset();
+
+	if (Device == nullptr || FontPath.empty() || BakePixelHeight == 0 || InAtlasWidth == 0 || InAtlasHeight == 0)
 	{
-		return;
+		return false;
 	}
+
+	AtlasWidth = InAtlasWidth;
+	AtlasHeight = InAtlasHeight;
+
 	FT_Error Error = FT_Init_FreeType(&Library); // FreeType 라이브러리 시작
 	if (Error != FT_Err_Ok)
 	{
 		Reset();
-		return;
+		return false;
 	}
 	Error = FT_New_Face(Library, FontPath.string().c_str(), 0, &Face); // TTF 파일에서 Face 생성
 	if (Error != FT_Err_Ok)
 	{
 		Reset();
-		return;
+		return false;
 	}
 	Error = FT_Select_Charmap(Face, FT_ENCODING_UNICODE); // Unicode CodePoint를 사용할 charmap 선택
 	if (Error != FT_Err_Ok)
 	{
 		Reset();
-		return;
+		return false;
 	}
 	Error = FT_Set_Pixel_Sizes(Face, 0, BakePixelHeight); // Glyph를 생성할 픽셀 크기 설정
 	// 폰트 전체 공통 Metric 저장
@@ -102,10 +108,11 @@ void UFreeTypeFont::Initialize(ID3D11Device* Device, const std::filesystem::path
 	if (!CreateAtlasTexture(Device))
 	{
 		Reset();
-		return;
+		return false;
 	}
 	bAtlasDirty = false;
 	bInitialized = true;
+	return true;
 }
 bool UFreeTypeFont::CreateAtlasTexture(ID3D11Device* Device)
 {

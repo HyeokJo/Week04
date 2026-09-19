@@ -23,11 +23,8 @@ FMaterialChunkSignature UTexturedMaterial::BuildChunkSignature() const {
 }
 
 void UTexturedMaterial::Finalize(IAssetQuery* Query) {
-	UAsset* Asset = Query->GetUAsset(TextureName);
-	const bool bValidTexture = Asset != nullptr && Asset->GetTypeInfo()->IsA(UTexture::StaticTypeInfo());
-	ErrorHandler::Report(!bValidTexture, "[ UTexturedMaterial ]", "Failed to resolve texture asset: " + TextureName, ErrorHandler::EErrorLevel::Critical);
-
-	TextureHandle = bValidTexture ? Query->GetAsset(TextureName) : FAssetHandle{};
+	TextureHandle = Query->FindAsset(FAssetPath{ TextureName });
+	ErrorHandler::Report(!TextureHandle, "[ UTexturedMaterial ]", "Failed to resolve texture asset: " + TextureName, ErrorHandler::EErrorLevel::Critical);
 }
 
 void UTexturedMaterial::Serialize(FArchive& Ar) {

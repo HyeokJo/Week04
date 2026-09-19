@@ -10,17 +10,20 @@
 
 void UPipeline::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
 	UAsset::Initialize(Device, metaData);
+	Reset();
 
 	FAssetMetadataParser MetadataParser{};
 	ErrorHandler::Report(not MetadataParser.Load(AssetMetaDataPath), " [ UPipeline ]", "Failed to load metadata", ErrorHandler::EErrorLevel::Critical);
 
     const TFixedArray<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)> ParsePath{
         MetadataParser.ResolvePath("LitFilePath"),
+        MetadataParser.ResolvePath("OutlineFilePath"),
         MetadataParser.ResolvePath("UnlitFilePath"),
         MetadataParser.ResolvePath("WireframeFilePath"),
-        MetadataParser.ResolvePath("LitWireframeFilePath"),
-        MetadataParser.ResolvePath("OutlineFilePath")
+        MetadataParser.ResolvePath("LitWireframeFilePath")
     };
+
+    Pipelines.resize(static_cast<size_t>(ERenderMode::Max));
 
     for (auto&& [path, pipeline] : ranges::views::zip(ParsePath, Pipelines)) {
         if (path == "")  continue;
@@ -34,7 +37,80 @@ void UPipeline::Initialize(ID3D11Device* Device, const std::filesystem::path& me
     }
     ErrorHandler::Report(not MetadataParser.TryGet<size_t>("Primary", PrimaryIndex), "[ UPipeline ]", "Failed to load primary Index", ErrorHandler::EErrorLevel::Critical);
 
-    Mode = static_cast<ERenderMode>(PrimaryIndex);
+	ModeIndex = PrimaryIndex;
+}
+
+bool UPipeline::InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& PipelinePath) {
+	if (Device == nullptr || PipelinePath.empty()) {
+		return false;
+	}
+
+	UAsset::Initialize(Device, PipelinePath);
+	Reset();
+
+	FPipelineDescription Description{};
+	if (!LoadPipelineDescription(PipelinePath, Description)) {
+		return false;
+	}
+
+	Pipelines.emplace_back();
+	if (!Make(Device, Description, Pipelines.back())) {
+		Reset();
+		return false;
+	}
+
+	OptionFilePath = PipelinePath;
+	PrimaryIndex = 0;
+	ModeIndex = 0;
+
+	return true;
+}
+
+bool UPipeline::InitializeFromFamilyDirectory(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory) {
+	if (Device == nullptr || FamilyDirectory.empty() || !std::filesystem::is_directory(FamilyDirectory)) {
+		return false;
+	}
+
+	std::vector<std::filesystem::path> UnitPaths{};
+	const FString FamilyName = FamilyDirectory.filename().generic_string().c_str();
+	const FString UnitPrefix = FamilyName + "_";
+	std::error_code ErrorCode{};
+	for (const std::filesystem::directory_entry& Entry : std::filesystem::directory_iterator(FamilyDirectory, ErrorCode)) {
+		if (ErrorCode) {
+			return false;
+		}
+
+		const std::filesystem::path& Path = Entry.path();
+		if (Entry.is_regular_file(ErrorCode) && Path.extension() == ".json" && Path.stem().generic_string().starts_with(UnitPrefix)) {
+			UnitPaths.emplace_back(Path);
+		}
+	}
+
+	if (ErrorCode || UnitPaths.empty()) {
+		return false;
+	}
+
+	std::ranges::sort(UnitPaths, {}, [](const std::filesystem::path& Path) {
+		return Path.filename().generic_string();
+	});
+
+	UAsset::Initialize(Device, FamilyDirectory);
+	Reset();
+
+	for (const std::filesystem::path& UnitPath : UnitPaths) {
+		FPipelineDescription Description{};
+		Pipelines.emplace_back();
+		if (!LoadPipelineDescription(UnitPath, Description) || !Make(Device, Description, Pipelines.back())) {
+			Reset();
+			return false;
+		}
+	}
+
+	OptionFilePath = FamilyDirectory;
+	PrimaryIndex = 0;
+	ModeIndex = 0;
+
+	return true;
 }
 
 
@@ -160,20 +236,23 @@ void UPipeline::Bind(ID3D11DeviceContext* Context) const {
         return;
     }
 
-    Context->IASetInputLayout(Pipelines[static_cast<size_t>(Mode)].InputLayout.Get());
-    Context->IASetPrimitiveTopology(Pipelines[static_cast<size_t>(Mode)].PrimitiveTopology);
+    if (ModeIndex >= Pipelines.size() || !Pipelines[ModeIndex].Initialized) {
+        return;
+    }
 
-    Context->VSSetShader(Pipelines[static_cast<size_t>(Mode)].VertexShader.GetVertexShader(), nullptr, 0);
-    Context->PSSetShader(Pipelines[static_cast<size_t>(Mode)].PixelShader.GetPixelShader(), nullptr, 0);
+    Context->IASetInputLayout(Pipelines[ModeIndex].InputLayout.Get());
+    Context->IASetPrimitiveTopology(Pipelines[ModeIndex].PrimitiveTopology);
 
-    Context->GSSetShader(Pipelines[static_cast<size_t>(Mode)].GeometryShader.GetGeometryShader(), nullptr, 0);
+    Context->VSSetShader(Pipelines[ModeIndex].VertexShader.GetVertexShader(), nullptr, 0);
+    Context->PSSetShader(Pipelines[ModeIndex].PixelShader.GetPixelShader(), nullptr, 0);
+
+    Context->GSSetShader(Pipelines[ModeIndex].GeometryShader.GetGeometryShader(), nullptr, 0);
     Context->HSSetShader(nullptr, nullptr, 0);
     Context->DSSetShader(nullptr, nullptr, 0);
 
-    Context->RSSetState(Pipelines[static_cast<size_t>(Mode)].RasterizerState.Get());
-    Context->OMSetBlendState(Pipelines[static_cast<size_t>(Mode)].BlendState.Get(), nullptr, 0xffffffff);
-    //Context->OMSetDepthStencilState(Pipelines[static_cast<size_t>(Mode)].DepthStencilState.Get(), Pipelines[static_cast<size_t>(Mode)].StencilRef);
-    Context->OMSetDepthStencilState(Pipelines[static_cast<size_t>(Mode)].DepthStencilState.Get(), 1);
+    Context->RSSetState(Pipelines[ModeIndex].RasterizerState.Get());
+    Context->OMSetBlendState(Pipelines[ModeIndex].BlendState.Get(), nullptr, 0xffffffff);
+    Context->OMSetDepthStencilState(Pipelines[ModeIndex].DepthStencilState.Get(), 1);
 }
 
 void UPipeline::Reset() {
@@ -185,25 +264,31 @@ void UPipeline::Reset() {
         pipelines.InputLayout.Reset();
         pipelines.RasterizerState.Reset();
         pipelines.BlendState.Reset();
-        pipelines.DepthStencilState.Reset();
+		pipelines.DepthStencilState.Reset();
 
-        pipelines.PrimitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    }
+		pipelines.PrimitiveTopology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		pipelines.Initialized = false;
+	}
+	Pipelines.clear();
+	PrimaryIndex = 0;
+	ModeIndex = 0;
 }
 
 void UPipeline::SetRenderMode(ERenderMode mode)
 {
-    if (RenderModeSettable(mode)) {
-        Mode = mode;
+    const size_t RequestedIndex = static_cast<size_t>(mode);
+    if (RequestedIndex < Pipelines.size() && Pipelines[RequestedIndex].Initialized) {
+        ModeIndex = RequestedIndex;
     }
     else {
-        Mode = static_cast<ERenderMode>(PrimaryIndex);
+        ModeIndex = PrimaryIndex;
     }
 }
 
 bool UPipeline::RenderModeSettable(ERenderMode mode)
 {
-    return Pipelines[static_cast<size_t>(mode)].Initialized;
+    const size_t RequestedIndex = static_cast<size_t>(mode);
+    return RequestedIndex < Pipelines.size() && Pipelines[RequestedIndex].Initialized;
 }
 
 bool UPipeline::LoadPipelineDescription(const std::filesystem::path& Path, FPipelineDescription& OutDescription) {

@@ -10,7 +10,7 @@ bool FMaterialBuffer::Initialize(ID3D11Device* Device, uint32 InMaxMaterialCount
     MaxMaterialCount = InMaxMaterialCount;
 
     Slots.resize(MaxMaterialCount);
-    Materials.resize(MaxMaterialCount, nullptr);
+    Materials.resize(MaxMaterialCount);
 
     FreeIndices.reserve(MaxMaterialCount);
 
@@ -47,33 +47,41 @@ bool FMaterialBuffer::Initialize(ID3D11Device* Device, uint32 InMaxMaterialCount
 }
 
 bool FMaterialBuffer::RegisterMaterial(UMaterial* Material) {
-    if (Material == nullptr || FreeIndices.empty()) {
+	if (Material == nullptr || Material->GetGPUDataCount() > FreeIndices.size()) {
         return false;
     }
 
-    const uint32 Index = AllocateSlot();
+	Material->GPUIndices.clear();
+	Material->GPUIndices.reserve(Material->GetGPUDataCount());
 
-    Materials[Index] = Material;
+	for (uint32 GroupIndex = 0; GroupIndex < Material->GetGPUDataCount(); ++GroupIndex) {
+		const uint32 Index = AllocateSlot();
+		Materials[Index] = FMaterialBufferEntry{ Material, GroupIndex };
+		Material->GPUIndices.push_back(Index);
+	}
 
-    Material->GPUIndex = Index;
+	Material->bGPUDataDirty = true;
 
     return true;
 }
 
 void FMaterialBuffer::UnregisterMaterial(UMaterial* Material) {
-    if (Material == nullptr || Material->GPUIndex == UINT32_MAX) {
+	if (Material == nullptr || Material->GPUIndices.empty()) {
         return;
     }
 
-    const uint32 Index = Material->GPUIndex;
+	for (const uint32 Index : Material->GPUIndices) {
+		if (Index >= Materials.size() || Materials[Index].Material != Material) {
+			continue;
+		}
 
-    Materials[Index] = nullptr;
-    Slots[Index] = {};
+		Materials[Index] = {};
+		Slots[Index] = {};
+		ReleaseSlot(Index);
+	}
 
-    Material->GPUIndex = UINT32_MAX;
+	Material->GPUIndices.clear();
     Material->bGPUDataDirty = false;
-
-    ReleaseSlot(Index);
 }
 
 void FMaterialBuffer::Flush(ID3D11DeviceContext* DeviceContext) {
@@ -82,13 +90,14 @@ void FMaterialBuffer::Flush(ID3D11DeviceContext* DeviceContext) {
     }
 
     for (uint32 Index = 0; Index < MaxMaterialCount; ++Index) {
-        UMaterial* Material = Materials[Index];
+        const FMaterialBufferEntry& Entry = Materials[Index];
+        UMaterial* Material = Entry.Material;
 
         if (Material == nullptr || !Material->bGPUDataDirty) {
             continue;
         }
 
-        Material->BuildGPUData(Slots[Index]);
+        Material->BuildGPUData(Entry.GroupIndex, Slots[Index]);
 
         const uint32 Offset = Index * MATERIAL_GPU_STRIDE;
 
@@ -101,8 +110,12 @@ void FMaterialBuffer::Flush(ID3D11DeviceContext* DeviceContext) {
         Box.back = 1;
 
         DeviceContext->UpdateSubresource(Buffer.Get(), 0, &Box, Slots[Index].Data.data(), 0, 0);
+    }
 
-        Material->bGPUDataDirty = false;
+    for (const FMaterialBufferEntry& Entry : Materials) {
+        if (Entry.Material != nullptr) {
+            Entry.Material->bGPUDataDirty = false;
+        }
     }
 }
 

@@ -4,6 +4,8 @@
 #include "../../ErrorHandler.h"
 #include "FAssetMetadataParser.h"
 
+#include "../Console/Console.h"
+
 #include "BasicGeometry/Capsule.h"
 #include "BasicGeometry/Corn.h"
 #include "BasicGeometry/Cube.h"
@@ -129,6 +131,94 @@ void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaDa
 	
 }
 
+bool UMesh::InitializeFromObjFile(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
+	if (Device == nullptr || ObjPath.empty()) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model load rejected: device or OBJ path is invalid.");
+		return false;
+	}
+
+	UAsset::Initialize(Device, ObjPath);
+
+	FObjInporter ObjImporter{};
+	FGeometry Geometry{};
+
+	if (!ObjImporter.LoadObjFile(ObjPath.string().c_str(), Geometry)) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", ObjPath.generic_string().c_str());
+		return false;
+	}
+
+	if (Geometry.MaterialNames.empty() && Geometry.SubMeshIndexCounts.size() == 1) {
+		Geometry.MaterialNames.push_back({});
+	}
+
+	FAssetHandle ImportedMaterial{};
+
+	if (!Geometry.MaterialFileName.empty()) {
+		const std::filesystem::path MaterialPath = (ObjPath.parent_path() / std::filesystem::path(Geometry.MaterialFileName.c_str())).lexically_normal();
+		if (MaterialResolver) {
+			ImportedMaterial = MaterialResolver(MaterialPath);
+		}
+
+		if (!ImportedMaterial) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL asset was not found; using material group 0: %s", MaterialPath.generic_string().c_str());
+		}
+	}
+
+	TArray<FSubMesh> ImportedSubMeshes{};
+	ImportedSubMeshes.reserve(Geometry.SubMeshIndexCounts.size());
+
+	if (Geometry.MaterialNames.size() != Geometry.SubMeshIndexCounts.size()) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model material group count does not match submesh count: %s", ObjPath.generic_string().c_str());
+		return false;
+	}
+
+	uint32 FirstIndex = 0;
+
+	for (uint32 SubMeshIndex = 0; SubMeshIndex < Geometry.SubMeshIndexCounts.size(); ++SubMeshIndex) {
+		FSubMesh SubMesh{};
+		SubMesh.FirstIndex = FirstIndex;
+		SubMesh.IndexCount = Geometry.SubMeshIndexCounts[SubMeshIndex];
+
+		if (SubMesh.FirstIndex > Geometry.Indices.size() || SubMesh.IndexCount > Geometry.Indices.size() - SubMesh.FirstIndex) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model submesh index range is invalid: %s", ObjPath.generic_string().c_str());
+			return false;
+		}
+
+		FirstIndex += SubMesh.IndexCount;
+
+		const FString& MaterialName = Geometry.MaterialNames[SubMeshIndex];
+
+		if (!MaterialName.empty()) {
+			if (ImportedMaterial && MaterialGroupResolver) {
+				const std::optional<uint32> MaterialGroupIndex = MaterialGroupResolver(ImportedMaterial, MaterialName);
+				if (MaterialGroupIndex.has_value()) {
+					SubMesh.MaterialGroupIndex = *MaterialGroupIndex;
+				}
+				else {
+					Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL group was not found; using material group 0: %s in %s", MaterialName.c_str(), ObjPath.generic_string().c_str());
+				}
+			}
+			else {
+				Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model has no usable MTL; using material group 0: %s", ObjPath.generic_string().c_str());
+			}
+		}
+
+		ImportedSubMeshes.push_back(SubMesh);
+	}
+
+	if (FirstIndex != Geometry.Indices.size() || !Make(Device, Geometry.Indices,
+		MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+		MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords))) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", ObjPath.generic_string().c_str());
+		return false;
+	}
+
+	SubMeshes = std::move(ImportedSubMeshes);
+
+	return true;
+}
+
 ID3D11Buffer* UMesh::GetVertexBuffer(EVertexAttribute Attribute) const {
 	const size_t Index = GetAttributeIndex(Attribute);
 
@@ -235,5 +325,6 @@ void UMesh::Reset() {
 
 	IndexBuffer.Reset();
 	Indices.clear();
+	SubMeshes.clear();
 
 }

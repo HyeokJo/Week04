@@ -13,18 +13,10 @@
 #include "../../Core/Asset/UColorMaterial.h"
 #include "../../Scene/Component/UPrimitiveComponent.h"
 #include "../../Scene/UWorld.h"
+
 void FTransformGizmo::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FStateChannel<RenderWindowInfo>::FReader InWindowInfoReader, FWorldEditorContext& InEditorContext) {
-
-	CylinderMesh = AssetRegistry.EmplaceAsset<UMesh>(Device, "CylinderMesh", "./Content/Metadata/CylinderMesh.meta");
-	ConeMesh = AssetRegistry.EmplaceAsset<UMesh>(Device, "ConeMesh", "./Content/Metadata/ConeMesh.meta");
-	CubeMesh = AssetRegistry.EmplaceAsset<UMesh>(Device,"CubeMesh","./Content/Metadata/CubeMesh.meta");
-	GizmoTorusMesh = AssetRegistry.EmplaceAsset<UMesh>(Device, "GizmoTorusMesh", "./Content/Metadata/GizmoTorusMesh.meta");
-
-	RedMaterial = AssetRegistry.EmplaceAsset<UColorMaterial>(Device, "Red", "./Content/Metadata/RedMaterial.meta");
-	GreenMaterial = AssetRegistry.EmplaceAsset<UColorMaterial>(Device, "Green", "./Content/Metadata/GreenMaterial.meta");
-	BlueMaterial = AssetRegistry.EmplaceAsset<UColorMaterial>(Device, "Blue", "./Content/Metadata/BlueMaterial.meta");
-
-	GizmoPipeline = AssetRegistry.EmplaceAsset<UPipeline>(Device, "GizmoPipeline", "./Content/Metadata/GizmoPipeline.meta");
+	this->AssetRegistry = &AssetRegistry;
+	RefreshAssetHandles();
 
 	WindowInfoReader = InWindowInfoReader;
 	EditorContext = &InEditorContext;
@@ -218,22 +210,22 @@ void FTransformGizmo::SetTranslate(const FVector3& Pivot, float WorldUnitsPerPix
 	const float HalfShaftLength = ShaftLength * 0.5f;
 	const float HalfConeLength = ConeLength * 0.5f;
 	const float TotalLength = ShaftLength + ConeLength;
-
+	
 	const float StartX = Pivot.x + BoundsGap;
 	const float StartY = Pivot.y + BoundsGap;
 	const float StartZ = Pivot.z + BoundsGap;
 
-	CylinderXAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftLength, ShaftRadius) * FMatrix::CreateRotationZ(DirectX::XMConvertToRadians(-90.0f)) * FMatrix::CreateTranslation(StartX + HalfShaftLength, Pivot.y, Pivot.z);
+	CylinderXAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftRadius, ShaftLength) * FMatrix::CreateRotationY(DirectX::XMConvertToRadians(90.0f)) * FMatrix::CreateTranslation(StartX + HalfShaftLength, Pivot.y, Pivot.z);
 
-	CylinderYAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftLength, ShaftRadius) * FMatrix::CreateTranslation(Pivot.x, StartY + HalfShaftLength, Pivot.z);
+	CylinderYAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftRadius, ShaftLength) * FMatrix::CreateRotationX(DirectX::XMConvertToRadians(-90.0f)) * FMatrix::CreateTranslation(Pivot.x, StartY + HalfShaftLength, Pivot.z);
 
-	CylinderZAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftLength, ShaftRadius) * FMatrix::CreateRotationX(DirectX::XMConvertToRadians(90.0f)) * FMatrix::CreateTranslation(Pivot.x, Pivot.y, StartZ + HalfShaftLength);
+	CylinderZAxisTransform = FMatrix::CreateScale(ShaftRadius, ShaftRadius, ShaftLength) * FMatrix::CreateTranslation(Pivot.x, Pivot.y, StartZ + HalfShaftLength);
 
-	ConeXAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateRotationZ(DirectX::XMConvertToRadians(-90.0f)) * FMatrix::CreateTranslation(StartX + ShaftLength + HalfConeLength, Pivot.y, Pivot.z);
+	ConeXAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateRotationY(DirectX::XMConvertToRadians(90.0f)) * FMatrix::CreateTranslation(StartX + ShaftLength * 0.8f + HalfConeLength, Pivot.y, Pivot.z);
 
-	ConeYAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateTranslation(Pivot.x, StartY + ShaftLength + HalfConeLength, Pivot.z);
+	ConeYAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateRotationX(DirectX::XMConvertToRadians(-90.f)) * FMatrix::CreateTranslation(Pivot.x, StartY + ShaftLength * 0.8f + HalfConeLength, Pivot.z);
 
-	ConeZAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateRotationX(DirectX::XMConvertToRadians(90.0f)) * FMatrix::CreateTranslation(Pivot.x, Pivot.y, StartZ + ShaftLength + HalfConeLength);
+	ConeZAxisTransform = FMatrix::CreateScale(ConeRadius, ConeLength, ConeRadius) * FMatrix::CreateRotationX(DirectX::XMConvertToRadians(0.f)) * FMatrix::CreateTranslation(Pivot.x, Pivot.y, StartZ + ShaftLength * 0.8f + HalfConeLength);
 
 	AxisHitProxies = {
 		FAxisHitProxy{
@@ -270,17 +262,18 @@ void FTransformGizmo::SetRotate(const FVector3& Pivot, float WorldUnitsPerPixel)
 	CurrentRingRadius = RingOuterRadius * (0.50f / 0.49f);
 	CurrentRingPickHalfWidth = RingPickThicknessPixels * WorldUnitsPerPixel;
 
-	const float TorusScale = RingOuterRadius * 2.0f;
+	const float TorusScale = 1.f;
 
 	TorusXAxisTransform =FMatrix::CreateScale(TorusScale,TorusScale,TorusScale)
-		* FMatrix::CreateRotationZ(DirectX::XMConvertToRadians(-90.0f))
+		* FMatrix::CreateRotationY(DirectX::XMConvertToRadians(0.0f))
 		* FMatrix::CreateTranslation(Pivot);
 
 	TorusYAxisTransform =FMatrix::CreateScale(TorusScale,TorusScale,TorusScale)
+		* FMatrix::CreateRotationZ(DirectX::XMConvertToRadians(0.0f))
 		* FMatrix::CreateTranslation(Pivot);
 
 	TorusZAxisTransform =FMatrix::CreateScale(TorusScale,TorusScale,TorusScale)
-		* FMatrix::CreateRotationX(DirectX::XMConvertToRadians(90.0f))
+		* FMatrix::CreateRotationX(DirectX::XMConvertToRadians(0.0f))
 		* FMatrix::CreateTranslation(Pivot);
 
 }
@@ -799,6 +792,8 @@ FVector3 FTransformGizmo::GetWorldAxis(EAxis Axis) const {
 }
 
 void FTransformGizmo::Render(FRenderProbe& Probe) {
+	RefreshAssetHandles();
+
 	if (!bVisible) {
 		return;
 	}
@@ -846,4 +841,19 @@ void FTransformGizmo::Render(FRenderProbe& Probe) {
 	default:
 		break;
 	}
+}
+
+void FTransformGizmo::RefreshAssetHandles() {
+	if (AssetRegistry == nullptr) {
+		return;
+	}
+
+	CylinderMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cylinder.obj" });
+	ConeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cone.obj" });
+	CubeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.obj" });
+	GizmoTorusMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Torus.obj" });
+	RedMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Red.mtl" });
+	GreenMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" });
+	BlueMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Blue.mtl" });
+	GizmoPipeline = AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/Gizmo.json" });
 }

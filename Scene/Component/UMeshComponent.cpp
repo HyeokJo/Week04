@@ -13,6 +13,11 @@ FAssetHandle UMeshComponent::GetMeshHandle() const {
 
 void UMeshComponent::SetMeshHandle(FAssetHandle InHandle) {
     MeshHandle = InHandle;
+    AActor* Owner = GetOwner();
+    UWorld* World = Owner != nullptr ? Owner->GetWorld() : nullptr;
+    FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    MeshAssetPath = Registry != nullptr && Registry->GetAssetPath(MeshHandle) != nullptr ? *Registry->GetAssetPath(MeshHandle) : FAssetPath{};
+    MeshAssetGuid = Registry != nullptr && Registry->GetAssetGuid(MeshHandle) != nullptr ? *Registry->GetAssetGuid(MeshHandle) : FGuid{};
     BuildPickingBoxFromMesh();
 }
 
@@ -109,17 +114,22 @@ bool UMeshComponent::RaycastMesh(const FRay& Ray, float& OutDistance) const {
 void UMeshComponent::Serialize(FArchive& Archive) {
     UPrimitiveComponent::Serialize(Archive);
 
-    FString MeshGuid;
-    if (MeshHandle.ID != std::numeric_limits<uint32>::max()) {
-        if (UAsset* Asset = Archive.GetAssetRegistry()->ResolveAsset<UAsset>(MeshHandle)) {
-            MeshGuid = Asset->GetGuid().ToString();
+    FAssetRegistry* Registry = Archive.GetAssetRegistry();
+    if (Archive.IsSaving() && Registry != nullptr) {
+        if (const FAssetPath* AssetPath = Registry->GetAssetPath(MeshHandle)) {
+            MeshAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = Registry->GetAssetGuid(MeshHandle)) {
+            MeshAssetGuid = *AssetGuid;
         }
     }
-    Archive.Serialize("GuidMeshHandle", MeshGuid);
-    if (Archive.IsLoading() && !MeshGuid.empty()) {
-        FGuid Guid;
-        if (Guid.Parse(MeshGuid)) {
-            MeshHandle = Archive.GetAssetRegistry()->GetAsset(Guid);
+
+    Archive.Serialize("MeshAssetGuid", MeshAssetGuid);
+    Archive.Serialize("MeshAssetPath", MeshAssetPath.Path);
+    if (Archive.IsLoading()) {
+        MeshHandle = Registry != nullptr ? Registry->FindAsset(MeshAssetGuid) : FAssetHandle{};
+        if (!MeshHandle && Registry != nullptr) {
+            MeshHandle = Registry->FindAsset(MeshAssetPath);
         }
     }
 }

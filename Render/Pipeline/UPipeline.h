@@ -33,10 +33,10 @@ struct PipelineUnit {
 
 enum class ERenderMode : size_t {
     Lit,
+    Outline,
     Unlit,
     Wireframe,
     LitWireframe,
-    Outline,
     Max
 };
 
@@ -55,6 +55,8 @@ public:
 	JG_DECLARE_DERIVED_TYPEINFO(UPipeline, UAsset);
 
 	virtual void Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) override;
+	bool InitializeFromFile(ID3D11Device* Device, const std::filesystem::path& PipelinePath);
+	bool InitializeFromFamilyDirectory(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory);
 
     void Bind(ID3D11DeviceContext* Context) const;
     void Reset();
@@ -72,9 +74,9 @@ protected:
 private:
 	std::filesystem::path OptionFilePath{};
     
-    ERenderMode Mode{ ERenderMode::Lit };
+    size_t ModeIndex{ 0 };
 
-    TFixedArray<PipelineUnit, static_cast<size_t>(ERenderMode::Max)> Pipelines{};
+    std::vector<PipelineUnit> Pipelines{};
 
     size_t PrimaryIndex{ 0 };
 };

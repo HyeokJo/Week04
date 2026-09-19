@@ -12,8 +12,7 @@
 #include "../../Scene/Component/UActorComponent.h"
 #include "../../Scene/Component/UStaticMeshComponent.h"
 #include "../../Scene/UWorld.h"
-
-#include "../../Core/Console/Console.h"
+#include "../Pipeline/UPipeline.h"
 
 void FControlPanel::DrawPanel()  
 {
@@ -33,8 +32,10 @@ void FControlPanel::DrawPanel()
 
     const char* PrimitiveMeshTypes[] =
     {
-        "CubeMesh", "SphereMesh", "PlaneMesh", "CylinderMesh",
-        "CapsuleMesh", "ConeMesh", "TorusMesh", "PyrimidMesh"
+        "/Game/System/Mesh/Cube.obj", "/Game/System/Mesh/Sphere.obj",
+        "/Game/System/Mesh/Plane.obj", "/Game/System/Mesh/Cylinder.obj",
+		"/Game/System/Mesh/Capsule.obj", "/Game/System/Mesh/Cone.obj",
+		"/Game/System/Mesh/Torus.obj", "/Game/System/Mesh/Pyramid.obj"
     };
 
     // Create: 기존의 Primitive 생성/삭제 기능을 한 그룹으로 유지한다.
@@ -315,7 +316,19 @@ void FControlPanel::DrawPanel()
     }
 
     ImGui::Separator();
-    int RenderIndex = static_cast<int>(EditorContext->GetRenderModeState());
+    const ERenderMode RenderModeValues[] = {
+        ERenderMode::Lit,
+        ERenderMode::Unlit,
+        ERenderMode::Wireframe,
+        ERenderMode::LitWireframe
+    };
+    int RenderIndex = 0;
+    for (int Index = 0; Index < IM_ARRAYSIZE(RenderModeValues); ++Index) {
+        if (EditorContext->GetRenderModeState() == static_cast<size_t>(RenderModeValues[Index])) {
+            RenderIndex = Index;
+            break;
+        }
+    }
     const char* RenderModes[] = { "Lit", "Unlit", "Wireframe", "Lit Wireframe" };
     ImGui::SetNextItemWidth(110.0f);
     if (ImGui::Combo("Render Mode", &RenderIndex, RenderModes, IM_ARRAYSIZE(RenderModes)))

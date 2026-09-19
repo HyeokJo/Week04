@@ -28,7 +28,8 @@ public:
 public:
     bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
 
-    bool DiscoverAssets(const std::filesystem::path& Directory);
+	bool DiscoverAssets(const std::filesystem::path& Directory);
+	bool LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType);
 
     const std::filesystem::path& GetContentRoot() const {
         return ContentRoot;
@@ -39,17 +40,11 @@ public:
     }
 
     FAssetHandle FindAsset(const FAssetPath& AssetPath) const override;
-    UAsset* GetUAsset(const FString& Name) override;
-    FAssetHandle GetAsset(const FString& Name) const override;
-    FAssetHandle GetAsset(const FGuid& ID) const override;
+    FAssetHandle FindAsset(const FGuid& PersistentGuid) const;
+    const FAssetPath* GetAssetPath(FAssetHandle Handle) const;
+    const FGuid* GetAssetGuid(FAssetHandle Handle) const;
 
     bool RemoveAsset(FAssetHandle Handle);
-
-    template<typename T, typename... TArgs>
-    requires std::is_base_of_v<UAsset, T>
-    FAssetHandle EmplaceAsset(ID3D11Device* Device, const FString& Name, const std::filesystem::path& MetadataPath, TArgs&&... Args) {
-        return EmplaceAssetAtPath<T>(Device, MakeLegacyAssetPath(Name), Name, MetadataPath, std::forward<TArgs>(Args)...);
-    }
 
     template<typename T, typename... TArgs>
     requires std::is_base_of_v<UAsset, T>
@@ -83,9 +78,6 @@ public:
         }
 
         PathToHandle[AssetPath] = Handle;
-        LegacyNameToHandle[Name] = Handle;
-        GuidToHandle[Assets[Handle.ID].Asset->GetGuid()] = Handle;
-
         return Handle;
     }
 
@@ -147,16 +139,21 @@ public:
     FAssetHandle EnsureDefaultStaticMeshMaterial();
     FAssetHandle EnsureDefaultStaticMeshPipeline();
 
-    bool AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset);
-
-
 private:
-    static FAssetPath MakeLegacyAssetPath(const FString& Name);
-
-    bool DiscoverAssetFile(const std::filesystem::path& FilePath);
-    bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, EAssetType AssetType);
+	bool EnsureSystemAssets();
+	bool DiscoverAssetFile(const std::filesystem::path& FilePath);
+	bool LoadTexture(FAssetEntry& Entry, ID3D11Device* Device);
+	bool LoadFont(FAssetEntry& Entry, ID3D11Device* Device);
+	bool LoadPipeline(FAssetEntry& Entry, ID3D11Device* Device);
+	bool LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device);
+	bool LoadMesh(FAssetEntry& Entry, ID3D11Device* Device);
+	bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType);
     FAssetPath MakeAssetPath(const std::filesystem::path& PhysicalPath) const;
     static EAssetType GetAssetType(const std::filesystem::path& FilePath);
+    static std::filesystem::path MakeSidecarPath(const std::filesystem::path& AssetPath);
+    static bool LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid);
+    static bool IsPipelineFamilyUnit(const std::filesystem::path& FilePath);
+    static std::filesystem::path FindFirstPipelineFamilyUnit(const std::filesystem::path& FamilyDirectory);
 
     FAssetHandle AllocateHandle();
     FAssetEntry* FindEntry(FAssetHandle Handle);
@@ -168,7 +165,6 @@ private:
     TArray<FAssetHandle> FreeHandles{};
 
     TMap<FAssetPath, FAssetHandle> PathToHandle{};
-    TMap<FString, FAssetHandle> LegacyNameToHandle{};
     TMap<FGuid, FAssetHandle> GuidToHandle{};
 
     FMaterialBuffer MaterialBuffer{};

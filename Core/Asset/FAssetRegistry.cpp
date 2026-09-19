@@ -1,25 +1,49 @@
 ﻿#include "PCH.h"
 #include "FAssetRegistry.h"
 
-#include "UColorMaterial.h"
+#include "UFreeTypeFont.h"
+#include "UMesh.h"
+#include "UTexture.h"
 #include "Render/Pipeline/UPipeline.h"
+#include "Core/Console/Console.h"
 
+#include <algorithm>
+#include <array>
 #include <cctype>
+#include <fstream>
+
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 namespace {
-constexpr const char* DefaultStaticMeshMaterialName = "__DefaultStaticMeshMaterial";
-constexpr const char* DefaultStaticMeshPipelineName = "__DefaultStaticMeshPipeline";
-constexpr const char* DefaultStaticMeshMaterialMetadataPath = "./Content/Metadata/DefaultStaticMeshMaterial.meta";
-constexpr const char* DefaultStaticMeshPipelineMetadataPath = "./Content/Metadata/DefaultStaticMeshPipeline.meta";
+constexpr const char* DefaultStaticMeshMaterialAssetPath = "/Game/System/Material/Default.mtl";
+constexpr const char* DefaultStaticMeshPipelineAssetPath = "/Game/Pipeline/Base";
+constexpr const char* DefaultCheckerboardTexturePath = "/Game/Texture/checkerboard.png";
+constexpr const char* GizmoPipelineAssetPath = "/Game/Pipeline/Gizmo.json";
 }
 
 bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
     if (Device == nullptr || !MaterialBuffer.Initialize(Device, MaxMaterialCount)) {
         return false;
-    }
+	}
 
-    this->Device = Device;
-    return DiscoverAssets(std::filesystem::current_path() / "Content");
+	this->Device = Device;
+
+	if (!DiscoverAssets(std::filesystem::current_path() / "Content")) {
+		return false;
+	}
+
+	if (!LoadAssetsOfType(Device, EAssetType::Texture) ||
+		!LoadAssetsOfType(Device, EAssetType::Font) ||
+		!LoadAssetsOfType(Device, EAssetType::Pipeline) ||
+		!LoadAssetsOfType(Device, EAssetType::Material) ||
+		!LoadAssetsOfType(Device, EAssetType::Mesh)) {
+		return false;
+	}
+
+	return EnsureSystemAssets();
 }
 
 bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
@@ -35,11 +59,13 @@ bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
     std::filesystem::recursive_directory_iterator Iterator(ContentRoot, std::filesystem::directory_options::skip_permission_denied, ErrorCode);
     const std::filesystem::recursive_directory_iterator End{};
 
+    bool bDiscoveredAll = true;
+
     while (!ErrorCode && Iterator != End) {
         const std::filesystem::directory_entry Entry = *Iterator;
 
         if (Entry.is_regular_file(ErrorCode)) {
-            DiscoverAssetFile(Entry.path());
+            bDiscoveredAll = DiscoverAssetFile(Entry.path()) && bDiscoveredAll;
         }
 
         Iterator.increment(ErrorCode);
@@ -49,7 +75,43 @@ bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
         }
     }
 
-    return true;
+	return bDiscoveredAll;
+}
+
+bool FAssetRegistry::LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType) {
+	if (Device == nullptr) {
+		return false;
+	}
+
+	bool bLoadedAll = true;
+
+	for (FAssetEntry& Entry : Assets) {
+		if (Entry.AssetType != AssetType || Entry.Asset != nullptr) {
+			continue;
+		}
+
+		bool bLoaded = false;
+
+		if (AssetType == EAssetType::Texture) {
+			bLoaded = LoadTexture(Entry, Device);
+		}
+		else if (AssetType == EAssetType::Font) {
+			bLoaded = LoadFont(Entry, Device);
+		}
+		else if (AssetType == EAssetType::Pipeline) {
+			bLoaded = LoadPipeline(Entry, Device);
+		}
+		else if (AssetType == EAssetType::Material) {
+			bLoaded = LoadMaterial(Entry, Device);
+		}
+		else if (AssetType == EAssetType::Mesh) {
+			bLoaded = LoadMesh(Entry, Device);
+		}
+
+		bLoadedAll = bLoadedAll && bLoaded;
+	}
+
+	return bLoadedAll;
 }
 
 FAssetHandle FAssetRegistry::FindAsset(const FAssetPath& AssetPath) const {
@@ -62,28 +124,19 @@ FAssetHandle FAssetRegistry::FindAsset(const FAssetPath& AssetPath) const {
     return It->second;
 }
 
-UAsset* FAssetRegistry::GetUAsset(const FString& Name) {
-    return ResolveAsset<UAsset>(GetAsset(Name));
+FAssetHandle FAssetRegistry::FindAsset(const FGuid& PersistentGuid) const {
+    const auto It = GuidToHandle.find(PersistentGuid);
+    return It != GuidToHandle.end() ? It->second : FAssetHandle{};
 }
 
-FAssetHandle FAssetRegistry::GetAsset(const FString& Name) const {
-    const auto It = LegacyNameToHandle.find(Name);
-
-    if (It == LegacyNameToHandle.end()) {
-        return {};
-    }
-
-    return It->second;
+const FAssetPath* FAssetRegistry::GetAssetPath(FAssetHandle Handle) const {
+    const FAssetEntry* Entry = FindEntry(Handle);
+    return Entry != nullptr && Entry->AssetPath ? &Entry->AssetPath : nullptr;
 }
 
-FAssetHandle FAssetRegistry::GetAsset(const FGuid& ID) const {
-    const auto It = GuidToHandle.find(ID);
-
-    if (It == GuidToHandle.end()) {
-        return {};
-    }
-
-    return It->second;
+const FGuid* FAssetRegistry::GetAssetGuid(FAssetHandle Handle) const {
+    const FAssetEntry* Entry = FindEntry(Handle);
+    return Entry != nullptr && Entry->PersistentGuid.IsValid() ? &Entry->PersistentGuid : nullptr;
 }
 
 bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
@@ -101,6 +154,8 @@ bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
     Entry->Asset.reset();
     Entry->AssetPath = {};
     Entry->PhysicalPath.clear();
+    Entry->SidecarPath.clear();
+    Entry->PersistentGuid = {};
     Entry->AssetType = EAssetType::END;
     Entry->Handle = FAssetHandle{ Handle.ID, Handle.Generation + 1 };
     FreeHandles.push_back(Entry->Handle);
@@ -112,7 +167,6 @@ void FAssetRegistry::Reset() {
     Assets.clear();
     FreeHandles.clear();
     PathToHandle.clear();
-    LegacyNameToHandle.clear();
     GuidToHandle.clear();
     MaterialBuffer.Reset();
     Device = nullptr;
@@ -132,79 +186,70 @@ void FAssetRegistry::Finalize() {
 }
 
 FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshMaterial() {
-    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshMaterialName);
-
-    if (ResolveAsset<UMaterial>(ExistingHandle) != nullptr) {
-        return ExistingHandle;
-    }
-
-    if (ExistingHandle || Device == nullptr) {
+    const FAssetHandle DefaultMaterialHandle = FindAsset(FAssetPath{ DefaultStaticMeshMaterialAssetPath });
+    if (ResolveAsset<UMaterial>(DefaultMaterialHandle) == nullptr) {
         return {};
     }
 
-    return EmplaceAsset<UColorMaterial>(Device, DefaultStaticMeshMaterialName, DefaultStaticMeshMaterialMetadataPath);
+    return DefaultMaterialHandle;
 }
 
 FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshPipeline() {
-    const FAssetHandle ExistingHandle = GetAsset(DefaultStaticMeshPipelineName);
-
-    if (ResolveAsset<UPipeline>(ExistingHandle) != nullptr) {
-        return ExistingHandle;
-    }
-
-    if (ExistingHandle || Device == nullptr) {
+    const FAssetHandle DefaultPipelineHandle = FindAsset(FAssetPath{ DefaultStaticMeshPipelineAssetPath });
+    if (ResolveAsset<UPipeline>(DefaultPipelineHandle) == nullptr) {
         return {};
     }
 
-    return EmplaceAsset<UPipeline>(Device, DefaultStaticMeshPipelineName, DefaultStaticMeshPipelineMetadataPath);
+    return DefaultPipelineHandle;
 }
 
-bool FAssetRegistry::AdoptAsset(ID3D11Device* Device, const FGuid& ID, const FString& Name, const std::filesystem::path& MetadataPath, std::unique_ptr<UObject>&& Asset) {
-    if (Device == nullptr || Asset == nullptr || !ID.IsValid() || GetAsset(Name)) {
-        return false;
-    }
+bool FAssetRegistry::EnsureSystemAssets() {
+	struct FSystemMeshDefinition {
+		const char* AssetPath;
+	};
 
-    if (!Asset->GetTypeInfo()->IsA(UAsset::StaticTypeInfo())) {
-        return false;
-    }
+	constexpr std::array SystemMeshes{
+		FSystemMeshDefinition{ "/Game/System/Mesh/Capsule.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cone.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cube.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cylinder.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/GizmoTorus.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Plane.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Pyramid.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/SkyDome.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Sphere.obj" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Torus.obj" }
+	};
 
-    std::unique_ptr<UAsset> TypedAsset(static_cast<UAsset*>(Asset.release()));
-    const FAssetPath AssetPath = MakeLegacyAssetPath(Name);
+	for (const FSystemMeshDefinition& Definition : SystemMeshes) {
+		const FAssetHandle Handle = FindAsset(FAssetPath{ Definition.AssetPath });
+		if (ResolveAsset<UMesh>(Handle) == nullptr) {
+			return false;
+		}
+	}
 
-    if (!AssetPath || PathToHandle.contains(AssetPath)) {
-        return false;
-    }
+	struct FSystemAssetDefinition {
+		const char* AssetPath;
+	};
 
-    TypedAsset->SetAssetName(Name);
-    TypedAsset->Initialize(Device, MetadataPath);
+	constexpr std::array SystemGizmoMaterials{
+		FSystemAssetDefinition{ "/Game/System/Material/Red.mtl" },
+		FSystemAssetDefinition{ "/Game/System/Material/Green.mtl" },
+		FSystemAssetDefinition{ "/Game/System/Material/Blue.mtl" }
+	};
 
-    if (TypedAsset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo()) && !MaterialBuffer.RegisterMaterial(static_cast<UMaterial*>(TypedAsset.get()))) {
-        return false;
-    }
+	for (const FSystemAssetDefinition& Definition : SystemGizmoMaterials) {
+		const FAssetHandle Handle = FindAsset(FAssetPath{ Definition.AssetPath });
+		if (ResolveAsset<UMaterial>(Handle) == nullptr) {
+			return false;
+		}
+	}
 
-    const FAssetHandle Handle = AllocateHandle();
-    FAssetEntry Entry{};
-    Entry.AssetPath = AssetPath;
-    Entry.PhysicalPath = MetadataPath;
-    Entry.Handle = Handle;
-    Entry.Asset = std::move(TypedAsset);
-
-    if (Handle.ID < Assets.size()) {
-        Assets[Handle.ID] = std::move(Entry);
-    }
-    else {
-        Assets.emplace_back(std::move(Entry));
-    }
-
-    PathToHandle[AssetPath] = Handle;
-    LegacyNameToHandle[Name] = Handle;
-    GuidToHandle[ID] = Handle;
-
-    return true;
-}
-
-FAssetPath FAssetRegistry::MakeLegacyAssetPath(const FString& Name) {
-    return FAssetPath{ FString{ "/Engine/Legacy/" } + Name };
+	const FAssetHandle GizmoPipelineHandle = FindAsset(FAssetPath{ GizmoPipelineAssetPath });
+	if (ResolveAsset<UPipeline>(GizmoPipelineHandle) == nullptr) {
+		return false;
+	}
+	return true;
 }
 
 bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
@@ -214,11 +259,124 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
         return true;
     }
 
-    return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, AssetType);
+    const std::filesystem::path SidecarPath = MakeSidecarPath(FilePath);
+    FGuid PersistentGuid{};
+    if (!LoadOrCreatePersistentGuid(SidecarPath, PersistentGuid)) {
+        return false;
+    }
+
+	if (AssetType == EAssetType::Pipeline && IsPipelineFamilyUnit(FilePath)) {
+		const std::filesystem::path FamilyDirectory = FilePath.parent_path();
+		const std::filesystem::path FirstUnitPath = FindFirstPipelineFamilyUnit(FamilyDirectory);
+		if (FirstUnitPath.empty()) {
+			return false;
+		}
+
+		if (FilePath.lexically_normal() != FirstUnitPath) {
+			return true;
+		}
+
+		return RegisterDiscoveredAsset(MakeAssetPath(FamilyDirectory), FamilyDirectory, SidecarPath, PersistentGuid, AssetType);
+	}
+
+	return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, SidecarPath, PersistentGuid, AssetType);
 }
 
-bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, EAssetType AssetType) {
-    if (!AssetPath || AssetType == EAssetType::END || PathToHandle.contains(AssetPath)) {
+bool FAssetRegistry::LoadTexture(FAssetEntry& Entry, ID3D11Device* Device) {
+	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>();
+	Texture->SetAssetName(Entry.AssetPath.Path);
+	Texture->InitializeFromFile(Device, Entry.PhysicalPath, Entry.SidecarPath);
+
+	if (Texture->GetSRV() == nullptr) {
+		return false;
+	}
+
+	Entry.Asset = std::move(Texture);
+
+	return true;
+}
+
+bool FAssetRegistry::LoadFont(FAssetEntry& Entry, ID3D11Device* Device) {
+	std::unique_ptr<UFreeTypeFont> Font = std::make_unique<UFreeTypeFont>();
+	Font->SetAssetName(Entry.AssetPath.Path);
+
+	if (!Font->InitializeFromFile(Device, Entry.PhysicalPath) || Font->GetAtlasSRV() == nullptr) {
+		return false;
+	}
+
+	Entry.Asset = std::move(Font);
+
+	return true;
+}
+
+bool FAssetRegistry::LoadPipeline(FAssetEntry& Entry, ID3D11Device* Device) {
+	std::unique_ptr<UPipeline> Pipeline = std::make_unique<UPipeline>();
+	Pipeline->SetAssetName(Entry.AssetPath.Path);
+
+	const bool bInitialized = std::filesystem::is_directory(Entry.PhysicalPath)
+		? Pipeline->InitializeFromFamilyDirectory(Device, Entry.PhysicalPath)
+		: Pipeline->InitializeFromFile(Device, Entry.PhysicalPath);
+
+	if (!bInitialized) {
+		return false;
+	}
+
+	Entry.Asset = std::move(Pipeline);
+
+	return true;
+}
+
+bool FAssetRegistry::LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device) {
+	std::unique_ptr<UMaterial> Material = std::make_unique<UMaterial>();
+	Material->SetAssetName(Entry.AssetPath.Path);
+
+	const FAssetHandle CheckerboardHandle = FindAsset(FAssetPath{ DefaultCheckerboardTexturePath });
+	if (ResolveAsset<UTexture>(CheckerboardHandle) == nullptr) {
+		return false;
+	}
+
+	const bool bInitialized = Material->InitializeFromMtlFile(Device, Entry.PhysicalPath, [this, CheckerboardHandle](const std::filesystem::path& TexturePath) {
+		const FAssetHandle TextureHandle = FindAsset(MakeAssetPath(TexturePath));
+		return ResolveAsset<UTexture>(TextureHandle) != nullptr ? TextureHandle : CheckerboardHandle;
+	});
+
+	if (!bInitialized || !MaterialBuffer.RegisterMaterial(Material.get())) {
+		return false;
+	}
+
+	Entry.Asset = std::move(Material);
+
+	return true;
+}
+
+bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
+	std::unique_ptr<UMesh> Mesh = std::make_unique<UMesh>();
+	Mesh->SetAssetName(Entry.AssetPath.Path);
+
+	const bool bInitialized = Mesh->InitializeFromObjFile(
+		Device,
+		Entry.PhysicalPath,
+		[this](const std::filesystem::path& MaterialPath) {
+			return FindAsset(MakeAssetPath(MaterialPath));
+		},
+		[this](FAssetHandle MaterialHandle, const FString& GroupName) -> std::optional<uint32> {
+			const UMaterial* Material = ResolveAsset<UMaterial>(MaterialHandle);
+			return Material != nullptr ? Material->FindGroupIndex(GroupName) : std::nullopt;
+		});
+
+	if (!bInitialized) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to load model: %s", Entry.PhysicalPath.generic_string().c_str());
+		return false;
+	}
+
+	Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Loaded model: %s", Entry.PhysicalPath.generic_string().c_str());
+	Entry.Asset = std::move(Mesh);
+
+	return true;
+}
+
+bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType) {
+    if (!AssetPath || !PersistentGuid.IsValid() || AssetType == EAssetType::END || PathToHandle.contains(AssetPath) || GuidToHandle.contains(PersistentGuid)) {
         return false;
     }
 
@@ -226,6 +384,8 @@ bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const 
     FAssetEntry Entry{};
     Entry.AssetPath = AssetPath;
     Entry.PhysicalPath = PhysicalPath;
+    Entry.SidecarPath = SidecarPath;
+    Entry.PersistentGuid = PersistentGuid;
     Entry.AssetType = AssetType;
     Entry.Handle = Handle;
 
@@ -237,7 +397,84 @@ bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const 
     }
 
     PathToHandle[AssetPath] = Handle;
+    GuidToHandle[PersistentGuid] = Handle;
     return true;
+}
+
+std::filesystem::path FAssetRegistry::MakeSidecarPath(const std::filesystem::path& AssetPath) {
+    return std::filesystem::path{ AssetPath.string() + ".meta" };
+}
+
+bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid) {
+    if (std::filesystem::exists(SidecarPath)) {
+        std::ifstream Input(SidecarPath);
+        rapidjson::Document Document{};
+        rapidjson::IStreamWrapper Stream(Input);
+        Document.ParseStream(Stream);
+
+        if (!Input.good() && !Input.eof()) {
+            return false;
+        }
+
+        if (!Document.IsObject() || !Document.HasMember("Guid") || !Document["Guid"].IsString()) {
+            return false;
+        }
+
+        return OutGuid.Parse(Document["Guid"].GetString()) && OutGuid.IsValid();
+    }
+
+    OutGuid = FGuid::NewGuid();
+    if (!OutGuid.IsValid()) {
+        return false;
+    }
+
+    rapidjson::Document Document{};
+    Document.SetObject();
+    rapidjson::Document::AllocatorType& Allocator = Document.GetAllocator();
+    const FString GuidString = OutGuid.ToString();
+    Document.AddMember("Guid", rapidjson::Value(GuidString.c_str(), Allocator), Allocator);
+
+    rapidjson::StringBuffer Buffer{};
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> Writer(Buffer);
+    Document.Accept(Writer);
+
+    std::ofstream Output(SidecarPath, std::ios::binary | std::ios::trunc);
+    if (!Output.is_open()) {
+        return false;
+    }
+
+    Output << Buffer.GetString() << "\r\n";
+    return Output.good();
+}
+
+bool FAssetRegistry::IsPipelineFamilyUnit(const std::filesystem::path& FilePath) {
+	const std::filesystem::path FamilyDirectory = FilePath.parent_path();
+	return FilePath.extension() == ".json" &&
+		FamilyDirectory.parent_path().filename() == "Pipeline" &&
+		FilePath.stem().generic_string().starts_with(FamilyDirectory.filename().generic_string() + "_");
+}
+
+std::filesystem::path FAssetRegistry::FindFirstPipelineFamilyUnit(const std::filesystem::path& FamilyDirectory) {
+	std::error_code ErrorCode{};
+	std::vector<std::filesystem::path> UnitPaths{};
+	for (const std::filesystem::directory_entry& Entry : std::filesystem::directory_iterator(FamilyDirectory, ErrorCode)) {
+		if (ErrorCode) {
+			return {};
+		}
+
+		if (Entry.is_regular_file(ErrorCode) && IsPipelineFamilyUnit(Entry.path())) {
+			UnitPaths.emplace_back(Entry.path().lexically_normal());
+		}
+	}
+
+	if (ErrorCode || UnitPaths.empty()) {
+		return {};
+	}
+
+	std::ranges::sort(UnitPaths, {}, [](const std::filesystem::path& Path) {
+		return Path.filename().generic_string();
+	});
+	return UnitPaths.front();
 }
 
 FAssetPath FAssetRegistry::MakeAssetPath(const std::filesystem::path& PhysicalPath) const {
@@ -248,7 +485,6 @@ FAssetPath FAssetRegistry::MakeAssetPath(const std::filesystem::path& PhysicalPa
         return {};
     }
 
-    RelativePath.replace_extension();
     return FAssetPath{ FString{ "/Game/" } + RelativePath.generic_string().c_str() };
 }
 
@@ -275,9 +511,11 @@ EAssetType FAssetRegistry::GetAssetType(const std::filesystem::path& FilePath) {
         return EAssetType::Font;
     }
 
-    if (Extension == ".json" && FilePath.parent_path().filename() == "Pipeline") {
-        return EAssetType::Pipeline;
-    }
+	if (Extension == ".json" && std::ranges::any_of(FilePath.parent_path(), [](const std::filesystem::path& PathPart) {
+		return PathPart == "Pipeline";
+	})) {
+		return EAssetType::Pipeline;
+	}
 
     return EAssetType::END;
 }
@@ -320,15 +558,6 @@ void FAssetRegistry::RemoveHandleMappings(FAssetHandle Handle) {
         }
     }
 
-    for (auto It = LegacyNameToHandle.begin(); It != LegacyNameToHandle.end();) {
-        if (It->second == Handle) {
-            It = LegacyNameToHandle.erase(It);
-        }
-        else {
-            ++It;
-        }
-    }
-
     for (auto It = GuidToHandle.begin(); It != GuidToHandle.end();) {
         if (It->second == Handle) {
             It = GuidToHandle.erase(It);
@@ -337,4 +566,5 @@ void FAssetRegistry::RemoveHandleMappings(FAssetHandle Handle) {
             ++It;
         }
     }
+
 }

@@ -1,8 +1,8 @@
 {
-	"LitFilePath" : "./Pipeline/AlternateLit.json",
-	"UnlitFilePath" : "./Pipeline/AlternateUnlit.json",
-	"WireframeFilePath" : "./Pipeline/AlternateWireframe.json",
-	"LitWireframeFilePath" : "./Pipeline/AlternateWireframe.json",
-	"OutlineFilePath" : "./Pipeline/Outline.json",
+    "LitFilePath" : "./Pipeline/Alternate/Alternate_Lit.json",
+    "UnlitFilePath" : "./Pipeline/Alternate/Alternate_Unlit.json",
+    "WireframeFilePath" : "./Pipeline/Alternate/Alternate_Wireframe.json",
+    "LitWireframeFilePath" : "",
+    "OutlineFilePath" : "./Pipeline/Alternate/Alternate_Outline.json",
 	"Primary" : 0,
 }

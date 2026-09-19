@@ -184,6 +184,20 @@ bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	OutGeometry.Normals.clear();
 	OutGeometry.TexCoords.clear();
 	OutGeometry.Indices.clear();
+	OutGeometry.MaterialFileName = ObjInfo.MaterialFileName;
+	OutGeometry.MaterialNames = ObjInfo.MaterialNames;
+	OutGeometry.SubMeshIndexCounts.clear();
+	OutGeometry.SubMeshIndexCounts.reserve(ObjInfo.SubMesh.size());
+
+	for (const int32 IndexCount : ObjInfo.SubMesh)
+	{
+		if (IndexCount < 0)
+		{
+			return false;
+		}
+
+		OutGeometry.SubMeshIndexCounts.push_back(static_cast<uint32>(IndexCount));
+	}
 
 	const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
 	const int32 UVCount = static_cast<int32>(ObjInfo.UVs.size());

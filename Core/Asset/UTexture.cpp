@@ -4,9 +4,69 @@
 #include "FAssetMetadataParser.h"
 #include "../../ErrorHandler.h"
 
+#include <cctype>
 #include <DirectXTex.h>
 
 namespace {
+	bool GetTextureExtension(const std::filesystem::path& Path, ETextureExtension& OutExtension) {
+		FString Extension = Path.extension().generic_string().c_str();
+		std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) {
+			return static_cast<char>(std::tolower(Character));
+		});
+
+		if (Extension == ".dds") {
+			OutExtension = ETextureExtension::DDS;
+			return true;
+		}
+
+		if (Extension == ".tga") {
+			OutExtension = ETextureExtension::TGA;
+			return true;
+		}
+
+		if (Extension == ".bmp") {
+			OutExtension = ETextureExtension::BMP;
+			return true;
+		}
+
+		if (Extension == ".png") {
+			OutExtension = ETextureExtension::PNG;
+			return true;
+		}
+
+		if (Extension == ".gif") {
+			OutExtension = ETextureExtension::GIF;
+			return true;
+		}
+
+		if (Extension == ".tif") {
+			OutExtension = ETextureExtension::TIF;
+			return true;
+		}
+
+		if (Extension == ".tiff") {
+			OutExtension = ETextureExtension::TIFF;
+			return true;
+		}
+
+		if (Extension == ".jpg") {
+			OutExtension = ETextureExtension::JPG;
+			return true;
+		}
+
+		if (Extension == ".jpeg") {
+			OutExtension = ETextureExtension::JPEG;
+			return true;
+		}
+
+		if (Extension == ".hdr") {
+			OutExtension = ETextureExtension::HDR;
+			return true;
+		}
+
+		return false;
+	}
+
 	DXGI_FORMAT GetDXGIFormat(ETextureFormat textureFormat) {
 		switch (textureFormat) {
 		case ETextureFormat::UNORM:
@@ -20,16 +80,66 @@ namespace {
 }
 
 void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& metaData) {
-	Initialize(device, metaData, ETextureFormat::UNORM, ETextureExtension::DDS);
+	FAssetMetadataParser Parser{};
+
+	if (!Parser.Load(metaData)) {
+		ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
+		return;
+	}
+
+	const std::filesystem::path ImagePath = Parser.ResolvePath("FilePath");
+	ETextureExtension TextureExtension{};
+	const bool bValidExtension = GetTextureExtension(ImagePath, TextureExtension);
+	ErrorHandler::Report(!bValidExtension, "[ UTexture ]", "Unsupported texture extension: " + ImagePath.string(), ErrorHandler::EErrorLevel::Critical);
+
+	if (!bValidExtension) {
+		return;
+	}
+
+	const ETextureFormat TextureFormat = Parser.GetOr("SRGB", false) ? ETextureFormat::SRGB : ETextureFormat::UNORM;
+	Initialize(device, metaData, TextureFormat, TextureExtension, ImagePath, Parser.GetOr("GenerateMipMap", true));
 }
 
-void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension) {
+void UTexture::InitializeFromFile(ID3D11Device* device, const std::filesystem::path& imagePath, const std::filesystem::path& metaData) {
+	ETextureExtension TextureExtension{};
+	const bool bValidExtension = GetTextureExtension(imagePath, TextureExtension);
+	ErrorHandler::Report(!bValidExtension, "[ UTexture ]", "Unsupported texture extension: " + imagePath.string(), ErrorHandler::EErrorLevel::Critical);
+
+	if (!bValidExtension) {
+		return;
+	}
+
+	FAssetMetadataParser Parser{};
+	bool bSRGB = false;
+	bool bGenerateMipMap = true;
+
+	if (!metaData.empty() && std::filesystem::exists(metaData)) {
+		if (!Parser.Load(metaData)) {
+			ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
+			return;
+		}
+
+		bSRGB = Parser.GetOr("SRGB", false);
+		bGenerateMipMap = Parser.GetOr("GenerateMipMap", true);
+	}
+
+	Initialize(device, metaData, bSRGB ? ETextureFormat::SRGB : ETextureFormat::UNORM, TextureExtension, imagePath, bGenerateMipMap);
+}
+
+void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& metaData, ETextureFormat textureFormat, ETextureExtension textureExtension, const std::filesystem::path& imagePath, bool bGenerateMipMap) {
 	UAsset::Initialize(device, metaData);
 
-	FAssetMetadataParser Parser;
-	ErrorHandler::Report(!Parser.Load(metaData), "[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
+	std::filesystem::path path = imagePath;
+	if (path.empty()) {
+		FAssetMetadataParser Parser{};
 
-	const std::filesystem::path path = Parser.ResolvePath("FilePath");
+		if (!Parser.Load(metaData)) {
+			ErrorHandler::Report("[ UTexture ]", "Failed to load metadata: " + metaData.string(), ErrorHandler::EErrorLevel::Critical);
+			return;
+		}
+
+		path = Parser.ResolvePath("FilePath");
+	}
 	if (device == nullptr) {
 		ErrorHandler::Report("[ UTexture ]", "Texture device is null: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 		return;
@@ -74,26 +184,18 @@ void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& met
 	size_t ImageCount = SourceImage.GetImageCount();
 	const DirectX::TexMetadata* ImageMetaData = &SourceImageMetaData;
 
-	if (textureExtension != ETextureExtension::DDS) {
+	if (textureExtension != ETextureExtension::DDS and ImageMetaData->format != TargetFormat) {
 		Result = DirectX::Convert(Images, ImageCount, *ImageMetaData, TargetFormat, DirectX::TEX_FILTER_FANT, DirectX::TEX_THRESHOLD_DEFAULT, ConvertedImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to convert image to DDS pixel format: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-
-		if (FAILED(Result)) {
-			return;
-		}
 
 		Images = ConvertedImage.GetImages();
 		ImageCount = ConvertedImage.GetImageCount();
 		ImageMetaData = &ConvertedImage.GetMetadata();
 	}
 
-	if (ImageMetaData->mipLevels == 1) {
+	if (bGenerateMipMap && ImageMetaData->mipLevels == 1) {
 		Result = DirectX::GenerateMipMaps(Images, ImageCount, *ImageMetaData, DirectX::TEX_FILTER_FANT, 0, GeneratedMipChain);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to generate mip maps: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-
-		if (FAILED(Result)) {
-			return;
-		}
 
 		Images = GeneratedMipChain.GetImages();
 		ImageCount = GeneratedMipChain.GetImageCount();
@@ -105,16 +207,8 @@ void UTexture::Initialize(ID3D11Device* device, const std::filesystem::path& met
 		Result = DirectX::SaveToDDSMemory(Images, ImageCount, *ImageMetaData, DirectX::DDS_FLAGS_FORCE_DX10_EXT, DDSData);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to convert image to DDS: " + path.string(), ErrorHandler::EErrorLevel::Critical);
 
-		if (FAILED(Result)) {
-			return;
-		}
-
 		Result = DirectX::LoadFromDDSMemory(DDSData.GetConstBufferPointer(), DDSData.GetBufferSize(), DirectX::DDS_FLAGS_NONE, &SourceImageMetaData, DDSImage);
 		ErrorHandler::ReportHRESULT(Result, "[ UTexture ]", "Failed to load converted DDS texture: " + path.string(), ErrorHandler::EErrorLevel::Critical);
-
-		if (FAILED(Result)) {
-			return;
-		}
 
 		Images = DDSImage.GetImages();
 		ImageCount = DDSImage.GetImageCount();
