@@ -4,6 +4,7 @@
 #include "../Console/Console.h"
 
 #include "FObjInporter.h"
+#include "../../Serialize/FObjSerializer.h"
 
 bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
 	if (!UAsset::Initialize(Device, ObjPath)) {
@@ -55,35 +56,27 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model submesh index range is invalid: %s", ObjPath.generic_string().c_str());
 			return false;
 		}
+	}	
+	else
+	{
+		FString FilePath = MetadataParser.GetOr("FilePath", FString(""));
+		
+		FObjInporter ObjImporter;
+		FGeometry Geometry;
 
-		FirstIndex += SubMesh.IndexCount;
-
-		const FString& MaterialName = Geometry.MaterialNames[SubMeshIndex];
-
-		if (!MaterialName.empty()) {
-			if (ImportedMaterial && MaterialGroupResolver) {
-				const std::optional<uint32> MaterialGroupIndex = MaterialGroupResolver(ImportedMaterial, MaterialName);
-				if (MaterialGroupIndex.has_value()) {
-					SubMesh.MaterialGroupIndex = *MaterialGroupIndex;
-				}
-				else {
-					Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL group was not found; using material group 0: %s in %s", MaterialName.c_str(), ObjPath.generic_string().c_str());
-				}
-			}
-			else {
-				Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model has no usable MTL; using material group 0: %s", ObjPath.generic_string().c_str());
+		//바이너리 있는지 읽기.
+		if (!FObjSerializer::LoadBinary("./Content/Meshes/ObjMesh.bin", Geometry))
+		{
+			if (!ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+			{
+				ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);				
 			}
 		}
 
-		ImportedSubMeshes.push_back(SubMesh);
-	}
-
-	if (FirstIndex != Geometry.Indices.size() || !Make(Device, Geometry.Indices,
-		MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
-		MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
-		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords))) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", ObjPath.generic_string().c_str());
-		return false;
+		UMesh::Make(Device, Geometry.Indices,
+					MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+					MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+					MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
 	}
 
 	SubMeshes = std::move(ImportedSubMeshes);
