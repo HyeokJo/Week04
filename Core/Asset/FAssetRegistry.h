@@ -113,6 +113,7 @@ private:
 	bool LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device);
 	bool LoadMesh(FAssetEntry& Entry, ID3D11Device* Device);
 	bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType);
+
     FAssetPath MakeAssetPath(const std::filesystem::path& PhysicalPath) const;
     static EAssetType GetAssetType(const std::filesystem::path& FilePath);
     static std::filesystem::path MakeSidecarPath(const std::filesystem::path& AssetPath);

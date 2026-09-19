@@ -3,6 +3,7 @@
 
 #include "UFreeTypeFont.h"
 #include "UMesh.h"
+#include "USurfaceOpaque.h"
 #include "UTexture.h"
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Console/Console.h"
@@ -325,7 +326,7 @@ bool FAssetRegistry::LoadPipeline(FAssetEntry& Entry, ID3D11Device* Device) {
 }
 
 bool FAssetRegistry::LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device) {
-	std::unique_ptr<UMaterial> Material = std::make_unique<UMaterial>();
+	std::unique_ptr<USurfaceOpaque> Material = std::make_unique<USurfaceOpaque>();
 	Material->SetAssetName(Entry.AssetPath.Path);
 
 	const FAssetHandle CheckerboardHandle = FindAsset(FAssetPath{ DefaultCheckerboardTexturePath });
@@ -447,9 +448,7 @@ bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& Sid
 
 bool FAssetRegistry::IsPipelineFamilyUnit(const std::filesystem::path& FilePath) {
 	const std::filesystem::path FamilyDirectory = FilePath.parent_path();
-	return FilePath.extension() == ".json" &&
-		FamilyDirectory.parent_path().filename() == "Pipeline" &&
-		FilePath.stem().generic_string().starts_with(FamilyDirectory.filename().generic_string() + "_");
+	return FilePath.extension() == ".json" && FamilyDirectory.parent_path().filename() == "Pipeline" && FilePath.stem().generic_string().starts_with(FamilyDirectory.filename().generic_string() + "_");
 }
 
 std::filesystem::path FAssetRegistry::FindFirstPipelineFamilyUnit(const std::filesystem::path& FamilyDirectory) {

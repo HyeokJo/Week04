@@ -620,15 +620,15 @@
                     "bActive": true,
                     "Transform": {
                         "Position": [
-                            -10.051773071289063,
-                            21.357864379882813,
-                            -0.03827498108148575
+                            -5.294854640960693,
+                            -1.7601019144058228,
+                            3.69417142868042
                         ],
                         "Rotation": [
-                            -0.0460682213306427,
-                            0.1275320202112198,
-                            -0.9318318963050842,
-                            0.33660444617271423
+                            -0.027297688648104668,
+                            0.020709920674562454,
+                            -0.6040576696395874,
+                            0.7962036728858948
                         ],
                         "Scale": [
                             1.0,
@@ -691,11 +691,11 @@
                     ],
                     "UVMin": [
                         0.25,
-                        0.5
+                        0.75
                     ],
                     "UVMax": [
                         0.5,
-                        0.75
+                        1.0
                     ],
                     "Color": [
                         1.0,
@@ -755,12 +755,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.75,
-                        0.75
+                        0.5,
+                        0.0
                     ],
                     "UVMax": [
-                        1.0,
-                        1.0
+                        0.75,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -820,12 +820,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.75,
-                        0.75
+                        0.0,
+                        0.5
                     ],
                     "UVMax": [
-                        1.0,
-                        1.0
+                        0.25,
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -885,12 +885,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.5
+                        0.25,
+                        0.25
                     ],
                     "UVMax": [
-                        0.25,
-                        0.75
+                        0.5,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -945,8 +945,8 @@
                     "MeshAssetPath": "/Game/Models/Monkey/Monkey.obj",
                     "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
                     "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
-                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
-                    "PipelineAssetPath": "/Game/Pipeline/Base"
+                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
+                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
                 },
                 {
                     "Guid": "D8B91EDA-4CF8-5596-79AE-4AAD4A5F4739",
