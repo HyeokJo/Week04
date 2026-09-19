@@ -61,8 +61,12 @@ struct FObjInfo
 
 struct FGeometry
 {
-    TArray<FVector>  Positions;
-    TArray<FVector>  Normals;
+    TArray<FVector> Positions;
+    TArray<FVector> Normals;
     TArray<FVector2> TexCoords;
-    TArray<uint32>    Indices;
+    TArray<uint32> Indices;
+
+    FString MaterialFileName;
+    TArray<FString> MaterialNames;
+    TArray<uint32> SubMeshIndexCounts;
 };

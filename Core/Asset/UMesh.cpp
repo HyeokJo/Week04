@@ -57,27 +57,27 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 			return false;
 		}
 	}	
-	else
-	{
-		FString FilePath = MetadataParser.GetOr("FilePath", FString(""));
-		
-		FObjInporter ObjImporter;
-		FGeometry Geometry;
+	//else
+	//{
+	//	FString FilePath = MetadataParser.GetOr("FilePath", FString(""));
+	//	
+	//	FObjInporter ObjImporter;
+	//	FGeometry Geometry;
 
-		//바이너리 있는지 읽기.
-		if (!FObjSerializer::LoadBinary("./Content/Meshes/ObjMesh.bin", Geometry))
-		{
-			if (!ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
-			{
-				ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);				
-			}
-		}
+	//	//바이너리 있는지 읽기.
+	//	if (!FObjSerializer::LoadBinary("./Content/Meshes/ObjMesh.bin", Geometry))
+	//	{
+	//		if (!ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+	//		{
+	//			ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);				
+	//		}
+	//	}
 
-		UMesh::Make(Device, Geometry.Indices,
-					MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
-					MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
-					MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
-	}
+	//	UMesh::Make(Device, Geometry.Indices,
+	//				MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+	//				MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+	//				MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
+	//}
 
 	SubMeshes = std::move(ImportedSubMeshes);
 

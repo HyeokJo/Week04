@@ -34,21 +34,14 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "3B0811BB-7CD1-4F3A-A949-2CFDB5CC50B7",
-                    "MeshAssetPath": "/Game/Models/Plane/Plane.obj",
-                    "MaterialAssetGuid": "8C163CDA-EA60-4C93-945B-6BF72EA32DDB",
-                    "MaterialAssetPath": "/Game/Models/Plane/Plane.mtl",
-                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
-                    "PipelineAssetPath": "/Game/Pipeline/Base"
+                    "MeshAssetGuid": "BDA1494B-A898-42A7-8140-350700710265",
+                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.obj",
+                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
+                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
+                    "PipelineAssetGuid": "F87D7EE1-CA4D-4FB0-BE1E-00426AD19308",
+                    "PipelineAssetPath": "/Game/Pipeline/SkyDome.json"
                 }
             ],
-            "GuidRootComponent": ""
-        },
-        {
-            "Guid": "64DA6594-4E0B-10B8-2537-E7B2F158E4EB",
-            "TypeName": "AActor",
-            "Name": "AActor_1",
-            "Components": [],
             "GuidRootComponent": ""
         },
         {
@@ -84,12 +77,12 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
-                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
-                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
-                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
-                    "PipelineAssetPath": "/Game/Pipeline/Base"
+                    "MeshAssetGuid": "BDA1494B-A898-42A7-8140-350700710265",
+                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.obj",
+                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
+                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
+                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
+                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
                 },
                 {
                     "Guid": "95AB3CB3-4A2B-8A4C-57D1-D1AEA8F3FB34",
@@ -620,15 +613,15 @@
                     "bActive": true,
                     "Transform": {
                         "Position": [
-                            -4.76450252532959,
-                            0.7923216819763184,
-                            4.535251140594482
+                            -1.6243938207626343,
+                            -7.781382083892822,
+                            4.362634658813477
                         ],
                         "Rotation": [
-                            0.012177687138319016,
-                            -0.017620062455534935,
-                            -0.8224506378173828,
-                            0.5684331655502319
+                            -0.13553616404533386,
+                            0.004065337590873241,
+                            -0.029705088585615158,
+                            0.9903186559677124
                         ],
                         "Scale": [
                             1.0,
@@ -641,7 +634,7 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "FOV": 1.0471999645233154,
-                    "AspectRatio": 1.652849793434143,
+                    "AspectRatio": 1.360341191291809,
                     "NearPlane": 0.10000000149011612,
                     "FarPlane": 1000.0
                 }
@@ -690,12 +683,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.0
+                        0.0,
+                        0.75
                     ],
                     "UVMax": [
-                        0.5,
-                        0.25
+                        0.25,
+                        1.0
                     ],
                     "Color": [
                         1.0,
@@ -756,11 +749,11 @@
                     ],
                     "UVMin": [
                         0.5,
-                        0.5
+                        0.0
                     ],
                     "UVMax": [
                         0.75,
-                        0.75
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -820,12 +813,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.0
+                        0.75,
+                        0.25
                     ],
                     "UVMax": [
-                        0.25,
-                        0.25
+                        1.0,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -885,12 +878,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.5,
-                        0.0
+                        0.0,
+                        0.25
                     ],
                     "UVMax": [
-                        0.75,
-                        0.25
+                        0.25,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -943,16 +936,16 @@
                     "bVisible": true,
                     "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
                     "MeshAssetPath": "/Game/Models/Monkey/Monkey.obj",
-                    "MaterialAssetGuid": "8AE118AE-3E25-4444-8CA9-5025CF8A3FFE",
-                    "MaterialAssetPath": "/Game/System/Material/Red.mtl",
-                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
-                    "PipelineAssetPath": "/Game/Pipeline/Base"
+                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
+                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
+                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
+                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
                 },
                 {
                     "Guid": "D8B91EDA-4CF8-5596-79AE-4AAD4A5F4739",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
-                    "bActive": true,
+                    "bActive": false,
                     "Transform": {
                         "Position": [
                             0.0,
