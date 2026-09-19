@@ -7,6 +7,11 @@
 
 class UMaterial;
 
+struct FMaterialBufferEntry {
+	UMaterial* Material{ nullptr };
+	uint32 GroupIndex{ 0 };
+};
+
 class FMaterialBuffer {
 public:
     FMaterialBuffer() = default;
@@ -48,7 +53,7 @@ private:
     uint32 MaxMaterialCount{ 0 };
 
     TArray<FMaterialGPUSlot> Slots{};
-    TArray<UMaterial*> Materials{};
+    TArray<FMaterialBufferEntry> Materials{};
     TArray<uint32> FreeIndices{};
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> Buffer{};

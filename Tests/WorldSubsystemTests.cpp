@@ -15,8 +15,11 @@
 
 #include "../Core/Asset/UMesh.h"
 #include "../Core/Asset/UMaterial.h"
+#include "../Core/Asset/USurfaceOpaque.h"
 #include "../Core/Asset/BasicGeometry/Plane.h"
 #include "../Render/Pipeline/UPipeline.h"
+
+#include <fstream>
 
 namespace {
     template<typename T>
@@ -121,6 +124,7 @@ TEST_SUITE("CH6 World Subsystems") {
         REQUIRE(Mesh != nullptr);
 
         CHECK(AssetRegistry.ResolveAsset<UMaterial>(Mesh->GetMaterialHandle()) != nullptr);
+        CHECK(AssetRegistry.ResolveAsset<USurfaceOpaque>(Mesh->GetMaterialHandle()) != nullptr);
         CHECK(AssetRegistry.ResolveAsset<UPipeline>(Mesh->GetPipelineHandle()) != nullptr);
 
         FRenderProbe Probe;
@@ -128,6 +132,53 @@ TEST_SUITE("CH6 World Subsystems") {
         REQUIRE_EQ(Probe.ActorProbes.size(), 1);
         CHECK(Probe.ActorProbes[0].MaterialHandle == Mesh->GetMaterialHandle());
         CHECK(Probe.ActorProbes[0].PipelineHandle == Mesh->GetPipelineHandle());
+    }
+
+    TEST_CASE("Opaque surfaces import common MTL properties") {
+        Microsoft::WRL::ComPtr<ID3D11Device> Device = CreateTestDevice();
+        REQUIRE(Device != nullptr);
+
+        const std::filesystem::path MtlPath = std::filesystem::temp_directory_path() / "MacawSurfaceOpaqueTokenTest.mtl";
+        {
+            std::ofstream File(MtlPath);
+            REQUIRE(File.is_open());
+            File << "newmtl ComplexSurface\n";
+            File << "Ka 0.1 0.2 0.3\n";
+            File << "Kd 0.4 0.5 0.6\n";
+            File << "Tf 0.7 0.8 0.9\n";
+            File << "Ns 200.0\n";
+            File << "Ni 1.33\n";
+            File << "d -halo 0.8\n";
+            File << "illum 7\n";
+            File << "map_Kd base.png\n";
+            File << "map_Ks specular.png\n";
+            File << "map_bump bump.png\n";
+            File << "norm normal.png\n";
+            File << "disp displacement.png\n";
+            File << "refl reflection.png\n";
+        }
+
+        USurfaceOpaque Surface;
+        const bool bInitialized = Surface.Initialize(Device.Get(), MtlPath, [](const std::filesystem::path&) {
+            return FAssetHandle{ .ID = 1, .Generation = 1 };
+        });
+        std::error_code ErrorCode{};
+        std::filesystem::remove(MtlPath, ErrorCode);
+        REQUIRE(bInitialized);
+
+        const TArray<FMaterialGroup>& Groups = Surface.GetGroups();
+        REQUIRE_EQ(Groups.size(), 1);
+        const FMaterialGroup& Group = Groups[0];
+        CHECK_EQ(Group.RefractionIndex, doctest::Approx(1.33f));
+        CHECK_EQ(Group.Opacity, doctest::Approx(0.8f));
+        CHECK_EQ(Group.IlluminationModel, 7);
+        CHECK(Group.bDissolveHalo);
+        CHECK_EQ(Group.DiffuseTexture.SourcePath, "base.png");
+        CHECK(Group.SpecularTexture.Texture);
+        CHECK(Group.BumpTexture.Texture);
+        CHECK(Group.NormalTexture.Texture);
+        CHECK(Group.DisplacementTexture.Texture);
+        CHECK(Group.ReflectionTexture.Texture);
     }
 
     TEST_CASE("Editor context owns selection state and selected render flags") {

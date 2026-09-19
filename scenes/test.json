@@ -1,314 +1,5 @@
 {
-    "Assets": [
-        {
-            "Guid": "A882ABFF-476E-79A8-7D4E-0CB23072F76F",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "CylinderMesh",
-            "AssetMetaDataPath": "./Content/Metadata/CylinderMesh.meta"
-        },
-        {
-            "Guid": "DDD633C8-4FF4-4D62-559A-12B6E38A9E05",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "ConeMesh",
-            "AssetMetaDataPath": "./Content/Metadata/ConeMesh.meta"
-        },
-        {
-            "Guid": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "CubeMesh",
-            "AssetMetaDataPath": "./Content/Metadata/CubeMesh.meta"
-        },
-        {
-            "Guid": "F7FFABB3-440C-ADF5-1E06-DDB798A658AC",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "GizmoTorusMesh",
-            "AssetMetaDataPath": "./Content/Metadata/GizmoTorusMesh.meta"
-        },
-        {
-            "Guid": "33418710-42AE-9165-6CB6-3F8AE08B12E3",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "Red",
-            "AssetMetaDataPath": "./Content/Metadata/RedMaterial.meta"
-        },
-        {
-            "Guid": "001B7F9C-4926-5A7F-6F5F-3599CC581F21",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "Green",
-            "AssetMetaDataPath": "./Content/Metadata/GreenMaterial.meta"
-        },
-        {
-            "Guid": "0CEF0757-4212-C4F3-A5A2-758BDCA50585",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "Blue",
-            "AssetMetaDataPath": "./Content/Metadata/BlueMaterial.meta"
-        },
-        {
-            "Guid": "3B3E371E-4825-E5DB-5629-A49D040B7D91",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "GizmoPipeline",
-            "AssetMetaDataPath": "./Content/Metadata/GizmoPipeline.meta"
-        },
-        {
-            "Guid": "78DE983C-4C85-4104-69C5-74BB6A30698A",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "BasePipeline",
-            "AssetMetaDataPath": "./Content/Metadata/BasePipeline.meta"
-        },
-        {
-            "Guid": "D41AF6B7-4AA2-30D0-6D41-72A55670ED32",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "AlternatePipeline",
-            "AssetMetaDataPath": "./Content/Metadata/AlternatePipeline.meta"
-        },
-        {
-            "Guid": "4556AAAE-4D6D-0B14-E741-EE9DA5FE8926",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "SphereMesh",
-            "AssetMetaDataPath": "./Content/Metadata/SphereMesh.meta"
-        },
-        {
-            "Guid": "AF7BBF5A-45DC-A14F-2BEC-1E80A0E89CA2",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "PlaneMesh",
-            "AssetMetaDataPath": "./Content/Metadata/PlaneMesh.meta"
-        },
-        {
-            "Guid": "A22AA0D5-4AB3-6B93-3D3D-75B7907618FF",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "TorusMesh",
-            "AssetMetaDataPath": "./Content/Metadata/TorusMesh.meta"
-        },
-        {
-            "Guid": "7BB7FD5B-407A-D3DD-A20C-4CA28DDBF203",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "CapsuleMesh",
-            "AssetMetaDataPath": "./Content/Metadata/CapsuleMesh.meta"
-        },
-        {
-            "Guid": "9E6E0AD3-4623-8A04-A4C3-CA8CF859B8AF",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "PyrimidMesh",
-            "AssetMetaDataPath": "./Content/Metadata/PyramidMesh.meta"
-        },
-        {
-            "Guid": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "GreyMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/GreyMaterial.meta"
-        },
-        {
-            "Guid": "C2DF994C-440D-2A31-C2D4-A19C3E4FADCE",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "RedMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/RedMaterial.meta"
-        },
-        {
-            "Guid": "28978C5B-48C9-5326-F415-AE95F6279FF2",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "GreenMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/GreenMaterial.meta"
-        },
-        {
-            "Guid": "14785FEF-4DEB-1092-3A5A-A5A78CC21506",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "BlueMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/BlueMaterial.meta"
-        },
-        {
-            "Guid": "024DAA28-4AC7-5657-379D-34A0E12FE4CE",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "YellowMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/YellowMaterial.meta"
-        },
-        {
-            "Guid": "9B18B5B3-4586-2B7B-BAE0-929F25A706B2",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "AmberMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/AmberMaterial.meta"
-        },
-        {
-            "Guid": "99C41BE1-45DC-1EB0-649A-6596AB94C2B0",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "BrownMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/BrownMaterial.meta"
-        },
-        {
-            "Guid": "DBB4EFE2-43F5-C114-B580-4EB68F9A9805",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "CyanMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/CyanMaterial.meta"
-        },
-        {
-            "Guid": "0F155F27-4D09-CEA8-B2BA-9CA6CFCF85AB",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "LimeMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/LimeMaterial.meta"
-        },
-        {
-            "Guid": "2541629D-4FB3-FA04-DBF7-D9AD10514ABE",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "MagentaMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/MagentaMaterial.meta"
-        },
-        {
-            "Guid": "85EAB96C-46E6-6A78-72B5-1FA9BAE844A0",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "NavyMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/NavyMaterial.meta"
-        },
-        {
-            "Guid": "C72D0AB4-4C16-5409-E021-678110388737",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "OrangeMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/OrangeMaterial.meta"
-        },
-        {
-            "Guid": "4972D398-44F3-42DF-DA2A-D8882FBB28D7",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "PinkMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/PinkMaterial.meta"
-        },
-        {
-            "Guid": "45881B5E-4A8E-FD71-D370-CABFC22DE584",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "PurpleMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/PurpleMaterial.meta"
-        },
-        {
-            "Guid": "9B7BBDB7-47B6-2FA7-1C0D-B892C69AC0FE",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "TealMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/TealMaterial.meta"
-        },
-        {
-            "Guid": "EEBDF832-4FA4-E3AB-12AA-A0AB1B2479A7",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "WhiteMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/WhiteMaterial.meta"
-        },
-        {
-            "Guid": "3004E107-4FC3-7AF0-761C-4399B7CAB8FF",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "TexturedPipeline",
-            "AssetMetaDataPath": "./Content/Metadata/TexturedTestPipeline.meta"
-        },
-        {
-            "Guid": "78EAF84F-4322-9104-EA39-ADB292D864E9",
-            "TypeName": "UTexture",
-            "Name": "",
-            "AssetName": "PlankTexture",
-            "AssetMetaDataPath": "./Content/Metadata/TexturedTestTexture.meta"
-        },
-        {
-            "Guid": "A523E23C-4D57-D25A-BA6E-2E9141887272",
-            "TypeName": "UTexture",
-            "Name": "",
-            "AssetName": "TestSprite",
-            "AssetMetaDataPath": "./Content/Metadata/TestSprite.meta"
-        },
-        {
-            "Guid": "4EA2F8E1-4E82-49AD-3B1A-459C53D804A6",
-            "TypeName": "UTexturedMaterial",
-            "Name": "",
-            "AssetName": "TexturedMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/TexturedTestMaterial.meta"
-        },
-        {
-            "Guid": "05F847B7-4542-97B5-9BBA-C4906CB338BF",
-            "TypeName": "UTexture",
-            "Name": "",
-            "AssetName": "SkyDomeTexture",
-            "AssetMetaDataPath": "./Content/Metadata/SkyDomeTexture.meta"
-        },
-        {
-            "Guid": "DBA1D420-41CA-A7BB-128A-C0ACF1A85019",
-            "TypeName": "UTexturedMaterial",
-            "Name": "",
-            "AssetName": "SkyDomeMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/SkyDomeMaterial.meta"
-        },
-        {
-            "Guid": "233EBFA8-433F-B8F8-ABAA-718EA90492EA",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "SkyDomePipeline",
-            "AssetMetaDataPath": "./Content/Metadata/SkyDomePipeline.meta"
-        },
-        {
-            "Guid": "A273605A-498E-2A18-E7F6-3D815A666D6C",
-            "TypeName": "UMesh",
-            "Name": "",
-            "AssetName": "SkyDome",
-            "AssetMetaDataPath": "./Content/Metadata/SkyDomeMesh.meta"
-        },
-        {
-            "Guid": "15CC3650-4D92-124A-BFF1-B2A95AAFE47C",
-            "TypeName": "UColorMaterial",
-            "Name": "",
-            "AssetName": "__DefaultStaticMeshMaterial",
-            "AssetMetaDataPath": "./Content/Metadata/DefaultStaticMeshMaterial.meta"
-        },
-        {
-            "Guid": "4F2FF6E6-4B39-45BA-A39D-C6BF0F0F67AD",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "__DefaultStaticMeshPipeline",
-            "AssetMetaDataPath": "./Content/Metadata/DefaultStaticMeshPipeline.meta"
-        },
-        {
-            "Guid": "429DCAC4-4589-F310-B6F2-6CB509DB7168",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "TextPipeline",
-            "AssetMetaDataPath": "./Content/Metadata/TextPipeline.meta"
-        },
-        {
-            "Guid": "A8411520-4283-6625-5FAA-DEAE1F360D24",
-            "TypeName": "UFreeTypeFont",
-            "Name": "",
-            "AssetName": "DefaultFont",
-            "AssetMetaDataPath": "./Content/Metadata/NotoSansKR.meta"
-        },
-        {
-            "Guid": "6D1902B0-4BA2-5249-6717-888F9391B2CE",
-            "TypeName": "UPipeline",
-            "Name": "",
-            "AssetName": "BillboardPipeline",
-            "AssetMetaDataPath": "./Content/Metadata/BillboardPipeline.meta"
-        }
-    ],
+    "FormatVersion": 2,
     "Actors": [
         {
             "Guid": "3A82FBE3-49B5-EA87-39AC-8FAB3171549F",
@@ -343,9 +34,12 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidMeshHandle": "A273605A-498E-2A18-E7F6-3D815A666D6C",
-                    "GuidMaterialHandle": "DBA1D420-41CA-A7BB-128A-C0ACF1A85019",
-                    "GuidPipelineHandle": "233EBFA8-433F-B8F8-ABAA-718EA90492EA"
+                    "MeshAssetGuid": "3B0811BB-7CD1-4F3A-A949-2CFDB5CC50B7",
+                    "MeshAssetPath": "/Game/Models/Plane/Plane.obj",
+                    "MaterialAssetGuid": "8C163CDA-EA60-4C93-945B-6BF72EA32DDB",
+                    "MaterialAssetPath": "/Game/Models/Plane/Plane.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 }
             ],
             "GuidRootComponent": ""
@@ -390,9 +84,12 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "95AB3CB3-4A2B-8A4C-57D1-D1AEA8F3FB34",
@@ -422,9 +119,12 @@
                     },
                     "Parent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "AD4A45EE-45F2-6C07-5788-F9A9DFABAECF",
@@ -454,9 +154,12 @@
                     },
                     "Parent": "95AB3CB3-4A2B-8A4C-57D1-D1AEA8F3FB34",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "14E2A37D-4097-0231-E308-99B0FDAD2EBC",
@@ -486,9 +189,12 @@
                     },
                     "Parent": "AD4A45EE-45F2-6C07-5788-F9A9DFABAECF",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "58AE62B6-496A-8CB2-D63D-C2B68FDECB22",
@@ -518,9 +224,12 @@
                     },
                     "Parent": "14E2A37D-4097-0231-E308-99B0FDAD2EBC",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "58733524-4F24-4778-ED1D-A18D3CB50E11",
@@ -553,9 +262,9 @@
                     "bCollisionEnabled": true,
                     "GuidMeshComponent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "OBB_Center": [
-                        0.0,
-                        0.0,
-                        0.0
+                        0.007106006145477295,
+                        0.0013610124588012695,
+                        0.000025987625122070313
                     ],
                     "OBB_Extent": [
                         0.5,
@@ -597,6 +306,10 @@
                     },
                     "Parent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
                     "Text": "75D8040F-47D8-8DE3-05F9-0D9DD92C3A59",
                     "Color": [
                         1.0,
@@ -650,9 +363,12 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "86064475-4E02-2A44-318A-9EA139F13843",
@@ -685,9 +401,9 @@
                     "bCollisionEnabled": true,
                     "GuidMeshComponent": "5DB1E24C-47D7-A211-AC7E-F4A597F642A8",
                     "OBB_Center": [
-                        0.0,
-                        0.0,
-                        0.0
+                        0.007106006145477295,
+                        0.0013610124588012695,
+                        0.000025987625122070313
                     ],
                     "OBB_Extent": [
                         0.5,
@@ -729,6 +445,10 @@
                     },
                     "Parent": "5DB1E24C-47D7-A211-AC7E-F4A597F642A8",
                     "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
                     "Text": "445C7D46-40FD-4CD1-54A4-9AA7620A0CE0",
                     "Color": [
                         1.0,
@@ -782,9 +502,12 @@
                     },
                     "Parent": "5DB1E24C-47D7-A211-AC7E-F4A597F642A8",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4424CF6F-40F4-9E3D-91BA-A3AB539377BF",
-                    "GuidPipelineHandle": "78DE983C-4C85-4104-69C5-74BB6A30698A"
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
+                    "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "00FE25D6-4EAB-DBD5-0DC8-D6AB5E4D2188",
@@ -817,9 +540,9 @@
                     "bCollisionEnabled": true,
                     "GuidMeshComponent": "05638415-44A0-5FD2-4264-E5A095FDEF82",
                     "OBB_Center": [
-                        0.0,
-                        0.0,
-                        0.0
+                        0.007106006145477295,
+                        0.0013610124588012695,
+                        0.000025987625122070313
                     ],
                     "OBB_Extent": [
                         0.5,
@@ -861,6 +584,10 @@
                     },
                     "Parent": "05638415-44A0-5FD2-4264-E5A095FDEF82",
                     "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
                     "Text": "AC9BE696-43D0-7622-E90A-92B185679923",
                     "Color": [
                         1.0,
@@ -893,15 +620,15 @@
                     "bActive": true,
                     "Transform": {
                         "Position": [
-                            -7.291996955871582,
-                            10.667248725891113,
-                            3.894413709640503
+                            -4.76450252532959,
+                            0.7923216819763184,
+                            4.535251140594482
                         ],
                         "Rotation": [
-                            -0.02836008183658123,
-                            0.07043178379535675,
-                            -0.9249458909034729,
-                            0.37243831157684326
+                            0.012177687138319016,
+                            -0.017620062455534935,
+                            -0.8224506378173828,
+                            0.5684331655502319
                         ],
                         "Scale": [
                             1.0,
@@ -914,7 +641,7 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "FOV": 1.0471999645233154,
-                    "AspectRatio": 1.8666666746139526,
+                    "AspectRatio": 1.652849793434143,
                     "NearPlane": 0.10000000149011612,
                     "FarPlane": 1000.0
                 }
@@ -954,8 +681,10 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidTextureHandle": "A523E23C-4D57-D25A-BA6E-2E9141887272",
-                    "GuidPipelineHandle": "6D1902B0-4BA2-5249-6717-888F9391B2CE",
+                    "TextureAssetGuid": "808F1B0E-4816-424D-89C5-BC2DDBA87FA7",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.dds",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
                     "Size": [
                         2.0,
                         2.0
@@ -1017,19 +746,21 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidTextureHandle": "A523E23C-4D57-D25A-BA6E-2E9141887272",
-                    "GuidPipelineHandle": "6D1902B0-4BA2-5249-6717-888F9391B2CE",
+                    "TextureAssetGuid": "808F1B0E-4816-424D-89C5-BC2DDBA87FA7",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.dds",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
                     "Size": [
                         2.0,
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.0
+                        0.5,
+                        0.5
                     ],
                     "UVMax": [
-                        0.5,
-                        0.25
+                        0.75,
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -1080,19 +811,21 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidTextureHandle": "A523E23C-4D57-D25A-BA6E-2E9141887272",
-                    "GuidPipelineHandle": "6D1902B0-4BA2-5249-6717-888F9391B2CE",
+                    "TextureAssetGuid": "808F1B0E-4816-424D-89C5-BC2DDBA87FA7",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.dds",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
                     "Size": [
                         2.0,
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.75
+                        0.0,
+                        0.0
                     ],
                     "UVMax": [
-                        0.5,
-                        1.0
+                        0.25,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -1143,19 +876,21 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidTextureHandle": "A523E23C-4D57-D25A-BA6E-2E9141887272",
-                    "GuidPipelineHandle": "6D1902B0-4BA2-5249-6717-888F9391B2CE",
+                    "TextureAssetGuid": "808F1B0E-4816-424D-89C5-BC2DDBA87FA7",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.dds",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
                     "Size": [
                         2.0,
                         2.0
                     ],
                     "UVMin": [
-                        0.75,
-                        0.75
+                        0.5,
+                        0.0
                     ],
                     "UVMax": [
-                        1.0,
-                        1.0
+                        0.75,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -1206,9 +941,12 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "GuidMeshHandle": "5B7B79C9-49D6-6560-ECBC-E188ECBDB9CC",
-                    "GuidMaterialHandle": "4EA2F8E1-4E82-49AD-3B1A-459C53D804A6",
-                    "GuidPipelineHandle": "3004E107-4FC3-7AF0-761C-4399B7CAB8FF"
+                    "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
+                    "MeshAssetPath": "/Game/Models/Monkey/Monkey.obj",
+                    "MaterialAssetGuid": "8AE118AE-3E25-4444-8CA9-5025CF8A3FFE",
+                    "MaterialAssetPath": "/Game/System/Material/Red.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "D8B91EDA-4CF8-5596-79AE-4AAD4A5F4739",
@@ -1238,6 +976,10 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
                     "Text": "DE3A8AB1-4285-1732-67BD-EE9FADA48D60",
                     "Color": [
                         1.0,

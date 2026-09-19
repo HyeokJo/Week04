@@ -68,6 +68,10 @@ struct FGeometry
     TArray<FVector>  Normals;
     TArray<FVector2> TexCoords;
     TArray<uint32>    Indices;
+
+    FString MaterialFileName;
+    TArray<FString> MaterialNames;
+    TArray<uint32> SubMeshIndexCounts;
 };
 
 class FObjInporter

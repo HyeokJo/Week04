@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UPrimitiveComponent.h"
+#include "Core/Asset/FAssetPath.h"
 
 struct FMatrix;
 
@@ -61,6 +62,10 @@ protected:
 private:
     FAssetHandle TextureHandle{};
     FAssetHandle PipelineHandle{};
+    FAssetPath TextureAssetPath{};
+    FAssetPath PipelineAssetPath{};
+    FGuid TextureAssetGuid{};
+    FGuid PipelineAssetGuid{};
 
     FVector2 Size{ 1.0f, 1.0f };
     FVector2 UVMin{ 0.0f, 0.0f };

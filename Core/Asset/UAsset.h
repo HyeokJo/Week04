@@ -17,15 +17,22 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UAsset, UObject);
 
-	virtual void Initialize(ID3D11Device* device, const std::filesystem::path& metaData) { AssetMetaDataPath = metaData; };
-
 	void SetAssetName(const FString& InName) { AssetName = InName; }
 	FString GetAssetName() const { return AssetName; }
 
 protected:
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& InAssetPath) {
+		if (Device == nullptr || InAssetPath.empty()) {
+			return false;
+		}
+
+		AssetPath = InAssetPath;
+		return true;
+	}
+
 	virtual void Serialize(FArchive& Ar) override;
 
 protected:
-	std::filesystem::path AssetMetaDataPath{};
+	std::filesystem::path AssetPath{};
 	FString AssetName{}; 
 };

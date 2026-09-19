@@ -3,6 +3,7 @@
 #include "UPrimitiveComponent.h"
 
 #include "Core/Asset/FAssetHandle.h"
+#include "Core/Asset/FAssetPath.h"
 #include "Core/Base/FRenderProbe.h"
 #include "STL.h"
 
@@ -57,6 +58,10 @@ protected:
 protected:
     FAssetHandle FontHandle{};
     FAssetHandle PipelineHandle{};
+    FAssetPath FontAssetPath{};
+    FAssetPath PipelineAssetPath{};
+    FGuid FontAssetGuid{};
+    FGuid PipelineAssetGuid{};
 
     FString Text{};
 

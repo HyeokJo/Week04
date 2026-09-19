@@ -9,6 +9,7 @@
 #include <locale>
 #include <mutex>
 #include <cstdarg>
+#include "../../ErrorHandler.h"
 
 namespace
 {
@@ -23,6 +24,11 @@ namespace
 
         void PushHistory(FConsoleMessage Message)
         {
+			ErrorHandler::Report(
+				Message.Level == ELogLevel::Error,
+				"Console Log",
+				std::format("[{}] [{}] {}", Message.Time, static_cast<int>(Message.Level), Message.Text),
+				ErrorHandler::EErrorLevel::Warning);
             if (Count < Capacity)
             {
                 size_t Index = (Front + Count) % Capacity;
@@ -34,6 +40,7 @@ namespace
                 Messages[Front] = std::move(Message);
                 Front = (Front + 1) % Capacity;
             }
+
         }
 
         void PushPending(FConsoleMessage Message)

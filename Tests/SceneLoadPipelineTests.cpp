@@ -83,9 +83,8 @@ TEST_SUITE("CH2 Scene Load Pipeline")
             SourceActor->SetRootComponent(SourceRoot);
 
             FArchiveJson ArchiveSave(Document, Document.GetAllocator());
-            size_t AssetCount = 0;
-            ArchiveSave.BeginArrayScope("Assets", AssetCount);
-            ArchiveSave.EndArrayScope();
+            uint32 FormatVersion = 2;
+            ArchiveSave.Serialize("FormatVersion", FormatVersion);
 
             size_t ActorCount = 1;
             ArchiveSave.BeginArrayScope("Actors", ActorCount);
