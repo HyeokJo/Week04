@@ -94,6 +94,7 @@ private:
 	bool BeginDrag(EAxis Axis, const FRay& WorldRay);
 	void UpdateDrag(const FRay& WorldRay);
 	void EndDrag();
+	void RefreshAssetHandles();
 	bool GetAxisParameterOnDragPlane(const FRay& WorldRay, const FDragSession& Session, float& OutParameter) const;
 	FVector3 GetWorldAxis(EAxis Axis) const;
 
@@ -140,6 +141,7 @@ private:
 	FVector3 BoundsCenterInGizmoSpace{};
 	std::array<FAxisHitProxy, 3> AxisHitProxies{};
 
+	FAssetRegistry* AssetRegistry{ nullptr };
 	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader{};
 	FWorldEditorContext* EditorContext = nullptr;
 	FStateChannel<uint8> GizmoModeChannel{};

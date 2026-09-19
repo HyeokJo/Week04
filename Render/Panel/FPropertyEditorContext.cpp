@@ -116,15 +116,15 @@ void FPropertyEditorContext::DrawAssetPicker(const char* Label, FAssetRegistry& 
     if (ImGui::Selectable("None", Current == nullptr)) {
         Setter({});
     }
-    for (UObject* Object : Registry.GetAssetList()) {
-        if (Object == nullptr || !Object->GetTypeInfo()->IsA(&AssetType)) {
+    for (const FAssetEntry& Entry : Registry.GetAssetEntries()) {
+        if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(&AssetType)) {
             continue;
         }
-        auto* Asset = static_cast<UAsset*>(Object);
-        const FString Name = Asset->GetAssetName();
+        UAsset* Asset = Entry.Asset.get();
+        const FString& Name = Entry.AssetPath.Path;
         ImGui::PushID(Asset);
         if (ImGui::Selectable(Name.c_str(), Asset == Current)) {
-            Setter(Registry.GetAsset(Name));
+            Setter(Entry.Handle);
         }
         ImGui::PopID();
     }

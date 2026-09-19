@@ -29,4 +29,8 @@ private:
 
     FAssetHandle MaterialHandle;
     FAssetHandle PipelineHandle;
+    FAssetPath MaterialAssetPath{};
+    FAssetPath PipelineAssetPath{};
+    FGuid MaterialAssetGuid{};
+    FGuid PipelineAssetGuid{};
 };

@@ -53,9 +53,7 @@
 //test
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Asset/UMesh.h"
-#include "Core/Asset/UColorMaterial.h"
 #include "Core/Asset/UTexture.h"
-#include "Core/Asset/UTexturedMaterial.h"
 
 #include "Render/EditorView/EditorViewport.h"
 
@@ -197,8 +195,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	TypeRegistry::Register(UAsset::StaticTypeInfo());
     TypeRegistry::Register(UMesh::StaticTypeInfo());
     TypeRegistry::Register(UPipeline::StaticTypeInfo());
-	TypeRegistry::Register(UColorMaterial::StaticTypeInfo());
-	TypeRegistry::Register(UTexturedMaterial::StaticTypeInfo());
 	TypeRegistry::Register(UTexture::StaticTypeInfo());
     TypeRegistry::Register(AActor::StaticTypeInfo());
     TypeRegistry::Register(UFont::StaticTypeInfo());
