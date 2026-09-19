@@ -74,6 +74,7 @@
 #include "FWindowResizeRequestMessage.h"
 #include <SSplitter.h>
 
+#include "TObjectIterator.h"
 
 #define MAX_LOADSTRING 100
 
@@ -317,6 +318,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     auto LastTickTime = std::chrono::steady_clock::now();
 
+    // iterator 테스트 코드
+    int Count = 0;
+    for (UStaticMeshComponent& Mesh  : UObjectSystem::Objects<UStaticMeshComponent>())
+    {
+        ++Count; // 여기 중단점을 걸고 Actor를 확인
+    }
 
     std::array<SWindow, 4> ViewportRegions{};
 

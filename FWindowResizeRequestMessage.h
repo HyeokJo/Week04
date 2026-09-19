@@ -26,4 +26,5 @@ struct FWindowResizeRequestMessage
     {
     }
 
+    std::vector<int>Test;
 };
