@@ -7,6 +7,54 @@
 #include "Core/Asset/FAssetRegistry.h"
 #include "UWorld.h"
 
+#include <fstream>
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/prettywriter.h>
+
+namespace
+{
+    bool ReWriteObjFilePath(const std::filesystem::path& MetaPath, const FString& NewObjFilePath)
+    {
+        std::ifstream InputStream(MetaPath, std::ios::binary);
+        if (!InputStream.is_open())
+        {
+            return false;
+        }
+
+        rapidjson::IStreamWrapper InStreamWrapper(InputStream);
+
+        rapidjson::Document Document;
+        Document.ParseStream<rapidjson::kParseCommentsFlag | rapidjson::kParseTrailingCommasFlag>(InStreamWrapper);
+
+        //읽기 닫기
+        InputStream.close();
+
+        if (Document.HasParseError() || !Document.IsObject()) return false;
+
+        rapidjson::Document::AllocatorType& Allocator = Document.GetAllocator();
+
+        if (Document.HasMember("FilePath"))
+        {
+            Document["FilePath"].SetString(NewObjFilePath.c_str(), Allocator);
+        }
+        else
+        {
+            Document.AddMember("FilePath", rapidjson::Value(NewObjFilePath.c_str(), Allocator), Allocator);
+        }
+
+        std::ofstream OutputStream(MetaPath);
+        if (!OutputStream.is_open()) return false;
+
+        rapidjson::OStreamWrapper OutStreamWrapper(OutputStream);
+        rapidjson::PrettyWriter<rapidjson::OStreamWrapper> Writer(OutStreamWrapper);
+        Document.Accept(Writer);
+
+        return true;
+    }
+}
+
 void FWorldEditorContext::SetWorld(UWorld* InWorld) {
     World = InWorld;
 }
@@ -23,10 +71,15 @@ void FWorldEditorContext::InitializeChannels(FAssetRegistry& AssetRegistry, ID3D
     EditorToWorld.TryBind<FMessageLoadScene>([this, &AssetRegistry, Device](const FMessageLoadScene& Message) {
         World->LoadScene(std::filesystem::path(Message.FilePath.c_str()), Device, &AssetRegistry);
     });
-    EditorToWorld.TryBind<FMessageImportMesh>([this, &AssetRegistry, Device](const FMessageImportMesh& Message)
-                                             {                                                  
-                                                  AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });                                                  
-                                             });
+	EditorToWorld.TryBind<FMessageImportMesh>([this, &AssetRegistry, Device](const FMessageImportMesh& Message)
+											  {
+												  //OBJ 로드에 사용하는 MonkeyMesh.meta 파일 내부의 로드할 Obj 파일 경로를 수정합니다.
+												  //meta 파일 생성 혹은 meta 파일 로드 시스템이 개선되면 수정이 필요합니다.
+												  if (ReWriteObjFilePath(Message.MetaPath, Message.FilePath))
+												  {
+													  AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
+												  }
+											  });
 }
 
 void FWorldEditorContext::Dispatch() {

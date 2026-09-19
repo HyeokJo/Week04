@@ -89,13 +89,13 @@ struct FMessageLoadScene
 struct FMessageImportMesh
 {
     FString AssetName;
-    //std::filesystem::path MetaPath;
+    FString FilePath;
     FString MetaPath;
 
     JG_DECLARE_EDITOR_MESSAGE(FMessageImportMesh);
 
-    FMessageImportMesh(FString InputAssetName, FString InputMetaPath) noexcept
-        : AssetName(std::move(InputAssetName)), MetaPath(std::move(InputMetaPath))
+    FMessageImportMesh(FString InputAssetName, FString InputFilePath, FString InputMetaPath) noexcept
+        : AssetName(std::move(InputAssetName)), FilePath(std::move(InputFilePath)), MetaPath(std::move(InputMetaPath))
     {
     }
 };

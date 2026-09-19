@@ -326,8 +326,24 @@ void FControlPanel::DrawPanel()
     if (ImGui::Button("Import"))
     {
         Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Import Button Click");
-                
-        EditorToWorldSender.TryEmplace<FMessageImportMesh>(FString("ObjImport"), FString("./Content/Metadata/MonkeyMesh.meta"));
+        
+
+        OPENFILENAMEA OpenFileName = { 0 };
+
+        OpenFileName.lStructSize = sizeof(OpenFileName);
+        OpenFileName.hwndOwner = WindowHandle;
+
+        OpenFileName.lpstrFilter = "OBJ Files(*.obj)\0*.obj\0All Files(*.*)\0*.*\0";
+
+        OpenFileName.nMaxFile = MAX_PATH;
+
+        OpenFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+        OpenFileName.lpstrDefExt = "obj";
+
+        FString FilePath = OpenFileDialog(FString("./Content/ModelingFiles"), OpenFileName);
+
+        EditorToWorldSender.TryEmplace<FMessageImportMesh>(FString("ObjImport"), FString(FilePath), FString("./Content/Metadata/MonkeyMesh.meta"));
+         
     }
 
     // 남은 공간의 오른쪽 끝에 성능 정보를 고정한다.
@@ -361,6 +377,31 @@ FString FControlPanel::OpenFileDialog() {
     OpenFileName.lpstrDefExt = "json";
 
     std::string InitialDirectoryPath = std::filesystem::absolute("./scenes").string();
+
+    if (!std::filesystem::exists(InitialDirectoryPath))
+    {
+        std::filesystem::create_directories(InitialDirectoryPath);
+    }
+
+    OpenFileName.lpstrInitialDir = InitialDirectoryPath.c_str();
+
+    if (GetOpenFileNameA(&OpenFileName))
+    {
+        return FString(FileName);
+    }
+
+    return "";
+}
+
+FString FControlPanel::OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN)
+{
+    char FileName[MAX_PATH] = { 0 };
+
+    OPENFILENAMEA OpenFileName = OFN;
+
+    OpenFileName.lpstrFile = FileName;
+
+    std::string InitialDirectoryPath = std::filesystem::absolute(FilePath.c_str()).string();
 
     if (!std::filesystem::exists(InitialDirectoryPath))
     {
