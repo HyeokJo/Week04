@@ -24,6 +24,7 @@ public:
     void DrawPanel() override;
 
     FString OpenFileDialog();
+    FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN);
 
 private:
     FWorldEditorContext* EditorContext = nullptr;

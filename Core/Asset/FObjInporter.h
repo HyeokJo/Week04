@@ -4,6 +4,32 @@
 class FAssetRegistry;
 class UMesh;
 
+//OBJ의 v/vt/vn 인덱스 조합 하나 = GPU 정점 하나. 같은 조합이 또 나오면 새 정점을 만들지 않고 재사용한다.
+struct FFaceVertexKey
+{
+    int32 PositionIndex;
+    int32 UVIndex;
+    int32 NormalIndex;
+
+    bool operator==(const FFaceVertexKey& Other) const noexcept
+    {
+        return PositionIndex == Other.PositionIndex
+            && UVIndex == Other.UVIndex
+            && NormalIndex == Other.NormalIndex;
+    }
+};
+
+struct FFaceVertexKeyHash
+{
+    size_t operator()(const FFaceVertexKey& Key) const noexcept
+    {
+        size_t Hash = std::hash<int32>{}(Key.PositionIndex);
+        Hash = Hash * 31 + std::hash<int32>{}(Key.UVIndex);
+        Hash = Hash * 31 + std::hash<int32>{}(Key.NormalIndex);
+        return Hash;
+    }
+};
+
 struct FFaceVertex
 {
     int32 PositionIndex = -1;
@@ -23,7 +49,8 @@ struct FObjInfo
 
     // face 하나를 구성하는 정점 순서대로 : 나중에 인덱스 버퍼의 순서가 된다.
     // v/vt/vn 조합
-    TArray<FFaceVertex> FaceVertices;
+    //다각형에 대응하기 위해서 1개 면이 저장하는 버텍스들을 TArray로 한번 더 감쌉니다.
+    TArray<TArray<FFaceVertex>> FaceVertices_Polygon;
 
     //머티리얼 이름들
     //SubMesh와 인덱스 매칭한다.
@@ -69,6 +96,13 @@ public:
 private:
     //파싱된 ObjInfo로 Vertex Position, Index, Normal, TexCoord 배열을 만든다.
     bool BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const;
+
+    //다각형이라면 계산을 다르게 처리
+    bool BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const;
+
+    //1개 버텍스 데이터 저장
+    void AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo& ObjInfo, FGeometry& OutGeometry, 
+                      std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash>& CacheMap) const;
 
 private:
     FString LastError{};
