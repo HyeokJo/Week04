@@ -14,6 +14,8 @@
 #include "../../Scene/UWorld.h"
 #include "../Pipeline/UPipeline.h"
 
+#include "../../Core/Console/Console.h"
+
 void FControlPanel::DrawPanel()  
 {
     // 1. 상태 채널에서 카메라 정보 읽기 (Engine -> UI)
@@ -333,7 +335,7 @@ void FControlPanel::DrawPanel()
     ImGui::SetNextItemWidth(110.0f);
     if (ImGui::Combo("Render Mode", &RenderIndex, RenderModes, IM_ARRAYSIZE(RenderModes)))
     {
-        EditorContext->SetRenderModeState(static_cast<size_t>(RenderIndex));
+        EditorContext->SetRenderModeState(static_cast<size_t>(RenderModeValues[RenderIndex]));
     }
 
     if (ImGui::Button("Import"))

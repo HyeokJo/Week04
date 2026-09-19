@@ -620,15 +620,15 @@
                     "bActive": true,
                     "Transform": {
                         "Position": [
-                            -5.294854640960693,
-                            -1.7601019144058228,
-                            3.69417142868042
+                            -4.76450252532959,
+                            0.7923216819763184,
+                            4.535251140594482
                         ],
                         "Rotation": [
-                            -0.027297688648104668,
-                            0.020709920674562454,
-                            -0.6040576696395874,
-                            0.7962036728858948
+                            0.012177687138319016,
+                            -0.017620062455534935,
+                            -0.8224506378173828,
+                            0.5684331655502319
                         ],
                         "Scale": [
                             1.0,
@@ -641,7 +641,7 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "FOV": 1.0471999645233154,
-                    "AspectRatio": 1.5011764764785767,
+                    "AspectRatio": 1.652849793434143,
                     "NearPlane": 0.10000000149011612,
                     "FarPlane": 1000.0
                 }
@@ -691,11 +691,11 @@
                     ],
                     "UVMin": [
                         0.25,
-                        0.75
+                        0.0
                     ],
                     "UVMax": [
                         0.5,
-                        1.0
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -756,11 +756,11 @@
                     ],
                     "UVMin": [
                         0.5,
-                        0.0
+                        0.5
                     ],
                     "UVMax": [
                         0.75,
-                        0.25
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -821,11 +821,11 @@
                     ],
                     "UVMin": [
                         0.0,
-                        0.5
+                        0.0
                     ],
                     "UVMax": [
                         0.25,
-                        0.75
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -885,12 +885,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.25
+                        0.5,
+                        0.0
                     ],
                     "UVMax": [
-                        0.5,
-                        0.5
+                        0.75,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -943,16 +943,16 @@
                     "bVisible": true,
                     "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
                     "MeshAssetPath": "/Game/Models/Monkey/Monkey.obj",
-                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
-                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
-                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
-                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
+                    "MaterialAssetGuid": "8AE118AE-3E25-4444-8CA9-5025CF8A3FFE",
+                    "MaterialAssetPath": "/Game/System/Material/Red.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
                 },
                 {
                     "Guid": "D8B91EDA-4CF8-5596-79AE-4AAD4A5F4739",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
-                    "bActive": false,
+                    "bActive": true,
                     "Transform": {
                         "Position": [
                             0.0,
