@@ -52,9 +52,7 @@ PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
     Output.Normal = mul(Input.Normal, (float3x3)ModelContext.World);
     Output.UV = Input.UV;
     Output.MaterialIndex = ModelContext.MaterialIndex;
-    Output.ColorCoefficient = (ModelContext.Flags & 1) != 0
-        ? float3(1.0f, 0.0f, 0.0f)
-        : float3(1.0f, 1.0f, 1.0f);
+    Output.ColorCoefficient = float3(1.f, 1.f, 1.f);
 
     Output.Position.z = Output.Position.w;
     return Output;

@@ -98,7 +98,6 @@ HWND gHWND;
 FRenderer Renderer;
 
 namespace {
-    constexpr bool bLoadTestScene = false;
     constexpr bool bEnableSceneSave = true;
 
     void ConfigureTestStaticMesh(UStaticMeshComponent* MeshComponent, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Location) {
@@ -206,7 +205,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     TypeRegistry::Register(UFreeTypeFont::StaticTypeInfo());
 
 	TypeRegistry::Register(UWorld::StaticTypeInfo());
-	TypeRegistry::Register(AActor::StaticTypeInfo());
 	TypeRegistry::Register(UCameraComponent::StaticTypeInfo());
 	TypeRegistry::Register(UStaticMeshComponent::StaticTypeInfo());
     TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
@@ -216,22 +214,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	TypeRegistry::Register(USpotLightComponent::StaticTypeInfo());
 	TypeRegistry::Register(UActorComponent::StaticTypeInfo());
 	TypeRegistry::Register(USceneComponent::StaticTypeInfo());
-	TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
     TypeRegistry::Register(UBillboardTextComponent::StaticTypeInfo());
     TypeRegistry::Register(UNameTagComponent::StaticTypeInfo());
 	
     TypeRegistry::Register(UBillboardComponent::StaticTypeInfo());
     TypeRegistry::Register(USubUVComponent::StaticTypeInfo());
-
-
-    auto res = TypeRegistry::Find("UMesh")->Creator();
-	if (res->GetTypeInfo()->IsA(UMesh::StaticTypeInfo())) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "UMesh instance created successfully.");
-	}
-	else {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create UMesh instance.");
-	}
-
 
     // 전역 문자열을 초기화합니다.
     //LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -302,93 +289,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
   
 	
-    if constexpr (bLoadTestScene) {
-		World.LoadScene("./scenes/test.json", Renderer.GetDevice(), &AssetRegistry);
-    } else {
-	    AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "BasePipeline", "./Content/Metadata/BasePipeline.meta");
-	    AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "AlternatePipeline", "./Content/Metadata/AlternatePipeline.meta");
-        // Triangle
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "SphereMesh", "./Content/Metadata/SphereMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CubeMesh", "./Content/Metadata/CubeMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CylinderMesh", "./Content/Metadata/CylinderMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "PlaneMesh", "./Content/Metadata/PlaneMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "ConeMesh", "./Content/Metadata/ConeMesh.meta");
-   	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "TorusMesh", "./Content/Metadata/TorusMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "CapsuleMesh", "./Content/Metadata/CapsuleMesh.meta");
-	    AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "PyrimidMesh", "./Content/Metadata/PyramidMesh.meta");
-
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "GreyMaterial", "./Content/Metadata/GreyMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "RedMaterial", "./Content/Metadata/RedMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "GreenMaterial", "./Content/Metadata/GreenMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "BlueMaterial", "./Content/Metadata/BlueMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "YellowMaterial", "./Content/Metadata/YellowMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "AmberMaterial", "./Content/Metadata/AmberMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "BrownMaterial", "./Content/Metadata/BrownMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "CyanMaterial", "./Content/Metadata/CyanMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "LimeMaterial", "./Content/Metadata/LimeMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "MagentaMaterial", "./Content/Metadata/MagentaMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "NavyMaterial", "./Content/Metadata/NavyMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "OrangeMaterial", "./Content/Metadata/OrangeMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "PinkMaterial", "./Content/Metadata/PinkMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "PurpleMaterial", "./Content/Metadata/PurpleMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "TealMaterial", "./Content/Metadata/TealMaterial.meta");
-        AssetRegistry.EmplaceAsset<UColorMaterial>(Renderer.GetDevice(), "WhiteMaterial", "./Content/Metadata/WhiteMaterial.meta");
-
-	    AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "TexturedPipeline", "./Content/Metadata/TexturedTestPipeline.meta");
-	    AssetRegistry.EmplaceAsset<UTexture>(Renderer.GetDevice(), "PlankTexture", "./Content/Metadata/TexturedTestTexture.meta");
-        AssetRegistry.EmplaceAsset<UTexture>(Renderer.GetDevice(), "TestSprite", "./Content/Metadata/TestSprite.meta");
-	    AssetRegistry.EmplaceAsset<UTexturedMaterial>(Renderer.GetDevice(), "TexturedMaterial", "./Content/Metadata/TexturedTestMaterial.meta");
-
-        auto SkyDomeTextureHandle = AssetRegistry.EmplaceAsset<UTexture>(Renderer.GetDevice(), "SkyDomeTexture", "./Content/Metadata/SkyDomeTexture.meta");
-        auto SkyDomeMaterialHandle = AssetRegistry.EmplaceAsset<UTexturedMaterial>(Renderer.GetDevice(), "SkyDomeMaterial", "./Content/Metadata/SkyDomeMaterial.meta");
-        auto SkyDomePipelineHandle = AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "SkyDomePipeline", "./Content/Metadata/SkyDomePipeline.meta");
-		auto SkyDomeMeshHandle = AssetRegistry.EmplaceAsset<UMesh>(Renderer.GetDevice(), "SkyDome", "./Content/Metadata/SkyDomeMesh.meta");
-
-		AActor* SkyDomeActor = World.AdoptActor<AActor>();
-        UStaticMeshComponent* comp = SkyDomeActor->AddComponent<UStaticMeshComponent>();
-		comp->SetMeshHandle(SkyDomeMeshHandle);
-		comp->SetPipelineHandle(SkyDomePipelineHandle);
-		comp->SetMaterialHandle(SkyDomeMaterialHandle);
-
-		comp->SetPickingBox(DirectX::BoundingOrientedBox{ DirectX::XMFLOAT3{0.f,0.f,0.f}, DirectX::XMFLOAT3{0.f,0.f,0.f}, DirectX::XMFLOAT4{0.f,0.f,0.f, 1.f} });
-
-    }
-    FAssetHandle TextPipelineHandle = AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(),"TextPipeline", "./Content/Metadata/TextPipeline.meta");
-    FAssetHandle FontHandle = AssetRegistry.EmplaceAsset<UFreeTypeFont>(Renderer.GetDevice(),"DefaultFont","./Content/Metadata/NotoSansKR.meta");
-    //FAssetHandle FontHandle = AssetRegistry.EmplaceAsset<UFreeTypeFont>(Renderer.GetDevice(), "KRAFTON", "./Content/Metadata/KRAFTON.meta");
-    AActor* TextActor = World.AdoptActor<AActor>();
-
-    FAssetHandle BillboardPipelineHandle = AssetRegistry.EmplaceAsset<UPipeline>(Renderer.GetDevice(), "BillboardPipeline", "./Content/Metadata/BillboardPipeline.meta");
-
-    // test
-    AActor* SubUVActor = World.AdoptActor<AActor>();
-    if (SubUVActor != nullptr)
-    {
-        USubUVComponent* SubUVComp = SubUVActor->AddComponent<USubUVComponent>();
-        SubUVActor->SetRootComponent(SubUVComp);
-
-        SubUVComp->SetTextureHandle(AssetRegistry.GetAsset("TestSprite"));
-        SubUVComp->SetPipelineHandle(BillboardPipelineHandle);
-        SubUVComp->SetSize(FVector2{ 2.0f, 2.0f });
-        SubUVComp->SetColor(FVector4{ 1.0f, 1.0f, 1.0f, 1.0f });
-
-        SubUVComp->SetSubImage(4, 4, 16, 10.0f, true);
-
-        SubUVActor->SetActorRelativeLocation(FVector3{ 0.0f, 2.0f, 0.0f });
-    }
-
-    const FAssetHandle MeshHandle = AssetRegistry.GetAsset("CubeMesh");
-    const FAssetHandle PipelineHandle = AssetRegistry.GetAsset("BasePipeline");
-    const FAssetHandle MaterialHandle = AssetRegistry.GetAsset("GreyMaterial");
-    CreateHierarchyTests(World, MeshHandle, PipelineHandle, MaterialHandle, AssetRegistry.ResolveAsset<UMesh>(MeshHandle));
-
-    AActor* CameraActor = World.AdoptActor<AActor>();
-    UCameraComponent* Camera = CameraActor->AddComponent<UCameraComponent>();
-
-    Camera->SetMoveSensitivity(World.GetSettings().MoveSensitivity);
-    Camera->SetRotationSensitivity(World.GetSettings().RotationSensitivity);
-    CameraActor->SetRootComponent(Camera);
-
+	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
+  
     AssetRegistry.Finalize(); 
 
     IMGUI_CHECKVERSION();
@@ -404,9 +306,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
     auto LastTickTime = std::chrono::steady_clock::now();
-
-    //char BufferA[256] = "Player";
-    //char BufferB[256] = "player";
 
     while (true) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -429,6 +328,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 			EditorUIManager.Tick();
 
+            // 장면을 그릴 Imgui 창의 Resize 절차
 			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
 			ImGui::Begin("Viewport###SceneViewport");
 			const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
@@ -460,36 +360,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			Renderer.RenderScene(Probe);
             EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
 			Renderer.RenderGizmos(Probe);
-            Renderer.RenderText(Probe);
+            
+
+			Renderer.RenderText(Probe);
+            
+
 			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
 
 
 			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
 			ImGui::End();
-            
-            //ImGui::Begin("FName Test");      
-            //ImGui::Separator();
-            //
-            //ImGui::InputText("String A", BufferA, sizeof(BufferA));
-            //ImGui::InputText("String B", BufferB, sizeof(BufferB));
-
-            //FName NameA(BufferA);
-            //FName NameB(BufferB);
-
-            //bool bIsEqual = (NameA == NameB);
-            //if (bIsEqual)
-            //{
-            //    ImGui::Text("operator== : true");               
-            //}
-            //else
-            //{
-            //    ImGui::Text("operator== : false");            
-            //}
-
-            //ImGui::Text("=== 2. Display Result (Case Preservation) ===");
-            //ImGui::Text("A.ToString() : \"%s\"", NameA.ToString().c_str());
-            //ImGui::Text("B.ToString() : \"%s\"", NameB.ToString().c_str());
-            //ImGui::End();
 
 			ImGui::Render();
 			Renderer.BeginUiRender();

@@ -86,6 +86,20 @@ struct FMessageLoadScene
     }
 };
 
+struct FMessageImportMesh
+{
+    FString AssetName;
+    FString FilePath;
+    FString MetaPath;
+
+    JG_DECLARE_EDITOR_MESSAGE(FMessageImportMesh);
+
+    FMessageImportMesh(FString InputAssetName, FString InputFilePath, FString InputMetaPath) noexcept
+        : AssetName(std::move(InputAssetName)), FilePath(std::move(InputFilePath)), MetaPath(std::move(InputMetaPath))
+    {
+    }
+};
+
 enum class EGizmoMode : uint8
 {
     Translate,

@@ -19,7 +19,7 @@ struct FMaterial
     float4 Parameters6;
 };
 
-StructuredBuffer<FModelContext> ModelContexts : register(t0);
+StructuredBuffer<FModelContext> ModelContexts : register(t0); // ModelContext[] 
 StructuredBuffer<FMaterial> MaterialBuffer : register(t1);
 #include "Lighting.hlsli"
 
@@ -66,15 +66,10 @@ PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
     Output.MaterialIndex = ModelContext.MaterialIndex;
     Output.Flags = ModelContext.Flags;
    
-    if ((ModelContext.Flags & 1) != 0)
-    {
-        Output.ColorCoefficient = float3(1.2f, 1.2f, 1.2f);
-    }
-    else
-    {
-        Output.ColorCoefficient = float3(1.0f, 1.0f, 1.0f);
-    }
+
+    Output.ColorCoefficient = float3(1.0f, 1.0f, 1.0f);
     
+   
     
 
     return Output;
@@ -83,8 +78,7 @@ PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
     float4 Color = MaterialBuffer[Input.MaterialIndex].BaseColor;
-    // ERenderObjectFlags::Unlit (1 << 1): editor helpers and global Unlit mode
-    // retain their material color regardless of the scene's light set.
+
     if ((Input.Flags & 2u) != 0)
     {
         Color.rgb *= Input.ColorCoefficient;

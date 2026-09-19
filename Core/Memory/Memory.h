@@ -41,3 +41,4 @@ namespace Memory
 
 	FMemoryStats GetStats();
 }
+

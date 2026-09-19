@@ -148,15 +148,15 @@ void FTransformGizmo::Update(const CameraProbe& Camera) {
 
 		// TargetWorld contains the source-to-Z-up basis.  Remove that basis
 		// when orienting a local-space gizmo so its axes remain world Z-up.
-		GizmoWorldTransform.m[0][0] = -Right.x;
-		GizmoWorldTransform.m[0][1] = -Right.y;
-		GizmoWorldTransform.m[0][2] = -Right.z;
-		GizmoWorldTransform.m[1][0] = Forward.x;
-		GizmoWorldTransform.m[1][1] = Forward.y;
-		GizmoWorldTransform.m[1][2] = Forward.z;
-		GizmoWorldTransform.m[2][0] = Up.x;
-		GizmoWorldTransform.m[2][1] = Up.y;
-		GizmoWorldTransform.m[2][2] = Up.z;
+		//GizmoWorldTransform.m[0][0] = -Right.x;
+		//GizmoWorldTransform.m[0][1] = -Right.y;
+		//GizmoWorldTransform.m[0][2] = -Right.z;
+		//GizmoWorldTransform.m[1][0] = Forward.x;
+		//GizmoWorldTransform.m[1][1] = Forward.y;
+		//GizmoWorldTransform.m[1][2] = Forward.z;
+		//GizmoWorldTransform.m[2][0] = Up.x;
+		//GizmoWorldTransform.m[2][1] = Up.y;
+		//GizmoWorldTransform.m[2][2] = Up.z;
 	}
 
 	GizmoWorldTransform.Translation(TargetWorld.Translation());
@@ -789,9 +789,9 @@ FVector3 FTransformGizmo::GetWorldAxis(EAxis Axis) const {
 	switch (Axis) {
 	case EAxis::X:
 		return GizmoWorldTransform.Right();
-	case EAxis::Y:
-		return GizmoWorldTransform.Up();
 	case EAxis::Z:
+		return GizmoWorldTransform.Up();
+	case EAxis::Y:
 		return GizmoWorldTransform.Forward();
 	default:
 		return FVector3::Zero;

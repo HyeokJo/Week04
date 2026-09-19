@@ -40,7 +40,9 @@ public:
         std::unique_ptr<T> NewAsset = std::make_unique<T>();
         std::unique_ptr<UObject> Asset = std::move(NewAsset);
 
-        return AdoptAsset(Device, FGuid::NewGuid(), Name, MetadataPath, std::move(Asset));
+        const auto guid = Asset->GetGuid();
+
+        return AdoptAsset(Device, guid, Name, MetadataPath, std::move(Asset));
     }
 
     virtual FAssetHandle GetAsset(const FString& Name) const override;
@@ -124,6 +126,7 @@ public:
     }
 
     void Finalize();
+
 
 private:
     FAssetHandle AllocateHandle();

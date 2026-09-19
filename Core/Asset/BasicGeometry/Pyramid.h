@@ -1,10 +1,11 @@
 ﻿#pragma once
 
 #include <array>
+#include "ZUp.h"
 
 namespace BasicGeometry {
 	namespace Pyramid {
-		inline constexpr std::array<FVector3, 16> Positions = {
+		inline constexpr std::array<FVector3, 16> Positions = ToZUp(std::array<FVector3, 16>{
 			// Front
 			FVector3{ -0.5f, -0.5f,  0.5f },
 			FVector3{  0.5f, -0.5f,  0.5f },
@@ -30,9 +31,9 @@ namespace BasicGeometry {
 			FVector3{  0.5f, -0.5f, -0.5f },
 			FVector3{  0.5f, -0.5f,  0.5f },
 			FVector3{ -0.5f, -0.5f,  0.5f }
-		};
+		});
 
-		inline constexpr std::array<FVector3, 16> Normals = {
+		inline constexpr std::array<FVector3, 16> Normals = ToZUp(std::array<FVector3, 16>{
 			FVector3{  0.0f, 0.4472136f,  0.8944272f },
 			FVector3{  0.0f, 0.4472136f,  0.8944272f },
 			FVector3{  0.0f, 0.4472136f,  0.8944272f },
@@ -53,7 +54,7 @@ namespace BasicGeometry {
 			FVector3{ 0.0f, -1.0f, 0.0f },
 			FVector3{ 0.0f, -1.0f, 0.0f },
 			FVector3{ 0.0f, -1.0f, 0.0f }
-		};
+		});
 
 		inline constexpr std::array<FVector2D, 16> TexCoords = {
 			FVector2D{ 0.0f, 1.0f }, FVector2D{ 1.0f, 1.0f }, FVector2D{ 0.5f, 0.0f },

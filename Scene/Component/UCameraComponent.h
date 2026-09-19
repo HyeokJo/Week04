@@ -5,6 +5,13 @@
 
 class UCameraComponent : public USceneComponent {
 public:
+	constexpr static FMatrix CameraBasis = {
+		{   -1.0f, 0.0f, 0.0f, 0.0f,
+		    0.0f, 0.0f, 1.0f, 0.0f,
+		    0.0f, 1.0f, 0.0f, 0.0f,
+		    0.0f, 0.0f, 0.0f, 1.0f }
+	};
+public:
     UCameraComponent();
     ~UCameraComponent() override = default;
 
