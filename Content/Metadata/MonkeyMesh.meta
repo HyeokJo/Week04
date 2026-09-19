@@ -1,0 +1,5 @@
+{
+	"BasicMesh" : false , 
+	"FilePath" : "./Content/ModelingFiles/Monkey.obj" , 
+	"MeshType" : "Monkey" ,
+}

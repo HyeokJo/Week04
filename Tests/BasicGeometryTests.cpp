@@ -5,6 +5,7 @@
 #include "../Core/Asset/BasicGeometry/Corn.h"
 #include "../Core/Asset/BasicGeometry/Cube.h"
 #include "../Core/Asset/BasicGeometry/Cylinder.h"
+#include "../Core/Asset/BasicGeometry/InverseSphere.h"
 #include "../Core/Asset/BasicGeometry/Plane.h"
 #include "../Core/Asset/BasicGeometry/Pyramid.h"
 #include "../Core/Asset/BasicGeometry/Sphere.h"
@@ -58,5 +59,25 @@ TEST_SUITE("Basic Geometry Tests") {
 		SUBCASE("Cylinder") { CheckUnitCubeBounds(BasicGeometry::Cylinder::Positions); }
 		SUBCASE("Pyramid") { CheckUnitCubeBounds(BasicGeometry::Pyramid::Positions); }
 		SUBCASE("Torus") { CheckUnitCubeBounds(BasicGeometry::Torus::Positions); }
+	}
+
+	TEST_CASE("Basic geometry uses Z as its up axis") {
+		for (const FVector3& Position : BasicGeometry::Plane::Positions) {
+			CHECK(Position.z == doctest::Approx(0.0f));
+		}
+		for (const FVector3& Normal : BasicGeometry::Plane::Normals) {
+			CHECK(Normal.x == doctest::Approx(0.0f));
+			CHECK(Normal.y == doctest::Approx(0.0f));
+			CHECK(Normal.z == doctest::Approx(1.0f));
+		}
+
+		CHECK(BasicGeometry::Cube::Normals[16].z == doctest::Approx(1.0f));
+		CHECK(BasicGeometry::Pyramid::Positions[2].z == doctest::Approx(0.5f));
+		CHECK(BasicGeometry::Sphere::Positions.front().z == doctest::Approx(BasicGeometry::Sphere::Radius));
+		CHECK(BasicGeometry::SkyDome::Positions.front().z == doctest::Approx(BasicGeometry::SkyDome::Radius));
+		CHECK(BasicGeometry::Capsule::Positions.front().z == doctest::Approx(BasicGeometry::Capsule::HalfCylinderHeight + BasicGeometry::Capsule::Radius));
+		CHECK(BasicGeometry::Cone::Positions[1].z == doctest::Approx(BasicGeometry::Cone::HalfHeight));
+		CHECK(BasicGeometry::Cylinder::Positions[1].z == doctest::Approx(BasicGeometry::Cylinder::HalfHeight));
+		CHECK(BasicGeometry::Torus::Positions[BasicGeometry::Torus::MinorSegments / 4].z == doctest::Approx(BasicGeometry::Torus::MinorRadius));
 	}
 }

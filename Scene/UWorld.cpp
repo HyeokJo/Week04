@@ -580,6 +580,12 @@ void UWorld::HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessa
 	const FQuat CurrentRotation = CameraTransform.GetRotationQuaternion();
 	const FMatrix CurrentWorld = Camera->GetComponentToWorld();
 
+	FVector3 CameraForward = UCameraComponent::CameraBasis.Forward();
+	FVector3 CameraRight = UCameraComponent::CameraBasis.Right();
+	FVector3 CameraUp = UCameraComponent::CameraBasis.Up();
+
+	auto a = UCameraComponent::CameraBasis.Up();
+
 	FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, Message.DeltaX * RotationSensitivity);
 	YawDelta.Normalize();
 
@@ -591,7 +597,7 @@ void UWorld::HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessa
 	FTransform YawedTransform;
 	YawedTransform.SetRotation(YawedRotation);
 
-	FMatrix YawMatrix = YawedTransform.ToMatrixWithScale();
+	FMatrix YawMatrix =  YawedTransform.ToMatrixWithScale();
 
 	FVector Right = YawMatrix.Right();
 	Right.Normalize();
@@ -609,7 +615,7 @@ void UWorld::HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessa
 		PitchDelta = FQuat::CreateFromAxisAngle(Right, 0 * RotationSensitivity);
 	}
 	else {
-		PitchDelta = FQuat::CreateFromAxisAngle(Right, -Message.DeltaY * RotationSensitivity);
+		PitchDelta = FQuat::CreateFromAxisAngle(Right, Message.DeltaY * RotationSensitivity);
 	}
 
 	PitchDelta.Normalize();
@@ -661,7 +667,7 @@ void UWorld::HandleKeyboardCameraMoveRequest(
 	const FMatrix CameraWorldMatrix = Camera->GetComponentToWorld();
 
 	const FVector3 ForwardDirection = CameraWorldMatrix.Forward();
-	const FVector3 RightDirection = CameraWorldMatrix.Right();
+	const FVector3 RightDirection = -CameraWorldMatrix.Right();
 
 
 	const FVector3 Forward = ForwardDirection * Message.ForwardAxis;

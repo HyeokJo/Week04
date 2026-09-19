@@ -1,10 +1,11 @@
 ﻿#pragma once
 
 #include <array>
+#include "ZUp.h"
 
 namespace BasicGeometry {
 	namespace Cube {
-		inline constexpr std::array<FVector3, 24> Positions = {
+		inline constexpr std::array<FVector3, 24> Positions = ToZUp(std::array<FVector3, 24>{
 			// Front
 			FVector3{ -0.5f, -0.5f,  0.5f },
 			FVector3{  0.5f, -0.5f,  0.5f },
@@ -40,16 +41,16 @@ namespace BasicGeometry {
 			FVector3{  0.5f, -0.5f, -0.5f },
 			FVector3{  0.5f, -0.5f,  0.5f },
 			FVector3{ -0.5f, -0.5f,  0.5f }
-		};
+		});
 
-		inline constexpr std::array<FVector3, 24> Normals = {
+		inline constexpr std::array<FVector3, 24> Normals = ToZUp(std::array<FVector3, 24>{
 			FVector3{  0.0f,  0.0f,  1.0f }, FVector3{  0.0f,  0.0f,  1.0f }, FVector3{  0.0f,  0.0f,  1.0f }, FVector3{  0.0f,  0.0f,  1.0f },
 			FVector3{  0.0f,  0.0f, -1.0f }, FVector3{  0.0f,  0.0f, -1.0f }, FVector3{  0.0f,  0.0f, -1.0f }, FVector3{  0.0f,  0.0f, -1.0f },
 			FVector3{ -1.0f,  0.0f,  0.0f }, FVector3{ -1.0f,  0.0f,  0.0f }, FVector3{ -1.0f,  0.0f,  0.0f }, FVector3{ -1.0f,  0.0f,  0.0f },
 			FVector3{  1.0f,  0.0f,  0.0f }, FVector3{  1.0f,  0.0f,  0.0f }, FVector3{  1.0f,  0.0f,  0.0f }, FVector3{  1.0f,  0.0f,  0.0f },
 			FVector3{  0.0f,  1.0f,  0.0f }, FVector3{  0.0f,  1.0f,  0.0f }, FVector3{  0.0f,  1.0f,  0.0f }, FVector3{  0.0f,  1.0f,  0.0f },
 			FVector3{  0.0f, -1.0f,  0.0f }, FVector3{  0.0f, -1.0f,  0.0f }, FVector3{  0.0f, -1.0f,  0.0f }, FVector3{  0.0f, -1.0f,  0.0f }
-		};
+		});
 
 		inline constexpr std::array<FVector2D, 24> TexCoords = {
 			FVector2D{ 0.0f, 1.0f }, FVector2D{ 1.0f, 1.0f }, FVector2D{ 1.0f, 0.0f }, FVector2D{ 0.0f, 0.0f },

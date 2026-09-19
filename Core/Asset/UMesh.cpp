@@ -13,6 +13,7 @@
 #include "BasicGeometry/Sphere.h"
 #include "BasicGeometry/Torus.h"
 #include "BasicGeometry/InverseSphere.h"
+#include "FObjInporter.h"
 
 void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
 	UAsset::Initialize(Device, metaData);
@@ -104,7 +105,28 @@ void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaDa
 		else {
 			ErrorHandler::Report(false, " [ UMesh ]", "Unsupported BasicMesh type: " + MeshType, ErrorHandler::EErrorLevel::Critical);
 		}
+	}	
+	else
+	{
+		FString FilePath = MetadataParser.GetOr("FilePath", FString(""));
+		
+		FObjInporter ObjImporter;
+		FGeometry Geometry;
+
+		//meta 파일 안의 obj 경로로 로드
+		if (ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+		{
+			UMesh::Make(Device, Geometry.Indices,
+						MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+						MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+						MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
+		}
+		else
+		{
+			ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);
+		}		
 	}
+	
 }
 
 ID3D11Buffer* UMesh::GetVertexBuffer(EVertexAttribute Attribute) const {

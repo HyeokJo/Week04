@@ -229,8 +229,6 @@ using FVector3 = FVector;
 using FVector2D = FVector2;
 using FColor4 = FVector4;
 
-// Euler angles are an editor-facing representation. Runtime transforms keep
-// their authoritative rotation in FQuat.
 struct FRotator
 {
     // Z-up convention: pitch rotates around X, yaw around Z, and roll around Y.
@@ -253,10 +251,6 @@ inline const FRotator FRotator::Zero{};
 
 struct FMatrix
 {
-    // The engine world is Z-up.  FTransform applies the mesh-source basis at
-    // the boundary; matrices, vectors, and quaternions otherwise stay Z-up.
-    // Value-returning compatibility API. Singular input produces non-finite values.
-    // Use TryInverse when the caller needs to handle failure.
     FMatrix Invert() const
     {
         FMatrix result;
@@ -430,12 +424,12 @@ struct FMatrix
 
     FVector Up() const
     {
-        return FVector(m[1][0], m[1][1], m[1][2]);
+        return FVector(m[2][0], m[2][1], m[2][2]);
     }
 
     FVector Forward() const
     {
-        return FVector(m[2][0], m[2][1], m[2][2]);
+        return FVector(m[1][0], m[1][1], m[1][2]);
     }
 
     static FMatrix CreatePerspectiveFieldOfView(
