@@ -14,6 +14,7 @@
 #include "BasicGeometry/Torus.h"
 #include "BasicGeometry/InverseSphere.h"
 #include "FObjInporter.h"
+#include "../../Serialize/FObjSerializer.h"
 
 void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaData) {
 	UAsset::Initialize(Device, metaData);
@@ -113,18 +114,19 @@ void UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& metaDa
 		FObjInporter ObjImporter;
 		FGeometry Geometry;
 
-		//meta 파일 안의 obj 경로로 로드
-		if (ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+		//바이너리 있는지 읽기.
+		if (!FObjSerializer::LoadBinary("./Content/Meshes/ObjMesh.bin", Geometry))
 		{
-			UMesh::Make(Device, Geometry.Indices,
-						MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
-						MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
-						MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
+			if (!ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+			{
+				ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);				
+			}
 		}
-		else
-		{
-			ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);
-		}		
+
+		UMesh::Make(Device, Geometry.Indices,
+					MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+					MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+					MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
 	}
 	
 }
