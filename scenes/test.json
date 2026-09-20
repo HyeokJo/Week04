@@ -571,9 +571,9 @@
                     "bCollisionEnabled": true,
                     "GuidMeshComponent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "OBB_Center": [
-                        0.007106006145477295,
-                        0.0013610124588012695,
-                        0.000025987625122070313
+                        0.0,
+                        0.0,
+                        0.0
                     ],
                     "OBB_Extent": [
                         0.5,

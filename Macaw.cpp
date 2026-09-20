@@ -58,6 +58,7 @@
 #include "Core/Asset/UTexture.h"
 
 #include "Render/EditorView/EditorViewport.h"
+#include "Render/EditorView/SSplitter.h"
 
 #include "Core/Asset/UFont.h"
 #include "Core/Asset/UFreeTypeFont.h"
@@ -69,6 +70,7 @@
 
 #include "Scene/Component/UBillboardComponent.h"
 #include "Scene/Component/USubUVComponent.h"
+#include "TObjectIterator.h"
 
 #define MAX_LOADSTRING 100
 
@@ -99,6 +101,44 @@ FRenderer Renderer;
 
 namespace {
     constexpr bool bEnableSceneSave = true;
+
+    struct FViewportFrame {
+        ImVec2 Position{};
+        ImVec2 Size{};
+        uint32 Width{ 0 };
+        uint32 Height{ 0 };
+        bool bVisible{ false };
+        bool bHovered{ false };
+        bool bFocused{ false };
+    };
+
+    bool DrawSplitterHandle(const char* Id, SSplitter& Splitter, ImGuiMouseCursor Cursor) {
+        const FRect Rect = Splitter.GetHandleRect();
+        if (Rect.IsEmpty()) {
+            return false;
+        }
+
+        ImGui::SetCursorScreenPos(ImVec2(static_cast<float>(Rect.Min.X), static_cast<float>(Rect.Min.Y)));
+        ImGui::InvisibleButton(Id, ImVec2(static_cast<float>(Rect.GetWidth()), static_cast<float>(Rect.GetHeight())));
+
+        const bool bHovered = ImGui::IsItemHovered();
+        const bool bActive = ImGui::IsItemActive();
+        if (bHovered || bActive) {
+            ImGui::SetMouseCursor(Cursor);
+        }
+
+        if (bActive && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            const ImVec2 MousePosition = ImGui::GetMousePos();
+            Splitter.DragTo({ static_cast<int32>(MousePosition.x), static_cast<int32>(MousePosition.y) });
+        }
+
+        const FRect UpdatedRect = Splitter.GetHandleRect();
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImVec2(static_cast<float>(UpdatedRect.Min.X), static_cast<float>(UpdatedRect.Min.Y)),
+            ImVec2(static_cast<float>(UpdatedRect.Max.X), static_cast<float>(UpdatedRect.Max.Y)),
+            bActive ? IM_COL32(100, 150, 220, 255) : bHovered ? IM_COL32(85, 85, 85, 255) : IM_COL32(55, 55, 55, 255));
+        return bActive;
+    }
 
     void ConfigureTestStaticMesh(UStaticMeshComponent* MeshComponent, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Location) {
         MeshComponent->SetMeshHandle(MeshHandle);
@@ -268,6 +308,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     
     
 
+    EditorUIManager.Initialize(World, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
@@ -308,7 +349,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             });
 	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
-  
+
     AssetRegistry.Finalize(); 
 
     IMGUI_CHECKVERSION();
@@ -326,6 +367,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
     auto LastTickTime = std::chrono::steady_clock::now();
+
+    std::array<SWindow, FRenderer::ViewportCount> ViewportRegions{};
+    SSplitterH RootSplit{};
+    SSplitterV TopSplit{};
+    SSplitterV BottomSplit{};
+    TopSplit.SetChildren(&ViewportRegions[0], &ViewportRegions[1]);
+    BottomSplit.SetChildren(&ViewportRegions[2], &ViewportRegions[3]);
+    RootSplit.SetChildren(&TopSplit, &BottomSplit);
+    FRenderer::FViewportId ActiveViewportId{ 0 };
 
     while (true) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -353,27 +403,80 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 			EditorUIManager.Tick();
 
-            // 장면을 그릴 Imgui 창의 Resize 절차
-			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Viewport###SceneViewport");
-			const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
-			const ImVec2 SceneViewportSize = ImGui::GetContentRegionAvail();
+			std::array<FViewportFrame, FRenderer::ViewportCount> ViewportFrames{};
 			const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
-			const bool bSceneViewportHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-			const bool bSceneViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-			const uint32 SceneViewportWidth = static_cast<uint32>(std::max(0.0f, SceneViewportSize.x));
-			const uint32 SceneViewportHeight = static_cast<uint32>(std::max(0.0f, SceneViewportSize.y));
-			Renderer.ResizeSceneSurface(SceneViewportWidth, SceneViewportHeight, SceneViewportPosition.x - MainViewportPosition.x, SceneViewportPosition.y - MainViewportPosition.y);
+			bool bSplitterActive = false;
 
-			// 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
-			EditorView.ProcessInput(GKeyboardInput, GMouseInput, !bSceneViewportHovered);
+			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
+			const bool bViewportWindowOpen = ImGui::Begin(
+				"Viewports###SplitSceneViewport",
+				nullptr,
+				ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-			GMouseInput.DispatchPendingWorldCommands(SceneViewportWidth, SceneViewportHeight, !bSceneViewportHovered);
-			GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, !bSceneViewportFocused || ImGui::GetIO().WantCaptureKeyboard);
+			if (bViewportWindowOpen) {
+				const ImVec2 Origin = ImGui::GetCursorScreenPos();
+				const ImVec2 AvailableSize = ImGui::GetContentRegionAvail();
+				const int32 Width = static_cast<int32>(std::max(0.0f, AvailableSize.x));
+				const int32 Height = static_cast<int32>(std::max(0.0f, AvailableSize.y));
+
+				if (Width > 0 && Height > 0) {
+					const FPoint Min{ static_cast<int32>(Origin.x), static_cast<int32>(Origin.y) };
+					RootSplit.SetRect({ Min, { Min.X + Width, Min.Y + Height } });
+
+					const bool bRootSplitActive = DrawSplitterHandle("##RootSplit", RootSplit, ImGuiMouseCursor_ResizeNS);
+					const bool bTopSplitActive = DrawSplitterHandle("##TopSplit", TopSplit, ImGuiMouseCursor_ResizeEW);
+					const bool bBottomSplitActive = DrawSplitterHandle("##BottomSplit", BottomSplit, ImGuiMouseCursor_ResizeEW);
+					if (bTopSplitActive) {
+						BottomSplit.SetRatio(TopSplit.GetRatio());
+					}
+					else if (bBottomSplitActive) {
+						TopSplit.SetRatio(BottomSplit.GetRatio());
+					}
+					bSplitterActive = bRootSplitActive || bTopSplitActive || bBottomSplitActive;
+
+					for (FRenderer::FViewportId Id = 0; Id < FRenderer::ViewportCount; ++Id) {
+						FViewportFrame& Frame = ViewportFrames[Id];
+						const FRect& Rect = ViewportRegions[Id].GetRect();
+						if (Rect.IsEmpty()) {
+							continue;
+						}
+
+						Frame.Position = ImVec2(static_cast<float>(Rect.Min.X), static_cast<float>(Rect.Min.Y));
+						Frame.Size = ImVec2(static_cast<float>(Rect.GetWidth()), static_cast<float>(Rect.GetHeight()));
+						Frame.Width = static_cast<uint32>(Rect.GetWidth());
+						Frame.Height = static_cast<uint32>(Rect.GetHeight());
+						Frame.bVisible = true;
+
+						Renderer.ResizeSceneSurface(Id, Frame.Width, Frame.Height, Frame.Position.x - MainViewportPosition.x, Frame.Position.y - MainViewportPosition.y);
+						ImGui::SetCursorScreenPos(Frame.Position);
+						ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView(Id)), Frame.Size);
+						Frame.bHovered = !bSplitterActive && ImGui::IsItemHovered();
+						if (Frame.bHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right))) {
+							ActiveViewportId = Id;
+						}
+					}
+
+					const bool bParentFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+					for (FRenderer::FViewportId Id = 0; Id < FRenderer::ViewportCount; ++Id) {
+						ViewportFrames[Id].bFocused = bParentFocused && Id == ActiveViewportId;
+					}
+				}
+			}
+			ImGui::End();
+
+			const FViewportFrame& InputFrame = ViewportFrames[ActiveViewportId];
+			if (InputFrame.bVisible) {
+				Renderer.ResizeSceneSurface(ActiveViewportId, InputFrame.Width, InputFrame.Height, InputFrame.Position.x - MainViewportPosition.x, InputFrame.Position.y - MainViewportPosition.y);
+			}
+
+			const bool bBlockMouse = bSplitterActive || !InputFrame.bVisible || !InputFrame.bHovered;
+			const bool bBlockKeyboard = bSplitterActive || !InputFrame.bVisible || !InputFrame.bFocused || ImGui::GetIO().WantCaptureKeyboard;
+			EditorView.ProcessInput(GKeyboardInput, GMouseInput, bBlockMouse);
+			GMouseInput.DispatchPendingWorldCommands(InputFrame.Width, InputFrame.Height, bBlockMouse);
+			GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, bBlockKeyboard);
 
             WorldCommandChannel.Dispatch();
             World.Tick(DeltaTime);
-
 			EditorContext.Dispatch();
 
 			//UndoCommandChannel.Dispatch();
@@ -393,6 +496,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
 			ImGui::End();
+			for (FRenderer::FViewportId Id = 0; Id < FRenderer::ViewportCount; ++Id) {
+				const FViewportFrame& Frame = ViewportFrames[Id];
+				if (!Frame.bVisible) {
+					continue;
+				}
+
+				Renderer.ResizeSceneSurface(Id, Frame.Width, Frame.Height, Frame.Position.x - MainViewportPosition.x, Frame.Position.y - MainViewportPosition.y);
+				FRenderProbe& Probe = World.BuildRenderProbe();
+				EditorView.RenderInProbe(Probe);
+				Renderer.BeginSceneRender(Id);
+				Renderer.RenderScene(Probe);
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
+				Renderer.RenderGizmos(Probe);
+				Renderer.RenderText(Probe);
+                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
+			}
 
 			ImGui::Render();
 			Renderer.BeginUiRender();

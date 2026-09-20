@@ -7,6 +7,7 @@
 #include "FConsolePanel.h"
 #include "FStatPanel.h"
 #include "FViewerPanel.h"
+#include "FAssetBrowserPanel.h"
 #include "Outliner.h"
 #include "FViewerToolBar.h"
 
@@ -18,6 +19,8 @@ class FEditorUIManager
 public:
     void Initialize(
         UWorld& World,
+
+        FAssetRegistry& AssetRegistry,
 
         FWorldEditorContext& EditorContext,
 
@@ -54,6 +57,10 @@ public:
 
         Panels.emplace_back(
             std::make_unique<FStatPanel>(World)
+        );
+
+        Panels.emplace_back(
+            std::make_unique<FAssetBrowserPanel>(AssetRegistry)
         );
 
 		Panels.emplace_back(

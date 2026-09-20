@@ -18,6 +18,8 @@ namespace UObjectSystem
 {
 	FObjectHandle Register(UObject* Object);
 	FObjectHandle RegisterWithGuid(UObject* Object, const FGuid& InGuid);
+	bool TryGet(uint32 index, FObjectHandle& out);
+	uint32 GetItemCount();
 }
 
 class UObject
