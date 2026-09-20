@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FControlPanel.h"
 
 #include <windows.h>
@@ -366,6 +366,11 @@ void FControlPanel::DrawPanel()
     const float FpsWidth = ImGui::CalcTextSize("FPS: 000.0").x;
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - FpsWidth - ImGui::GetStyle().WindowPadding.x);
     ImGui::Text(FpsText, ImGui::GetIO().Framerate);
+
+
+
+
+   
 
     ImGui::EndMainMenuBar();
 }

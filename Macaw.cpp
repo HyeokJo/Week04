@@ -45,6 +45,8 @@
 #include "FMouseCameraRotateRequestMessage.h"
 #include "FKeyboardInput.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
 
 #include "Core/Base/UndoSystem/FUndoSystem.h"
 #include "Core/Base/UndoSystem/FUndoMessages.h"
@@ -298,6 +300,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), EditorContext);
 
     FEditorUIManager EditorUIManager;
+    #ifdef OBJ_VIEWER
+        EditorUIManager.InitializeViewer(World, EditorContext);
+    #else
+        EditorUIManager.Initialize(World, EditorContext, gHWND, Renderer, AssetRegistry, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+    #endif
+    
+    
 
     EditorUIManager.Initialize(World, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
 
@@ -323,7 +332,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 World.HandleKeyboardCameraMoveRequest(Message);
             });
 
-  
+    WorldCommandChannel.TryBind<
+        FMouseCameraMoveRequestMessage>(
+            [&World](
+                const FMouseCameraMoveRequestMessage& Message)
+            {
+                World.HandleMouseCameraMoveRequestMessage(Message);
+            });
+
+    WorldCommandChannel.TryBind<
+        FMouseCameraDollyRequestMessage>(
+            [&World](
+                const FMouseCameraDollyRequestMessage& Message)
+            {
+                World.HandleMouseCameraDollyRequestMessage(Message);
+            });
 	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
 
@@ -337,7 +360,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ImGui::StyleColorsDark();
     
     auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; 
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    // 창을 메인 윈도우 밖으로 끌면 ImGui 가 실제 OS 창을 만든다.
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
@@ -366,6 +391,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             const auto CurrentTickTime = std::chrono::steady_clock::now();
             const float DeltaTime = std::chrono::duration<float>(CurrentTickTime - LastTickTime).count();
             LastTickTime = CurrentTickTime;
+
+            // 오프스크린 패널은 ImGui 프레임이 시작되기 전에 그린다.
+            // 여기서 서피스가 리사이즈되며 SRV 가 재생성될 수 있는데,
+            // 그 뒤에 기록되는 드로우 명령이 항상 새 SRV 를 가리키게 하기 위함이다.
+            EditorUIManager.RenderOffscreen(Renderer, AssetRegistry);
 
 			ImGui_ImplDX11_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -449,6 +479,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             World.Tick(DeltaTime);
 			EditorContext.Dispatch();
 
+			//UndoCommandChannel.Dispatch();
+
+			FRenderProbe& Probe{ World.BuildRenderProbe() };
+
+            #ifndef OBJ_VIEWER
+                EditorView.RenderInProbe(Probe);
+            #endif
+                Renderer.BeginSceneRender();
+                Renderer.RenderScene(Probe);
+            #ifndef OBJ_VIEWER
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
+                Renderer.RenderGizmos(Probe);
+                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
+            #endif
+
+			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
+			ImGui::End();
 			for (FRenderer::FViewportId Id = 0; Id < FRenderer::ViewportCount; ++Id) {
 				const FViewportFrame& Frame = ViewportFrames[Id];
 				if (!Frame.bVisible) {
@@ -469,7 +516,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			ImGui::Render();
 			Renderer.BeginUiRender();
 			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-            
+
+			// 메인 윈도우 밖으로 분리된 창들을 각자의 OS 창에 그린다.
+			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+			}
+
             Renderer.EndFrame();
 
             GMouseInput.EndFrame();

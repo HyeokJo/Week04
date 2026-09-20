@@ -61,6 +61,9 @@ private:
         EDragOwner::None
     };
 
-    float PendingRotateDeltaX = 0.0f;
-    float PendingRotateDeltaY = 0.0f;
+    float PendingDeltaX = 0.0f;
+    float PendingDeltaY = 0.0f;
+        
+    float PendingWheelSteps;
+
 };

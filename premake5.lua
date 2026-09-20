@@ -1,6 +1,6 @@
 workspace "Macaw"
     location ""
-    configurations { "Debug", "Release" }
+    configurations { "Debug", "Release","Viewer" }
     platforms { "x64" }
     defaultplatform "x64"
     startproject "Macaw"
@@ -18,6 +18,11 @@ filter "configurations:Debug"
 
 filter "configurations:Release"
     defines { "NDEBUG" }
+    optimize "Speed"
+    runtime "Release"
+
+filter "configurations:Viewer"
+    defines { "NDEBUG", "OBJ_VIEWER" }
     optimize "Speed"
     runtime "Release"
 
@@ -88,6 +93,9 @@ filter "configurations:Debug"
 filter "configurations:Release"
     libdirs { "Externals/bin/release" }
 
+filter "configurations:Viewer"
+    libdirs { "Externals/bin/release" }
+
 filter {}
 
 project "MacawTests"
@@ -149,6 +157,9 @@ filter "configurations:Debug"
     libdirs { "Externals/bin/debug" }
 
 filter "configurations:Release"
+    libdirs { "Externals/bin/release" }
+
+filter "configurations:Viewer"
     libdirs { "Externals/bin/release" }
 
 filter "files:SimpleMath/SimpleMath.cpp"

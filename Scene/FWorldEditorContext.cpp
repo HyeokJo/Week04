@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FWorldEditorContext.h"
 
 #include "AActor.h"

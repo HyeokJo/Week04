@@ -3,6 +3,9 @@
 #include "FMouseInput.h"
 #include "FMousePickRequestMessage.h"
 #include "FMouseCameraRotateRequestMessage.h"
+#include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
 
 namespace
 {
@@ -50,6 +53,13 @@ void FMouseInput::ProcessWindowMessage(
     {
         const EMouseSide Side =
             Message == WM_LBUTTONDOWN ? Left : Right;
+        const EMouseSide Other = (Side == Left) ? Right : Left;
+
+        if (KeyStates[Other] == EKeyState::Pressed ||
+        KeyStates[Other] == EKeyState::Down)
+    {
+        break;
+    }
 
         EKeyState& State = KeyStates[Side];
 
@@ -68,10 +78,10 @@ void FMouseInput::ProcessWindowMessage(
 
             Capture.current = Capture.start;
 
-            if (Side == Right)
+            //if (Side == Right)
             {
-                PendingRotateDeltaX = 0.0f;
-                PendingRotateDeltaY = 0.0f;
+                PendingDeltaX = 0.0f;
+                PendingDeltaY = 0.0f;
             }
         }
 
@@ -95,12 +105,12 @@ void FMouseInput::ProcessWindowMessage(
 
             DragCapture& Capture = ClickCaptures[Side];
 
-            if (Side == Right)
+            //if (Side == Right)
             {
-                PendingRotateDeltaX += static_cast<float>(
+                PendingDeltaX += static_cast<float>(
                     Position.x - Capture.current.x);
 
-                PendingRotateDeltaY -= static_cast<float>(
+                PendingDeltaY -= static_cast<float>(
                     Position.y - Capture.current.y);
             }
 
@@ -116,6 +126,16 @@ void FMouseInput::ProcessWindowMessage(
         const EMouseSide Side =
             Message == WM_LBUTTONUP ? Left : Right;
 
+        //좌,우를 같이 눌렀을때 PendingRotateDelta가 중복해서 누적되는걸 방지하기위해
+        //한쪽을 누른상태인지 체크
+        const EMouseSide Other = (Side == Left) ? Right : Left;
+        if (KeyStates[Other] == EKeyState::Pressed ||
+            KeyStates[Other] == EKeyState::Down)
+        {
+            break;
+        }
+
+
         EKeyState& State = KeyStates[Side];
 
         if (State == EKeyState::Pressed ||
@@ -128,12 +148,12 @@ void FMouseInput::ProcessWindowMessage(
                 GetMouseY(LParam)
             };
 
-            if (Side == Right)
+            //if (Side == Right)
             {
-                PendingRotateDeltaX += static_cast<float>(
+                PendingDeltaX += static_cast<float>(
                     Position.x - Capture.current.x);
 
-                PendingRotateDeltaY -= static_cast<float>(
+                PendingDeltaY -= static_cast<float>(
                     Position.y - Capture.current.y);
             }
 
@@ -148,6 +168,10 @@ void FMouseInput::ProcessWindowMessage(
     case WM_CANCELMODE:
     case WM_CAPTURECHANGED:
         ResetKeyStates();
+        break;
+
+    case WM_MOUSEWHEEL:
+        PendingWheelSteps += GET_WHEEL_DELTA_WPARAM(WParam) / static_cast<float>(WHEEL_DELTA);
         break;
     }
 }
@@ -183,6 +207,8 @@ void FMouseInput::DispatchPendingWorldCommands(
         return;
     }
 
+
+   #ifndef OBJ_VIEWER
     if (DragOwners[Left] == EDragOwner::World)
     {
         if (KeyStates[Left] == EKeyState::Pressed)
@@ -198,17 +224,43 @@ void FMouseInput::DispatchPendingWorldCommands(
     }
 
     if (DragOwners[Right] == EDragOwner::World &&
-        (PendingRotateDeltaX != 0.0f ||
-            PendingRotateDeltaY != 0.0f))
+        (PendingDeltaX != 0.0f ||
+            PendingDeltaY != 0.0f))
     {
         WorldCommandSender
             ->TryEmplace<FMouseCameraRotateRequestMessage>(
-                PendingRotateDeltaX,
-                PendingRotateDeltaY);
+                PendingDeltaX,
+                PendingDeltaY);
+    }
+#endif
+
+#ifdef OBJ_VIEWER
+    //TODO : 회전방식 바꿔야함
+    const bool bHasDelta =
+        PendingDeltaX != 0.0f || PendingDeltaY != 0.0f;
+
+    if (DragOwners[Left] == EDragOwner::World && bHasDelta)
+    {
+        WorldCommandSender->TryEmplace<FMouseCameraRotateRequestMessage>(
+            PendingDeltaX, PendingDeltaY);
     }
 
-    PendingRotateDeltaX = 0.0f;
-    PendingRotateDeltaY = 0.0f;
+    if (DragOwners[Right] == EDragOwner::World && bHasDelta)
+    {
+        WorldCommandSender->TryEmplace<FMouseCameraMoveRequestMessage>(
+            PendingDeltaX, PendingDeltaY);
+    }
+
+    if (!bMouseCapturedByUI && PendingWheelSteps != 0.0f)
+    {
+        WorldCommandSender->TryEmplace<FMouseCameraDollyRequestMessage>(PendingWheelSteps);
+    }
+    
+#endif
+
+    PendingDeltaX = 0.0f;
+    PendingDeltaY = 0.0f;
+    PendingWheelSteps = 0.0f;
 }
 
 void FMouseInput::EndFrame()
@@ -228,8 +280,8 @@ void FMouseInput::EndFrame()
         }
     }
 
-    PendingRotateDeltaX = 0.0f;
-    PendingRotateDeltaY = 0.0f;
+    PendingDeltaX = 0.0f;
+    PendingDeltaY = 0.0f;
 }
 
 void FMouseInput::ResetKeyStates()
@@ -244,6 +296,6 @@ void FMouseInput::ResetKeyStates()
         }
     }
 
-    PendingRotateDeltaX = 0.0f;
-    PendingRotateDeltaY = 0.0f;
+    PendingDeltaX = 0.0f;
+    PendingDeltaY = 0.0f;
 }

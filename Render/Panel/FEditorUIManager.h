@@ -6,8 +6,10 @@
 #include "FPropertyPanel.h"
 #include "FConsolePanel.h"
 #include "FStatPanel.h"
+#include "FViewerPanel.h"
 #include "FAssetBrowserPanel.h"
 #include "Outliner.h"
+#include "FViewerToolBar.h"
 
 #include "Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
@@ -23,6 +25,9 @@ public:
         FWorldEditorContext& EditorContext,
 
         HWND WindowHandle,
+
+        FRenderer& Renderer,
+        FAssetRegistry& AssetRegistry,
 
         FStateChannel<uint8>::FReadWriter GizmoSender,
         FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender
@@ -61,6 +66,18 @@ public:
 		Panels.emplace_back(
 			std::make_unique<FOutlinerPanel>(World, EditorContext)
 		);
+
+        Panels.emplace_back(
+            std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender())
+        );
+    }
+
+    void InitializeViewer(UWorld& World, FWorldEditorContext& EditorContext)
+    {
+        Panels.emplace_back(
+            std::make_unique<FViewerToolBar>(EditorContext)
+        );
+
     }
 
     void Tick()
@@ -71,6 +88,19 @@ public:
                 Panel->IsVisible())
             {
                 Panel->DrawPanel();
+            }
+        }
+    }
+
+    // 렌더 단계에서 호출한다. 오프스크린이 필요한 패널만 실제로 동작한다.
+    void RenderOffscreen(FRenderer& Renderer, FAssetRegistry& AssetRegistry)
+    {
+        for (const std::unique_ptr<IEditorPanel>& Panel : Panels)
+        {
+            if (Panel != nullptr &&
+                Panel->IsVisible())
+            {
+                Panel->RenderOffscreen(Renderer, AssetRegistry);
             }
         }
     }

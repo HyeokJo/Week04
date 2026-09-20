@@ -42,6 +42,10 @@ class UBillboardSubsystem;
 class UTextSubsystem;
 class ULightSubsystem;
 
+//TODO : Message들 전방선언
+class FMouseCameraMoveRequestMessage;
+class FMouseCameraDollyRequestMessage;
+
 class UWorld : public UObject
 {
 public:
@@ -103,6 +107,8 @@ public:
     void HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message);
     void HandleKeyboardCameraMoveRequest(const FKeyboardCameraMoveRequestMessage& Message);
     void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
+    void HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message);
+    void HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message);
 
 	void UpdateEditorCameraState();
     void SetAssetRegistry(FAssetRegistry* InAssetRegistry);
