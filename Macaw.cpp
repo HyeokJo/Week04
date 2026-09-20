@@ -396,8 +396,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			ImGui_ImplDX11_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
-			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 			EditorUIManager.Tick();
+			const ImGuiID DockSpaceId = EditorUIManager.GetDockSpaceId();
 
 			std::array<FViewportFrame, FRenderer::ViewportCount> ViewportFrames{};
 			#ifndef OBJ_VIEWER

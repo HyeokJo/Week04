@@ -12,25 +12,12 @@ constexpr const char* ActorDragDropPayloadType = "OUTLINER_ACTOR";
 }
 
 FOutlinerPanel::FOutlinerPanel(UWorld& InWorld, FWorldEditorContext& InEditorContext)
-    : World(&InWorld)
+    : FEditorWindow("Outliner###OutlinerPanel")
+    , World(&InWorld)
     , EditorContext(&InEditorContext) {
 }
 
-void FOutlinerPanel::DrawPanel() {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.075f, 0.080f, 0.095f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.165f, 0.215f, 0.285f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.215f, 0.310f, 0.425f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.255f, 0.385f, 0.540f, 1.0f));
-
-    if (!ImGui::Begin("Outliner###OutlinerPanel")) {
-        ImGui::End();
-        ImGui::PopStyleColor(4);
-        ImGui::PopStyleVar(2);
-        return;
-    }
-
+void FOutlinerPanel::DrawContents() {
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::InputTextWithHint("##ActorFilter", "Search", ActorFilter.InputBuf, IM_ARRAYSIZE(ActorFilter.InputBuf))) {
         ActorFilter.Build();
@@ -48,7 +35,18 @@ void FOutlinerPanel::DrawPanel() {
 
     HandleDeleteShortcut();
     ImGui::TextDisabled("%zu Actors", World->GetActors().size());
-    ImGui::End();
+}
+
+void FOutlinerPanel::PushWindowStyle() {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.075f, 0.080f, 0.095f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.165f, 0.215f, 0.285f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.215f, 0.310f, 0.425f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.255f, 0.385f, 0.540f, 1.0f));
+}
+
+void FOutlinerPanel::PopWindowStyle() {
     ImGui::PopStyleColor(4);
     ImGui::PopStyleVar(2);
 }

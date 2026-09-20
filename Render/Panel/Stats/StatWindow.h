@@ -2,4 +2,4 @@
 
 #include "Scene/UWorld.h"
 
-void DrawStatWindow(const UWorld& World);
+void DrawStatContents(const UWorld& World);

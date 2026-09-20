@@ -15,20 +15,11 @@ constexpr float TileWidth = ThumbnailSize + 18.0f;
 }
 
 FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry)
-    : AssetRegistry(&InAssetRegistry) {
+    : FEditorWindow("Content Browser###AssetBrowserPanel")
+    , AssetRegistry(&InAssetRegistry) {
 }
 
-void FAssetBrowserPanel::DrawPanel() {
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.075f, 0.080f, 0.095f, 1.0f));
-
-    if (!ImGui::Begin("Content Browser###AssetBrowserPanel")) {
-        ImGui::End();
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
-        return;
-    }
-
+void FAssetBrowserPanel::DrawContents() {
     ImGui::TextDisabled("Content");
     ImGui::SameLine();
     ImGui::TextUnformatted(SelectedFolder.c_str());
@@ -79,8 +70,14 @@ void FAssetBrowserPanel::DrawPanel() {
         }
     }
     ImGui::EndChild();
+}
 
-    ImGui::End();
+void FAssetBrowserPanel::PushWindowStyle() {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8.0f, 8.0f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.075f, 0.080f, 0.095f, 1.0f));
+}
+
+void FAssetBrowserPanel::PopWindowStyle() {
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
 }

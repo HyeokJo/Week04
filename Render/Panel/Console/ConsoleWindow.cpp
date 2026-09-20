@@ -76,9 +76,7 @@ namespace
     }
 }
 
-void DrawConsole(FConsoleOutputHandle Handle)
-{
-    ImGui::Begin("Console");
+void DrawConsoleContents(FConsoleOutputHandle Handle) {
     const size_t Count = Console::GetMessageCount(Handle);
 
     // 로그 영역
@@ -158,7 +156,5 @@ void DrawConsole(FConsoleOutputHandle Handle)
     }
 
     ImGui::TextDisabled("Type 'help' and press ENTER for available commands.");
-
-    ImGui::End();
 }
 

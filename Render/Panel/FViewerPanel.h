@@ -1,7 +1,7 @@
 #pragma once
 
 #include "PCH.h"
-#include "IEditorPanel.h"
+#include "FEditorWindow.h"
 #include "Render/FSceneRenderSurface.h"
 #include "Core/Base/FRenderProbe.h"
 #include "Core/Channel/FMessageChannel.h"
@@ -12,13 +12,13 @@ class FQuat;
 
 
 // 메인 뷰포트와 무관한 독립 공간에 모델 하나만 그려 보여주는 패널.
-class FViewerPanel final : public IEditorPanel
-{
+class FViewerPanel final : public FEditorWindow {
 public:
-	explicit FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle,
-		FMessageChannel::FSender InEditorToWorldSender)
-		: Registry(&InRegistry), EditorToWorldSender(InEditorToWorldSender), WindowHandle(InputWindowHandle)
-	{
+	explicit FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle, FMessageChannel::FSender InEditorToWorldSender)
+		: FEditorWindow("Viewer", ImGuiWindowFlags_MenuBar)
+		, Registry(&InRegistry)
+		, EditorToWorldSender(InEditorToWorldSender)
+		, WindowHandle(InputWindowHandle) {
 	}
 
 	~FViewerPanel() override = default;
@@ -30,13 +30,13 @@ public:
 	FViewerPanel& operator=(FViewerPanel&&) = delete;
 
 public:
-	void DrawPanel() override;
 	void RenderOffscreen(FRenderer& InRenderer, FAssetRegistry& InRegistry) override;
 
 	// 보여줄 메시를 바꾼다. 무효 핸들이면 CubeMesh 로 대체된다.
 	void SetMesh(const FAssetHandle& InMeshHandle) { MeshHandle = InMeshHandle; }
 
 private:
+	void DrawContents() override;
 	void DrawMenuBar();
 	void DrawToolBar();
 	void DrawPreview();

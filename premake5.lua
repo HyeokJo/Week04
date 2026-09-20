@@ -127,13 +127,20 @@ project "MacawTests"
         "Serialize/**.cpp",
         "SimpleMath/**.cpp",
         "ErrorHandler.cpp",
+        "FName.cpp",
+        "city.cc",
+        "Render/Panel/FPropertyEditorContext.cpp",
+        "Render/Pipeline/**.cpp",
+        "ImGui/imgui.cpp",
+        "ImGui/imgui_draw.cpp",
+        "ImGui/imgui_tables.cpp",
+        "ImGui/imgui_widgets.cpp",
         "pch.cpp",
         "Tests/**.cpp",
     }
 
     removefiles {
         "Tests/TestUndo.cpp", -- 오래된 중복 doctest main 및 폐기된 include 경로
-        "ImGui/**",
         "Externals/**",
     }
 
@@ -163,6 +170,9 @@ filter "configurations:Viewer"
     libdirs { "Externals/bin/release" }
 
 filter "files:SimpleMath/SimpleMath.cpp"
+    enablepch "Off"
+
+filter "files:ImGui/**.cpp"
     enablepch "Off"
 
 filter "files:Tests/**.cpp"

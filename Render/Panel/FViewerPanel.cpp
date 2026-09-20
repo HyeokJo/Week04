@@ -17,18 +17,10 @@ namespace
     constexpr float MaximumDistance = 500.0f;
 }
 
-void FViewerPanel::DrawPanel()
-{
-    if (!ImGui::Begin("Viewer", nullptr, ImGuiWindowFlags_MenuBar))
-    {
-        ImGui::End();
-        return;
-    }
-
+void FViewerPanel::DrawContents() {
     DrawMenuBar();
     DrawPreview();
     //MeshHandle = Registry != nullptr ? Registry->GetAsset(FString("ObjImport")) : FAssetHandle{};
-    ImGui::End();
 }
 
 void FViewerPanel::DrawMenuBar()
