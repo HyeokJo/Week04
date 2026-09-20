@@ -46,6 +46,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> AtlasSRV;
 
     void Reset();
+    bool InitializeFont(ID3D11Device* Device, const std::filesystem::path& FontPath, uint32 BakePixelHeight, uint32 InAtlasWidth, uint32 InAtlasHeight);
     bool CreateAtlasTexture(ID3D11Device* Device);
 
 public:
@@ -54,7 +55,7 @@ public:
 	UFreeTypeFont() = default;
 	~UFreeTypeFont() override;
 
-    void Initialize(ID3D11Device* Device, const std::filesystem::path& MetadataPath) override;
+    bool Initialize(ID3D11Device* Device, const std::filesystem::path& FontPath, uint32 BakePixelHeight = 32, uint32 AtlasWidth = 4096, uint32 AtlasHeight = 4096);
     const FFontGlyph* GetOrCreateGlyph(char32_t CodePoint) override;
     const FFontMetrics& GetFontMetrics() const override;
     void FlushAtlas(ID3D11DeviceContext* Context) override;

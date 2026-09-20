@@ -56,12 +56,20 @@ void UBillboardTextComponent::SetFontHandle(FAssetHandle InFontHandle)
     }
 
     FontHandle = InFontHandle;
+    UWorld* World = GetBelongingWorld();
+    FAssetRegistry* AssetRegistry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    FontAssetPath = AssetRegistry != nullptr && AssetRegistry->GetAssetPath(FontHandle) != nullptr ? *AssetRegistry->GetAssetPath(FontHandle) : FAssetPath{};
+    FontAssetGuid = AssetRegistry != nullptr && AssetRegistry->GetAssetGuid(FontHandle) != nullptr ? *AssetRegistry->GetAssetGuid(FontHandle) : FGuid{};
     RebuildTextGeometry();
 }
 
 void UBillboardTextComponent::SetPipelineHandle(FAssetHandle InPipelineHandle)
 {
     PipelineHandle = InPipelineHandle;
+    UWorld* World = GetBelongingWorld();
+    FAssetRegistry* AssetRegistry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    PipelineAssetPath = AssetRegistry != nullptr && AssetRegistry->GetAssetPath(PipelineHandle) != nullptr ? *AssetRegistry->GetAssetPath(PipelineHandle) : FAssetPath{};
+    PipelineAssetGuid = AssetRegistry != nullptr && AssetRegistry->GetAssetGuid(PipelineHandle) != nullptr ? *AssetRegistry->GetAssetGuid(PipelineHandle) : FGuid{};
 }
 
 void UBillboardTextComponent::SetText(const FString& InText)
@@ -312,12 +320,12 @@ void UBillboardTextComponent::OnRegister()
         {
             if (AssetRegistry->ResolveAsset<UFont>(FontHandle) == nullptr)
             {
-                FontHandle = AssetRegistry->GetAsset("DefaultFont");
+                FontHandle = AssetRegistry->FindAsset(FAssetPath{ "/Game/Font/NotoSansKR-Medium.ttf" });
             }
 
             if (AssetRegistry->ResolveAsset<UPipeline>(PipelineHandle) == nullptr)
             {
-                PipelineHandle = AssetRegistry->GetAsset("TextPipeline");
+                PipelineHandle = AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/Text.json" });
             }
         }
 
@@ -371,6 +379,37 @@ void UBillboardTextComponent::DrawPanels(FPropertyEditorContext& Context)
 void UBillboardTextComponent::Serialize(FArchive& Archive)
 {
     UPrimitiveComponent::Serialize(Archive);
+    FAssetRegistry* AssetRegistry = Archive.GetAssetRegistry();
+    if (Archive.IsSaving() && AssetRegistry != nullptr)
+    {
+        if (const FAssetPath* AssetPath = AssetRegistry->GetAssetPath(FontHandle)) {
+            FontAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = AssetRegistry->GetAssetGuid(FontHandle)) {
+            FontAssetGuid = *AssetGuid;
+        }
+        if (const FAssetPath* AssetPath = AssetRegistry->GetAssetPath(PipelineHandle)) {
+            PipelineAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = AssetRegistry->GetAssetGuid(PipelineHandle)) {
+            PipelineAssetGuid = *AssetGuid;
+        }
+    }
+    Archive.Serialize("FontAssetGuid", FontAssetGuid);
+    Archive.Serialize("FontAssetPath", FontAssetPath.Path);
+    Archive.Serialize("PipelineAssetGuid", PipelineAssetGuid);
+    Archive.Serialize("PipelineAssetPath", PipelineAssetPath.Path);
+    if (Archive.IsLoading())
+    {
+        FontHandle = AssetRegistry != nullptr ? AssetRegistry->FindAsset(FontAssetGuid) : FAssetHandle{};
+        if (!FontHandle && AssetRegistry != nullptr) {
+            FontHandle = AssetRegistry->FindAsset(FontAssetPath);
+        }
+        PipelineHandle = AssetRegistry != nullptr ? AssetRegistry->FindAsset(PipelineAssetGuid) : FAssetHandle{};
+        if (!PipelineHandle && AssetRegistry != nullptr) {
+            PipelineHandle = AssetRegistry->FindAsset(PipelineAssetPath);
+        }
+    }
     Archive.Serialize("Text", Text);
     Archive.Serialize("Color", Color);
     Archive.Serialize("CharacterHeight", CharacterHeight);

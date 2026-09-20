@@ -1,5 +1,5 @@
 {
-	"BasicMesh" : false , 
-	"FilePath" : "./Content/ModelingFiles/Monkey.obj" , 
-	"MeshType" : "Monkey" ,
+    "BasicMesh": false,
+    "FilePath": "C:\\Users\\JUNGLE\\Week4\\Week04\\Content\\ModelingFiles\\Monkey.obj",
+    "MeshType": "Monkey"
 }

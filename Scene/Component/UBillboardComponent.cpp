@@ -20,31 +20,33 @@ void UBillboardComponent::Serialize(FArchive& Archive)
 {
     UPrimitiveComponent::Serialize(Archive);
 
-    FString TextureGuid;
-    if (Archive.IsSaving() && TextureHandle) {
-        if (UAsset* Asset = Archive.GetAssetRegistry()->ResolveAsset<UAsset>(TextureHandle)) {
-            TextureGuid = Asset->GetGuid().ToString();
+    FAssetRegistry* Registry = Archive.GetAssetRegistry();
+    if (Archive.IsSaving() && Registry != nullptr) {
+        if (const FAssetPath* AssetPath = Registry->GetAssetPath(TextureHandle)) {
+            TextureAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = Registry->GetAssetGuid(TextureHandle)) {
+            TextureAssetGuid = *AssetGuid;
+        }
+        if (const FAssetPath* AssetPath = Registry->GetAssetPath(PipelineHandle)) {
+            PipelineAssetPath = *AssetPath;
+        }
+        if (const FGuid* AssetGuid = Registry->GetAssetGuid(PipelineHandle)) {
+            PipelineAssetGuid = *AssetGuid;
         }
     }
-    Archive.Serialize("GuidTextureHandle", TextureGuid);
-    if (Archive.IsLoading() && !TextureGuid.empty()) {
-        FGuid Guid;
-        if (Guid.Parse(TextureGuid)) {
-            TextureHandle = Archive.GetAssetRegistry()->GetAsset(Guid);
+    Archive.Serialize("TextureAssetGuid", TextureAssetGuid);
+    Archive.Serialize("TextureAssetPath", TextureAssetPath.Path);
+    Archive.Serialize("PipelineAssetGuid", PipelineAssetGuid);
+    Archive.Serialize("PipelineAssetPath", PipelineAssetPath.Path);
+    if (Archive.IsLoading()) {
+        TextureHandle = Registry != nullptr ? Registry->FindAsset(TextureAssetGuid) : FAssetHandle{};
+        if (!TextureHandle && Registry != nullptr) {
+            TextureHandle = Registry->FindAsset(TextureAssetPath);
         }
-    }
-
-    FString PipelineGuid;
-    if (Archive.IsSaving() && PipelineHandle) {
-        if (UAsset* Asset = Archive.GetAssetRegistry()->ResolveAsset<UAsset>(PipelineHandle)) {
-            PipelineGuid = Asset->GetGuid().ToString();
-        }
-    }
-    Archive.Serialize("GuidPipelineHandle", PipelineGuid);
-    if (Archive.IsLoading() && !PipelineGuid.empty()) {
-        FGuid Guid;
-        if (Guid.Parse(PipelineGuid)) {
-            PipelineHandle = Archive.GetAssetRegistry()->GetAsset(Guid);
+        PipelineHandle = Registry != nullptr ? Registry->FindAsset(PipelineAssetGuid) : FAssetHandle{};
+        if (!PipelineHandle && Registry != nullptr) {
+            PipelineHandle = Registry->FindAsset(PipelineAssetPath);
         }
     }
 
@@ -68,11 +70,19 @@ bool UBillboardComponent::TryGetBillBoardWorld(FMatrix& OutWorld) const
 void UBillboardComponent::SetTextureHandle(FAssetHandle InTextureHandle)
 {
     TextureHandle = InTextureHandle;
+    UWorld* World = GetBelongingWorld();
+    FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    TextureAssetPath = Registry != nullptr && Registry->GetAssetPath(TextureHandle) != nullptr ? *Registry->GetAssetPath(TextureHandle) : FAssetPath{};
+    TextureAssetGuid = Registry != nullptr && Registry->GetAssetGuid(TextureHandle) != nullptr ? *Registry->GetAssetGuid(TextureHandle) : FGuid{};
 }
 
 void UBillboardComponent::SetPipelineHandle(FAssetHandle InPipelineHandle)
 {
     PipelineHandle = InPipelineHandle;
+    UWorld* World = GetBelongingWorld();
+    FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+    PipelineAssetPath = Registry != nullptr && Registry->GetAssetPath(PipelineHandle) != nullptr ? *Registry->GetAssetPath(PipelineHandle) : FAssetPath{};
+    PipelineAssetGuid = Registry != nullptr && Registry->GetAssetGuid(PipelineHandle) != nullptr ? *Registry->GetAssetGuid(PipelineHandle) : FGuid{};
 }
 
 void UBillboardComponent::SetSize(const FVector2& InSize)

@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "../Console/Console.h"
+#include "../../Serialize/FObjSerializer.h"
 
 bool FObjInporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 {
@@ -166,9 +167,24 @@ bool FObjInporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 	//가장 마지막 Face들의 개수를 SubMesh에 넣어준다.
 	ObjInfo.SubMesh.push_back(TempFaceCount);
 	TempFaceCount = 0;
+
+	if (Ispolygon)
+	{
+		BuildPolygonGeometry(ObjInfo, OutGeometry);
+	}
+	else
+	{
+		BuildGeometry(ObjInfo, OutGeometry);
+	}
+
+	//바이너리 저장
+	//FString BinaryName = "./Content/Meshes/" + ObjInfo.AssetName;
+	//임시 저장 파일 이름 : meta 데이터에 에셋 이름이 기록되면 수정한다.
+	FString BinaryName = "./Content/Meshes/ObjMesh.bin";
+	FObjSerializer::SaveBinary(OutGeometry, BinaryName);
 	
 	//다각형이 포함된 모델이라면 배열 조합을 다르게 처리한다.
-	return Ispolygon? BuildPolygonGeometry(ObjInfo, OutGeometry) : BuildGeometry(ObjInfo, OutGeometry);
+	return true;
 }
 
 bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
@@ -184,6 +200,20 @@ bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	OutGeometry.Normals.clear();
 	OutGeometry.TexCoords.clear();
 	OutGeometry.Indices.clear();
+	OutGeometry.MaterialFileName = ObjInfo.MaterialFileName;
+	OutGeometry.MaterialNames = ObjInfo.MaterialNames;
+	OutGeometry.SubMeshIndexCounts.clear();
+	OutGeometry.SubMeshIndexCounts.reserve(ObjInfo.SubMesh.size());
+
+	for (const int32 IndexCount : ObjInfo.SubMesh)
+	{
+		if (IndexCount < 0)
+		{
+			return false;
+		}
+
+		OutGeometry.SubMeshIndexCounts.push_back(static_cast<uint32>(IndexCount));
+	}
 
 	const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
 	const int32 UVCount = static_cast<int32>(ObjInfo.UVs.size());
@@ -252,6 +282,14 @@ bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	OutGeometry.Normals.clear();
 	OutGeometry.TexCoords.clear();
 	OutGeometry.Indices.clear();
+	OutGeometry.MaterialFileName = ObjInfo.MaterialFileName;
+	OutGeometry.MaterialNames = ObjInfo.MaterialNames;
+	OutGeometry.SubMeshIndexCounts.assign(ObjInfo.SubMesh.size(), 0);
+
+	if (ObjInfo.SubMesh.empty())
+	{
+		return false;
+	}
 
 	const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
 	const int32 UVCount = static_cast<int32>(ObjInfo.UVs.size());
@@ -274,6 +312,8 @@ bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 
 	//Face의 버텍스들을 순회할 인덱스
 	int32 FaceVertexIndex = 0;
+	size_t CurrentSubMeshIndex = 0;
+	int32 CurrentSubMeshSourceIndexCount = 0;
 
 	const TArray<FVector>& FacePositions = ObjInfo.Positions;
 	const TArray<FVector2>& FaceUVs = ObjInfo.UVs;
@@ -283,6 +323,15 @@ bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	//복사본으로 순회한다.
 	for (auto FaceVertics : ObjInfo.FaceVertices_Polygon)
 	{
+		const int32 FaceSourceIndexCount = static_cast<int32>(FaceVertics.size());
+
+		if (CurrentSubMeshIndex >= ObjInfo.SubMesh.size() ||
+			FaceSourceIndexCount > ObjInfo.SubMesh[CurrentSubMeshIndex] - CurrentSubMeshSourceIndexCount)
+		{
+			return false;
+		}
+
+		const size_t FirstGeneratedIndex = OutGeometry.Indices.size();
 		FaceVertexIndex = 0;
 
 		// 1개 면의 모음
@@ -359,7 +408,28 @@ bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		for (auto& Face : FaceVertics)
 		{
 			AddPNTIArray(Face, ObjInfo, OutGeometry, VertexCache);
-		}		
+		}
+
+		const size_t GeneratedIndexCount = OutGeometry.Indices.size() - FirstGeneratedIndex;
+
+		if (GeneratedIndexCount > std::numeric_limits<uint32>::max() - OutGeometry.SubMeshIndexCounts[CurrentSubMeshIndex])
+		{
+			return false;
+		}
+
+		OutGeometry.SubMeshIndexCounts[CurrentSubMeshIndex] += static_cast<uint32>(GeneratedIndexCount);
+		CurrentSubMeshSourceIndexCount += FaceSourceIndexCount;
+
+		if (CurrentSubMeshSourceIndexCount == ObjInfo.SubMesh[CurrentSubMeshIndex])
+		{
+			++CurrentSubMeshIndex;
+			CurrentSubMeshSourceIndexCount = 0;
+		}
+	}
+
+	if (CurrentSubMeshIndex != ObjInfo.SubMesh.size())
+	{
+		return false;
 	}
 
 	if (OutGeometry.Positions.empty() || OutGeometry.Indices.empty())

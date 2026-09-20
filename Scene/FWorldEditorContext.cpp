@@ -77,7 +77,7 @@ void FWorldEditorContext::InitializeChannels(FAssetRegistry& AssetRegistry, ID3D
 												  //meta 파일 생성 혹은 meta 파일 로드 시스템이 개선되면 수정이 필요합니다.
 												  if (ReWriteObjFilePath(Message.MetaPath, Message.FilePath))
 												  {
-													  AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
+													  //AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
 												  }
 											  });
 }

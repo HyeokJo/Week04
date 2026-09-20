@@ -87,8 +87,8 @@ bool UWorld::SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& Pipe
 	NameTagComponent->SetActive(false);
 	if (AssetRegistry != nullptr)
 	{
-		NameTagComponent->SetPipelineHandle(AssetRegistry->GetAsset("TextPipeline"));
-		NameTagComponent->SetFontHandle(AssetRegistry->GetAsset("DefaultFont"));
+		NameTagComponent->SetPipelineHandle(AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/Text.json" }));
+		NameTagComponent->SetFontHandle(AssetRegistry->FindAsset(FAssetPath{ "/Game/Font/NotoSansKR-Medium.ttf" }));
 	}
 
 	return true;
@@ -342,22 +342,10 @@ bool UWorld::SaveScene(const FString& SceneName, FAssetRegistry* AssetRegistry)
 	FArchiveJson ArchiveSave(Document, Allocator);
 	ArchiveSave.SetAssetRegistry(AssetRegistry);
 
-	auto AssetList = AssetRegistry->GetAssetList();
+	uint32 FormatVersion = 2;
+	ArchiveSave.Serialize("FormatVersion", FormatVersion);
 
-	size_t ArraySize = static_cast<size_t>(AssetList.size());
-	ArchiveSave.BeginArrayScope("Assets", ArraySize);
-
-	for (size_t Index : std::views::iota(size_t{ 0 }, std::ranges::size(AssetList))) {
-		UObject* Asset = AssetList[Index];
-
-		ArchiveSave.BeginObjectScope(std::to_string(Index));
-		Asset->Save(ArchiveSave);
-		ArchiveSave.EndObjectScope();
-	}
-
-	ArchiveSave.EndArrayScope();
-
-	ArraySize = static_cast<size_t>(Actors.size());
+	size_t ArraySize = static_cast<size_t>(Actors.size());
 	ArchiveSave.BeginArrayScope("Actors", ArraySize);
 	for (size_t CurrentIndex = 0, EndIndex = Actors.size(); CurrentIndex < EndIndex; ++CurrentIndex)
 	{
@@ -395,8 +383,9 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 
 	if (LoadDocument.HasParseError() ||
 		!LoadDocument.IsObject() ||
-		!LoadDocument.HasMember("Assets") ||
-		!LoadDocument["Assets"].IsArray() ||
+		!LoadDocument.HasMember("FormatVersion") ||
+		!LoadDocument["FormatVersion"].IsUint() ||
+		LoadDocument["FormatVersion"].GetUint() != 2 ||
 		!LoadDocument.HasMember("Actors") ||
 		!LoadDocument["Actors"].IsArray()) {
 		return false;
@@ -413,43 +402,6 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 		ResetWorld(AssetRegistry, Device);
 		return false;
 	};
-
-	// assets
-	for (const rapidjson::Value& AssetJson : LoadDocument["Assets"].GetArray()) {
-		if (!AssetJson.IsObject() ||
-			!AssetJson.HasMember("Guid") || !AssetJson["Guid"].IsString() ||
-			!AssetJson.HasMember("TypeName") || !AssetJson["TypeName"].IsString() ||
-			!AssetJson.HasMember("AssetName") || !AssetJson["AssetName"].IsString() ||
-			!AssetJson.HasMember("AssetMetaDataPath") || !AssetJson["AssetMetaDataPath"].IsString()) {
-			return FailLoad();
-		}
-
-		FGuid AssetGuid;
-		if (!AssetGuid.Parse(AssetJson["Guid"].GetString())) {
-			return FailLoad();
-		}
-
-		FString TypeName = AssetJson["TypeName"].GetString();
-		const FTypeInfo* Type = TypeRegistry::Find(TypeName);
-		if (Type == nullptr || Type->Creator == nullptr) {
-			return FailLoad();
-		}
-
-		FString AssetName = AssetJson["AssetName"].GetString();
-		FString MetadataPath = AssetJson["AssetMetaDataPath"].GetString();
-		std::unique_ptr<UObject> EmptyAsset = Type->Creator();
-
-		if (!AssetRegistry->AdoptAsset(
-			Device,
-			AssetGuid,
-			AssetName,
-			MetadataPath,
-			std::move(EmptyAsset))) {
-			return FailLoad();
-		}
-	}
-
-	AssetRegistry->Finalize();
 
 	// actor and component shells
 	for (rapidjson::Value& ActorJson : LoadDocument["Actors"].GetArray()) {
@@ -754,28 +706,16 @@ void UWorld::HandleSpawnComponent(
 	}
 
 	const bool bIsStaticMesh = ComponentType->IsA(UStaticMeshComponent::StaticTypeInfo());
-	const FAssetHandle MeshHandle = bIsStaticMesh ? AssetRegistry.GetAsset(Message.MeshType) : FAssetHandle{};
+	const FAssetHandle MeshHandle = bIsStaticMesh ? AssetRegistry.FindAsset(FAssetPath{ Message.MeshType }) : FAssetHandle{};
 	if (bIsStaticMesh && AssetRegistry.ResolveAsset<UMesh>(MeshHandle) == nullptr) {
 		return;
 	}
-	const FAssetHandle PipelineHandle = bIsStaticMesh ? AssetRegistry.GetAsset("BasePipeline") : FAssetHandle{};
+	const FAssetHandle PipelineHandle = bIsStaticMesh ? AssetRegistry.FindAsset(FAssetPath{ "/Game/Pipeline/Base" }) : FAssetHandle{};
 	const FAssetHandle Materials[] = {
-		AssetRegistry.GetAsset("GreyMaterial"),
-		AssetRegistry.GetAsset("RedMaterial"),
-		AssetRegistry.GetAsset("GreenMaterial"),
-		AssetRegistry.GetAsset("BlueMaterial"),
-		AssetRegistry.GetAsset("YellowMaterial"),
-		AssetRegistry.GetAsset("AmberMaterial"),
-		AssetRegistry.GetAsset("BrownMaterial"),
-		AssetRegistry.GetAsset("CyanMaterial"),
-		AssetRegistry.GetAsset("LimeMaterial"),
-		AssetRegistry.GetAsset("MagentaMaterial"),
-		AssetRegistry.GetAsset("NavyMaterial"),
-		AssetRegistry.GetAsset("OrangeMaterial"),
-		AssetRegistry.GetAsset("PinkMaterial"),
-		AssetRegistry.GetAsset("PurpleMaterial"),
-		AssetRegistry.GetAsset("TealMaterial"),
-		AssetRegistry.GetAsset("WhiteMaterial"),
+		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Default.mtl" }),
+		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Red.mtl" }),
+		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" }),
+		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Blue.mtl" })
 	};
 	std::uniform_int_distribution<size_t> MaterialIndex(0, std::size(Materials) - 1);
 	const FAssetHandle MaterialHandle = bIsStaticMesh ? Materials[MaterialIndex(RandomEngine)] : FAssetHandle{};

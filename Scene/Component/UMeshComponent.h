@@ -2,6 +2,8 @@
 
 #include "UPrimitiveComponent.h"
 #include "Core/Asset/FAssetHandle.h"
+#include "Core/Asset/FAssetPath.h"
+#include "Core/Base/FGuid.h"
 
 class UMesh;
 
@@ -25,4 +27,6 @@ protected:
     void Serialize(FArchive& Archive) override;
 private:
     FAssetHandle MeshHandle;
+    FAssetPath MeshAssetPath{};
+    FGuid MeshAssetGuid{};
 };

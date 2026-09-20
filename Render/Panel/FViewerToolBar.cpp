@@ -10,7 +10,7 @@ void FViewerToolBar::DrawPanel()
 
     if (ImGui::BeginMenu("Import"))
     {
-        if (ImGui::MenuItem("Open Model..."))
+        if (ImGui::MenuItem("Open Obj..."))
         {
            
         }

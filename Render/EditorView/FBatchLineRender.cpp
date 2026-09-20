@@ -12,8 +12,8 @@ void FBatchLineRenderer::Initialize(ID3D11Device* InDevice, uint32 InitialLineCa
 	DepthTestedPipeline = std::make_unique<UPipeline>();
 	OverlayPipeline = std::make_unique<UPipeline>();
 
-	DepthTestedPipeline->Initialize(Device, "./Content/Metadata/DepthTestedBatchLine.meta");
-	OverlayPipeline->Initialize(Device, "./Content/Metadata/OverlayBatchLine.meta");
+	ErrorHandler::Report(!DepthTestedPipeline->Initialize(Device, "./Content/Pipeline/BatchLineDepthTested.json"), "[ FBatchLineRenderer ]", "Failed to initialize the depth-tested batch line pipeline.", ErrorHandler::EErrorLevel::Critical);
+	ErrorHandler::Report(!OverlayPipeline->Initialize(Device, "./Content/Pipeline/BatchLineOverlay.json"), "[ FBatchLineRenderer ]", "Failed to initialize the overlay batch line pipeline.", ErrorHandler::EErrorLevel::Critical);
 
 	InitialLineCapacity = std::max(InitialLineCapacity * 2, 2u);
 
