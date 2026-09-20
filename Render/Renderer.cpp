@@ -89,8 +89,6 @@ void FRenderer::RenderScene(FRenderProbe& Probe) {
 	if (AssetRegistry != nullptr) {
 		AssetRegistry->GetMaterialBuffer().Flush(DeviceContext.Get());
 	}
-	DeviceContext->RSSetViewports(1, &SceneSurfaces[ActiveViewportId]->GetViewport());
-
 	RenderActorList(Probe.ActorProbes,Probe.MainCameraProbe);
 	RenderOutline(Probe.ActorProbes, Probe.MainCameraProbe);
 

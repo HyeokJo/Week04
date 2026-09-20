@@ -301,14 +301,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     FEditorUIManager EditorUIManager;
     #ifdef OBJ_VIEWER
-        EditorUIManager.InitializeViewer(World, EditorContext);
+        EditorUIManager.InitializeViewer(AssetRegistry, gHWND, EditorContext);
     #else
-        EditorUIManager.Initialize(World, EditorContext, gHWND, Renderer, AssetRegistry, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+        EditorUIManager.Initialize(World, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
     #endif
-    
-    
-
-    EditorUIManager.Initialize(World, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
@@ -404,6 +400,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			EditorUIManager.Tick();
 
 			std::array<FViewportFrame, FRenderer::ViewportCount> ViewportFrames{};
+			#ifndef OBJ_VIEWER
 			const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
 			bool bSplitterActive = false;
 
@@ -479,23 +476,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             World.Tick(DeltaTime);
 			EditorContext.Dispatch();
 
-			//UndoCommandChannel.Dispatch();
-
-			FRenderProbe& Probe{ World.BuildRenderProbe() };
-
-            #ifndef OBJ_VIEWER
-                EditorView.RenderInProbe(Probe);
-            #endif
-                Renderer.BeginSceneRender();
-                Renderer.RenderScene(Probe);
-            #ifndef OBJ_VIEWER
-                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
-                Renderer.RenderGizmos(Probe);
-                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
-            #endif
-
-			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
-			ImGui::End();
 			for (FRenderer::FViewportId Id = 0; Id < FRenderer::ViewportCount; ++Id) {
 				const FViewportFrame& Frame = ViewportFrames[Id];
 				if (!Frame.bVisible) {
@@ -512,6 +492,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 				Renderer.RenderText(Probe);
                 EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
 			}
+			#endif
 
 			ImGui::Render();
 			Renderer.BeginUiRender();

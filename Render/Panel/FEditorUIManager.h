@@ -26,9 +26,6 @@ public:
 
         HWND WindowHandle,
 
-        FRenderer& Renderer,
-        FAssetRegistry& AssetRegistry,
-
         FStateChannel<uint8>::FReadWriter GizmoSender,
         FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender
     )
@@ -67,17 +64,16 @@ public:
 			std::make_unique<FOutlinerPanel>(World, EditorContext)
 		);
 
-        Panels.emplace_back(
-            std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender())
-        );
+        AddViewerPanel(AssetRegistry, WindowHandle, EditorContext);
     }
 
-    void InitializeViewer(UWorld& World, FWorldEditorContext& EditorContext)
+    void InitializeViewer(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext)
     {
         Panels.emplace_back(
             std::make_unique<FViewerToolBar>(EditorContext)
         );
 
+        AddViewerPanel(AssetRegistry, WindowHandle, EditorContext);
     }
 
     void Tick()
@@ -106,5 +102,12 @@ public:
     }
 
 private:
+    void AddViewerPanel(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext)
+    {
+        Panels.emplace_back(
+            std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender())
+        );
+    }
+
     std::vector<std::unique_ptr<IEditorPanel>> Panels;
 };

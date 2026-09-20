@@ -1729,7 +1729,7 @@ ImGuiIO::ImGuiIO()
     // Viewport options (when ImGuiConfigFlags_ViewportsEnable is set)
     ConfigViewportsNoAutoMerge = false;
     ConfigViewportsNoTaskBarIcon = false;
-    ConfigViewportsNoDecoration = false;
+    ConfigViewportsNoDecoration = true;
     ConfigViewportsNoDefaultParent = true;
     ConfigViewportsPlatformFocusSetsImGuiFocus = true;
 
