@@ -10,14 +10,16 @@
 #include "FAssetBrowserPanel.h"
 #include "Outliner.h"
 #include "FViewerToolBar.h"
+#include "FViewportHostWindow.h"
 
 #include "Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
 
 class FEditorUIManager {
 public:
-    void Initialize(UWorld& World, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender) {
+    void Initialize(UWorld& World, FRenderer& Renderer, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender) {
         AddPanel(std::make_unique<FControlPanel>(EditorContext, WindowHandle, EditorContext.GetEditorToWorldSender()));
+        AddViewportHostWindow(Renderer);
         AddWindow(std::make_unique<FPropertyPanel>(EditorContext, std::move(GizmoSender), std::move(GizmoCoordinateSpaceSender)));
         AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle));
         AddWindow(std::make_unique<FStatPanel>(World));
@@ -33,6 +35,10 @@ public:
 
     void Tick() {
         DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        if (ViewportHostWindow != nullptr) {
+            ViewportHostWindow->PrepareFrame(DockSpaceId);
+        }
 
         for (const std::unique_ptr<IEditorPanel>& Element : Elements) {
             if (Element != nullptr && Element->IsVisible()) {
@@ -57,6 +63,10 @@ public:
         return Windows;
     }
 
+    FViewportHostWindow* GetViewportHostWindow() const {
+        return ViewportHostWindow;
+    }
+
 private:
     void AddPanel(std::unique_ptr<IEditorPanel> Panel) {
         Elements.emplace_back(std::move(Panel));
@@ -71,7 +81,14 @@ private:
         AddWindow(std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender()));
     }
 
+    void AddViewportHostWindow(FRenderer& Renderer) {
+        std::unique_ptr<FViewportHostWindow> Window = std::make_unique<FViewportHostWindow>(Renderer);
+        ViewportHostWindow = Window.get();
+        AddWindow(std::move(Window));
+    }
+
     std::vector<std::unique_ptr<IEditorPanel>> Elements;
     std::vector<FEditorWindow*> Windows;
+    FViewportHostWindow* ViewportHostWindow = nullptr;
     ImGuiID DockSpaceId = 0;
 };
