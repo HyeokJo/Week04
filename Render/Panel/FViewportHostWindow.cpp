@@ -7,7 +7,7 @@
 #include "Render/EditorView/EditorViewport.h"
 
 namespace {
-constexpr std::array<const char*, FViewportHostWindow::ViewportCount> ViewportChildIds{
+constexpr std::array<const char*, FViewportHostWindow::MaximumViewportCount> ViewportChildIds{
     "##SceneViewport0",
     "##SceneViewport1",
     "##SceneViewport2",
@@ -17,10 +17,8 @@ constexpr std::array<const char*, FViewportHostWindow::ViewportCount> ViewportCh
 
 FViewportHostWindow::FViewportHostWindow(FRenderer& InRenderer)
     : FEditorWindow("Viewports###SplitSceneViewport", ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
-    , Renderer(&InRenderer) {
-    TopSplit.SetChildren(&ViewportRegions[0], &ViewportRegions[1]);
-    BottomSplit.SetChildren(&ViewportRegions[2], &ViewportRegions[3]);
-    RootSplit.SetChildren(&TopSplit, &BottomSplit);
+    , Renderer(&InRenderer)
+    , Layout(FViewportLayout::CreateFourPane({ 0, 1, 2, 3 })) {
 }
 
 void FViewportHostWindow::PrepareFrame(ImGuiID InDockSpaceId) {
@@ -45,7 +43,7 @@ void FViewportHostWindow::ProcessInput(EditorViewport& Viewport, FKeyboardInput&
 }
 
 bool FViewportHostWindow::PrepareViewportForRender(FViewportId Id) {
-    if (Id >= ViewportCount || !ViewportFrames[Id].bVisible) {
+    if (Id >= MaximumViewportCount || !ViewportFrames[Id].bVisible) {
         return false;
     }
 
@@ -53,7 +51,42 @@ bool FViewportHostWindow::PrepareViewportForRender(FViewportId Id) {
     return true;
 }
 
+bool FViewportHostWindow::SplitViewport(FViewportId TargetViewportId, EViewportSplitDirection Direction) {
+    const FViewportId NewViewportId = FindAvailableViewportId();
+    if (NewViewportId >= MaximumViewportCount) {
+        return false;
+    }
+
+    return Layout.SplitLeaf(TargetViewportId, NewViewportId, Direction);
+}
+
+bool FViewportHostWindow::RemoveViewport(FViewportId ViewportId) {
+    if (!Layout.RemoveLeaf(ViewportId)) {
+        return false;
+    }
+
+    if (ActiveViewportId == ViewportId) {
+        std::vector<FViewportLeafNode*> Leaves;
+        Layout.CollectLeaves(Leaves);
+        ActiveViewportId = Leaves.front()->GetViewportId();
+    }
+
+    return true;
+}
+
+uint32 FViewportHostWindow::GetViewportCount() const {
+    return Layout.GetLeafCount();
+}
+
 void FViewportHostWindow::DrawContents() {
+    if (ImGui::Button("Cycle Viewports")) {
+        CycleViewportCount();
+    }
+
+    ImGui::SameLine();
+    ImGui::Text("Count: %u / %u", GetViewportCount(), MaximumViewportCount);
+    ImGui::Separator();
+
     const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
     const ImVec2 Origin = ImGui::GetCursorScreenPos();
     const ImVec2 AvailableSize = ImGui::GetContentRegionAvail();
@@ -65,28 +98,28 @@ void FViewportHostWindow::DrawContents() {
     }
 
     const FPoint Min{ static_cast<int32>(Origin.x), static_cast<int32>(Origin.y) };
-    RootSplit.SetRect({ Min, { Min.X + Width, Min.Y + Height } });
+    Layout.SetRect({ Min, { Min.X + Width, Min.Y + Height } });
 
-    const bool bRootSplitActive = DrawSplitterHandle("##RootSplit", RootSplit, ImGuiMouseCursor_ResizeNS);
-    const bool bTopSplitActive = DrawSplitterHandle("##TopSplit", TopSplit, ImGuiMouseCursor_ResizeEW);
-    const bool bBottomSplitActive = DrawSplitterHandle("##BottomSplit", BottomSplit, ImGuiMouseCursor_ResizeEW);
-
-    if (bTopSplitActive) {
-        BottomSplit.SetRatio(TopSplit.GetRatio());
-    }
-    else if (bBottomSplitActive) {
-        TopSplit.SetRatio(BottomSplit.GetRatio());
+    std::vector<FViewportSplitterNode*> Splitters;
+    Layout.CollectSplitters(Splitters);
+    for (FViewportSplitterNode* Splitter : Splitters) {
+        bSplitterActive = DrawSplitterHandle(*Splitter) || bSplitterActive;
     }
 
-    bSplitterActive = bRootSplitActive || bTopSplitActive || bBottomSplitActive;
+    if (bSplitterActive) {
+        Layout.RefreshLayout();
+    }
 
-    for (FViewportId Id = 0; Id < ViewportCount; ++Id) {
-        DrawViewport(Id, MainViewportPosition);
+    std::vector<FViewportLeafNode*> Leaves;
+    Layout.CollectLeaves(Leaves);
+    for (FViewportLeafNode* Leaf : Leaves) {
+        DrawViewport(Leaf->GetViewportId(), Leaf->GetRect(), MainViewportPosition);
     }
 
     const bool bHostFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-    for (FViewportId Id = 0; Id < ViewportCount; ++Id) {
-        ViewportFrames[Id].bFocused = bHostFocused && Id == ActiveViewportId;
+    for (FViewportLeafNode* Leaf : Leaves) {
+        FViewportFrame& Frame = ViewportFrames[Leaf->GetViewportId()];
+        Frame.bFocused = bHostFocused && Leaf->GetViewportId() == ActiveViewportId;
     }
 }
 
@@ -96,18 +129,34 @@ void FViewportHostWindow::PushWindowStyle() {
     }
 }
 
-bool FViewportHostWindow::DrawSplitterHandle(const char* Id, SSplitter& Splitter, ImGuiMouseCursor Cursor) {
+void FViewportHostWindow::CycleViewportCount() {
+    const uint32 NextViewportCount = GetViewportCount() >= MaximumViewportCount ? 1 : GetViewportCount() + 1;
+    Layout = FViewportLayout::CreateFourPane({ 0, 1, 2, 3 });
+
+    for (FViewportId Id = MaximumViewportCount; Id > NextViewportCount; --Id) {
+        Layout.RemoveLeaf(Id - 1);
+    }
+
+    ActiveViewportId = 0;
+    ViewportFrames.fill({});
+    bSplitterActive = false;
+}
+
+bool FViewportHostWindow::DrawSplitterHandle(FViewportSplitterNode& Splitter) {
     const FRect Rect = Splitter.GetHandleRect();
     if (Rect.IsEmpty()) {
         return false;
     }
 
     ImGui::SetCursorScreenPos(ImVec2(static_cast<float>(Rect.Min.X), static_cast<float>(Rect.Min.Y)));
-    ImGui::InvisibleButton(Id, ImVec2(static_cast<float>(Rect.GetWidth()), static_cast<float>(Rect.GetHeight())));
+    ImGui::PushID(&Splitter);
+    ImGui::InvisibleButton("##ViewportSplitter", ImVec2(static_cast<float>(Rect.GetWidth()), static_cast<float>(Rect.GetHeight())));
+    ImGui::PopID();
 
     const bool bHovered = ImGui::IsItemHovered();
     const bool bActive = ImGui::IsItemActive();
     if (bHovered || bActive) {
+        const ImGuiMouseCursor Cursor = Splitter.GetDirection() == EViewportSplitDirection::Horizontal ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeNS;
         ImGui::SetMouseCursor(Cursor);
     }
 
@@ -121,8 +170,7 @@ bool FViewportHostWindow::DrawSplitterHandle(const char* Id, SSplitter& Splitter
     return bActive;
 }
 
-void FViewportHostWindow::DrawViewport(FViewportId Id, const ImVec2& MainViewportPosition) {
-    const FRect& Rect = ViewportRegions[Id].GetRect();
+void FViewportHostWindow::DrawViewport(FViewportId Id, const FRect& Rect, const ImVec2& MainViewportPosition) {
     if (Rect.IsEmpty()) {
         return;
     }
@@ -163,4 +211,14 @@ void FViewportHostWindow::DrawViewport(FViewportId Id, const ImVec2& MainViewpor
 void FViewportHostWindow::ResizeViewportSurface(FViewportId Id) {
     const FViewportFrame& Frame = ViewportFrames[Id];
     Renderer->ResizeSceneSurface(Id, Frame.Width, Frame.Height, Frame.RenderLeft, Frame.RenderTop);
+}
+
+FViewportHostWindow::FViewportId FViewportHostWindow::FindAvailableViewportId() const {
+    for (FViewportId Id = 0; Id < MaximumViewportCount; ++Id) {
+        if (Layout.FindLeaf(Id) == nullptr) {
+            return Id;
+        }
+    }
+
+    return MaximumViewportCount;
 }

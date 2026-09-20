@@ -357,7 +357,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             World.Tick(DeltaTime);
 			EditorContext.Dispatch();
 
-			for (FRenderer::FViewportId Id = 0; Id < FViewportHostWindow::ViewportCount; ++Id) {
+			for (FRenderer::FViewportId Id = 0; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
 				if (!ViewportHostWindow->PrepareViewportForRender(Id)) {
 					continue;
 				}

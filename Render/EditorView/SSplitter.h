@@ -1,6 +1,20 @@
 #pragma once
 
+#include <memory>
+
 #include "SWindow.h"
+
+class FSplitterRatio {
+public:
+    explicit FSplitterRatio(float InValue = 0.5f);
+
+    float GetValue() const;
+    void SetValue(float InValue);
+    bool SharesStateWith(const FSplitterRatio& Other) const;
+
+private:
+    std::shared_ptr<float> Value;
+};
 
 class SSplitter : public SWindow {
 public:
@@ -10,7 +24,9 @@ public:
     }
 
     void SetRatio(float InRatio);
-    float GetRatio() const { return Ratio; }
+    float GetRatio() const { return Ratio.GetValue(); }
+    void SetRatioState(const FSplitterRatio& InRatio);
+    const FSplitterRatio& GetRatioState() const { return Ratio; }
     const FRect& GetHandleRect() const { return HandleRect; }
 
     virtual void DragTo(FPoint Point) = 0;
@@ -22,7 +38,7 @@ protected:
     SWindow* Second{ nullptr };
     FRect HandleRect{};
     int32 HandleThickness{ 6 };
-    float Ratio{ 0.5f };
+    FSplitterRatio Ratio{};
     int32 MinimumSideSize{ 100 };
 };
 

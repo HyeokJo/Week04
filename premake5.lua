@@ -119,6 +119,10 @@ project "MacawTests"
         "NOMINMAX",
     }
 
+    buildoptions {
+        "/utf-8",
+    }
+
     -- 테스트는 실제 엔진 소스를 함께 링크하되, Win32/ImGui 에디터 진입점은 제외한다.
     files {
         "**.h",
@@ -130,6 +134,8 @@ project "MacawTests"
         "FName.cpp",
         "city.cc",
         "Render/Panel/FPropertyEditorContext.cpp",
+        "Render/EditorView/FViewportLayout.cpp",
+        "Render/EditorView/SSplitter.cpp",
         "Render/Pipeline/**.cpp",
         "ImGui/imgui.cpp",
         "ImGui/imgui_draw.cpp",

@@ -3,7 +3,7 @@
 #include <array>
 
 #include "FEditorWindow.h"
-#include "Render/EditorView/SSplitter.h"
+#include "Render/EditorView/FViewportLayout.h"
 #include "Render/Renderer.h"
 
 class EditorViewport;
@@ -12,14 +12,19 @@ class FMouseInput;
 
 class FViewportHostWindow final : public FEditorWindow {
 public:
-    using FViewportId = FRenderer::FViewportId;
-    static constexpr uint32 ViewportCount = FRenderer::ViewportCount;
+    using FViewportId = ::FViewportId;
+    static constexpr uint32 MaximumViewportCount = FViewportLayout::MaximumViewportCount;
+
+    static_assert(MaximumViewportCount <= FRenderer::ViewportCount);
 
     explicit FViewportHostWindow(FRenderer& InRenderer);
 
     void PrepareFrame(ImGuiID InDockSpaceId);
     void ProcessInput(EditorViewport& Viewport, FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, float DeltaTime);
     bool PrepareViewportForRender(FViewportId Id);
+    bool SplitViewport(FViewportId TargetViewportId, EViewportSplitDirection Direction);
+    bool RemoveViewport(FViewportId ViewportId);
+    uint32 GetViewportCount() const;
 
 private:
     struct FViewportFrame {
@@ -36,16 +41,15 @@ private:
 
     void DrawContents() override;
     void PushWindowStyle() override;
-    bool DrawSplitterHandle(const char* Id, SSplitter& Splitter, ImGuiMouseCursor Cursor);
-    void DrawViewport(FViewportId Id, const ImVec2& MainViewportPosition);
+    void CycleViewportCount();
+    bool DrawSplitterHandle(FViewportSplitterNode& Splitter);
+    void DrawViewport(FViewportId Id, const FRect& Rect, const ImVec2& MainViewportPosition);
     void ResizeViewportSurface(FViewportId Id);
+    FViewportId FindAvailableViewportId() const;
 
     FRenderer* Renderer = nullptr;
-    std::array<SWindow, ViewportCount> ViewportRegions{};
-    std::array<FViewportFrame, ViewportCount> ViewportFrames{};
-    SSplitterH RootSplit{};
-    SSplitterV TopSplit{};
-    SSplitterV BottomSplit{};
+    FViewportLayout Layout;
+    std::array<FViewportFrame, MaximumViewportCount> ViewportFrames{};
     FViewportId ActiveViewportId = 0;
     ImGuiID DockSpaceId = 0;
     bool bSplitterActive = false;
