@@ -27,7 +27,7 @@ void FViewerPanel::DrawPanel()
 
     DrawMenuBar();
     DrawPreview();
-    MeshHandle = Registry != nullptr ? Registry->GetAsset(FString("ObjImport")) : FAssetHandle{};
+    //MeshHandle = Registry != nullptr ? Registry->GetAsset(FString("ObjImport")) : FAssetHandle{};
     ImGui::End();
 }
 
@@ -78,7 +78,7 @@ void FViewerPanel::DrawMenuBar()
         {
             if (ImGui::MenuItem(Name))
             {
-                MeshHandle = Registry != nullptr ? Registry->GetAsset(Name) : FAssetHandle{};
+                //MeshHandle = Registry != nullptr ? Registry->GetAsset(Name) : FAssetHandle{};
             }
         }
 
@@ -164,15 +164,15 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() const
     FAssetHandle Mesh = MeshHandle;
     if (!Mesh)
     {
-        Mesh = Registry->GetAsset("CubeMesh");
+        //Mesh = Registry->GetAsset("CubeMesh");
     }
 
     if (Mesh)
     {
         FActorProbe ActorProbe{};
         ActorProbe.MeshHandle = Mesh;
-        ActorProbe.MaterialHandle = Registry->GetAsset("GreyMaterial");
-        ActorProbe.PipelineHandle = Registry->GetAsset("BasePipeline");
+        //ActorProbe.MaterialHandle = Registry->GetAsset("GreyMaterial");
+        //ActorProbe.PipelineHandle = Registry->GetAsset("BasePipeline");
 
         Probe.ActorProbes.push_back(ActorProbe);
     }
