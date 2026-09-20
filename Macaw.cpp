@@ -68,6 +68,7 @@
 
 #include "Scene/Component/UBillboardComponent.h"
 #include "Scene/Component/USubUVComponent.h"
+#include "TObjectIterator.h"
 
 #define MAX_LOADSTRING 100
 
@@ -325,7 +326,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
   
 	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
-  
+
     AssetRegistry.Finalize(); 
 
     IMGUI_CHECKVERSION();
