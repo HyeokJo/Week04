@@ -134,7 +134,7 @@ project "MacawTests"
         "FName.cpp",
         "city.cc",
         "Render/Panel/FPropertyEditorContext.cpp",
-        "Render/EditorView/FViewportLayout.cpp",
+        "Render/EditorView/FViewportPresetLayout.cpp",
         "Render/EditorView/SSplitter.cpp",
         "Render/Pipeline/**.cpp",
         "ImGui/imgui.cpp",
