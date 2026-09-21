@@ -41,7 +41,7 @@ bool FObjSerializer::SaveBinary(const FGeometry& GeometryData, const FString& Fi
 	//Material Names
 	uint32 MaterialNamesCount = static_cast<uint32>(GeometryData.MaterialNames.size());
 	Out.write(reinterpret_cast<const char*>(&MaterialNamesCount), sizeof(MaterialNamesCount));
-	for (int i = 0; i < MaterialNamesCount; i++)
+	for (uint32 i = 0; i < MaterialNamesCount; i++)
 	{
 		WriteFString(Out, GeometryData.MaterialNames[i]);
 	}
@@ -102,7 +102,7 @@ bool FObjSerializer::LoadBinary(const FString& FilePath, FGeometry& OutGeoData)
 	uint32 MaterialNamesCount = 0;
 	In.read(reinterpret_cast<char*>(&MaterialNamesCount), sizeof(MaterialNamesCount));
 	OutGeoData.MaterialNames.resize(MaterialNamesCount);
-	for (int i = 0; i < MaterialNamesCount; i++)
+	for (uint32 i = 0; i < MaterialNamesCount; i++)
 	{
 		ReadFString(In, OutGeoData.MaterialNames[i]);
 	}

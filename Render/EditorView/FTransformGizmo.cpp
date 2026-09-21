@@ -868,10 +868,10 @@ void FTransformGizmo::RefreshAssetHandles() {
 		return;
 	}
 
-	CylinderMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cylinder.obj" });
-	ConeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cone.obj" });
-	CubeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.obj" });
-	GizmoTorusMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Torus.obj" });
+	CylinderMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cylinder.bin" });
+	ConeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cone.bin" });
+	CubeMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.bin" });
+	GizmoTorusMesh = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Mesh/Torus.bin" });
 	RedMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Red.mtl" });
 	GreenMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" });
 	BlueMaterial = AssetRegistry->FindAsset(FAssetPath{ "/Game/System/Material/Blue.mtl" });

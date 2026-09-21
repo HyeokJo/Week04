@@ -71,17 +71,7 @@ void FWorldEditorContext::InitializeChannels(FAssetRegistry& AssetRegistry, ID3D
     EditorToWorld.TryBind<FMessageLoadScene>([this, &AssetRegistry, Device](const FMessageLoadScene& Message) {
         World->LoadScene(std::filesystem::path(Message.FilePath.c_str()), Device, &AssetRegistry);
     });
-	EditorToWorld.TryBind<FMessageImportMesh>([this, &AssetRegistry, Device](const FMessageImportMesh& Message)
-											  {
-												  ////OBJ 로드에 사용하는 MonkeyMesh.meta 파일 내부의 로드할 Obj 파일 경로를 수정합니다.
-												  ////meta 파일 생성 혹은 meta 파일 로드 시스템이 개선되면 수정이 필요합니다.
-												  //if (ReWriteObjFilePath(Message.MetaPath, Message.FilePath))
-												  //{
-													 // //AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
-												  //}
 
-			AssetRegistry.LoadExternAsset(std::filesystem::path{ Message.FilePath.c_str() }, EAssetType::Mesh);
-											  });
 }
 
 void FWorldEditorContext::Dispatch() {

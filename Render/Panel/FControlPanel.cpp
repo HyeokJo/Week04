@@ -26,10 +26,10 @@ void FControlPanel::DrawPanel()
 
     const char* PrimitiveMeshTypes[] =
     {
-        "/Game/System/Mesh/Cube.obj", "/Game/System/Mesh/Sphere.obj",
-        "/Game/System/Mesh/Plane.obj", "/Game/System/Mesh/Cylinder.obj",
-		"/Game/System/Mesh/Capsule.obj", "/Game/System/Mesh/Cone.obj",
-		"/Game/System/Mesh/Torus.obj", "/Game/System/Mesh/Pyramid.obj"
+        "/Game/System/Mesh/Cube.bin", "/Game/System/Mesh/Sphere.bin",
+        "/Game/System/Mesh/Plane.bin", "/Game/System/Mesh/Cylinder.bin",
+		"/Game/System/Mesh/Capsule.bin", "/Game/System/Mesh/Cone.bin",
+		"/Game/System/Mesh/Torus.bin", "/Game/System/Mesh/Pyramid.bin"
     };
 
     // Create: 기존의 Primitive 생성/삭제 기능을 한 그룹으로 유지한다.

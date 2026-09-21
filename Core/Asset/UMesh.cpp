@@ -6,39 +6,43 @@
 #include "FObjImporter.h"
 #include "../../Serialize/FObjSerializer.h"
 
-bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
-	if (!UAsset::Initialize(Device, ObjPath)) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model load rejected: device or OBJ path is invalid.");
+bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
+	const std::filesystem::path& AssetPath = SourceObjPath.empty() ? BinaryPath : SourceObjPath;
+	if (!UAsset::Initialize(Device, AssetPath) || BinaryPath.empty()) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model load rejected: device or asset path is invalid.");
 		return false;
 	}
 
 	FObjImporter ObjImporter{};
 	FGeometry Geometry{};
-	std::filesystem::path BinaryPath = ObjPath;
-	BinaryPath.replace_extension(".bin");
 
 	std::error_code FileSystemError{};
-	const bool bHasBinarySidecar = std::filesystem::is_regular_file(BinaryPath, FileSystemError);
-	const bool bLoadedFromBinary = /*bHasBinarySidecar && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);*/ false; 
+	const bool bHasBinary = std::filesystem::is_regular_file(BinaryPath, FileSystemError);
+	const bool bLoadedFromBinary = bHasBinary && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);
 
 	if (bLoadedFromBinary) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Loaded model binary sidecar: %s", BinaryPath.generic_string().c_str());
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Loaded model binary: %s", BinaryPath.generic_string().c_str());
 	}
 	else {
-		if (!ObjImporter.LoadObjFile(ObjPath.string().c_str(), Geometry)) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", ObjPath.generic_string().c_str());
+		if (SourceObjPath.empty()) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to load standalone model binary: %s", BinaryPath.generic_string().c_str());
 			return false;
 		}
-		if (bHasBinarySidecar) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary sidecar; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
+
+		if (bHasBinary) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
 		}
 
+		if (!ObjImporter.LoadObjFile(SourceObjPath.string().c_str(), Geometry)) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", SourceObjPath.generic_string().c_str());
+			return false;
+		}
 
 		if (!FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to create model binary sidecar: %s", BinaryPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to create model binary: %s", BinaryPath.generic_string().c_str());
 		}
 		else {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Created model binary sidecar: %s", BinaryPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Created model binary: %s", BinaryPath.generic_string().c_str());
 		}
 	}
 
@@ -54,7 +58,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 	FAssetHandle ImportedMaterial{};
 
 	if (!Geometry.MaterialFileName.empty()) {
-		const std::filesystem::path MaterialPath = (ObjPath.parent_path() / std::filesystem::path(Geometry.MaterialFileName.c_str())).lexically_normal();
+		const std::filesystem::path MaterialPath = (AssetPath.parent_path() / std::filesystem::path(Geometry.MaterialFileName.c_str())).lexically_normal();
 		if (MaterialResolver) {
 			ImportedMaterial = MaterialResolver(MaterialPath);
 		}
@@ -68,7 +72,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 	ImportedSubMeshes.reserve(Geometry.SubMeshIndexCounts.size());
 
 	if (Geometry.MaterialNames.size() != Geometry.SubMeshIndexCounts.size()) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model material group count does not match submesh count: %s", ObjPath.generic_string().c_str());
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model material group count does not match submesh count: %s", AssetPath.generic_string().c_str());
 		return false;
 	}
 
@@ -80,7 +84,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 		SubMesh.IndexCount = Geometry.SubMeshIndexCounts[SubMeshIndex];
 
 		if (SubMesh.FirstIndex > Geometry.Indices.size() || SubMesh.IndexCount > Geometry.Indices.size() - SubMesh.FirstIndex) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model submesh index range is invalid: %s", ObjPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model submesh index range is invalid: %s", AssetPath.generic_string().c_str());
 			return false;
 		}
 
@@ -94,11 +98,11 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 					SubMesh.MaterialGroupIndex = *MaterialGroupIndex;
 				}
 				else {
-					Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL group was not found; using material group 0: %s in %s", MaterialName.c_str(), ObjPath.generic_string().c_str());
+					Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL group was not found; using material group 0: %s in %s", MaterialName.c_str(), AssetPath.generic_string().c_str());
 				}
 			}
 			else {
-				Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model has no usable MTL; using material group 0: %s", ObjPath.generic_string().c_str());
+				Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model has no usable MTL; using material group 0: %s", AssetPath.generic_string().c_str());
 			}
 		}
 
@@ -109,7 +113,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 		MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
 		MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
 		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords))) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", ObjPath.generic_string().c_str());
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", AssetPath.generic_string().c_str());
 		return false;
 	}
 

@@ -35,7 +35,7 @@
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
                     "MeshAssetGuid": "BDA1494B-A898-42A7-8140-350700710265",
-                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.obj",
+                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.bin",
                     "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
                     "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
                     "PipelineAssetGuid": "F87D7EE1-CA4D-4FB0-BE1E-00426AD19308",
@@ -78,7 +78,7 @@
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
                     "MeshAssetGuid": "BDA1494B-A898-42A7-8140-350700710265",
-                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.obj",
+                    "MeshAssetPath": "/Game/System/Mesh/SkyDome.bin",
                     "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
                     "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
                     "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
@@ -113,7 +113,7 @@
                     "Parent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "bVisible": true,
                     "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -148,7 +148,7 @@
                     "Parent": "95AB3CB3-4A2B-8A4C-57D1-D1AEA8F3FB34",
                     "bVisible": true,
                     "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -183,7 +183,7 @@
                     "Parent": "AD4A45EE-45F2-6C07-5788-F9A9DFABAECF",
                     "bVisible": true,
                     "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -218,7 +218,7 @@
                     "Parent": "14E2A37D-4097-0231-E308-99B0FDAD2EBC",
                     "bVisible": true,
                     "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -336,7 +336,7 @@
                     "Transform": {
                         "Position": [
                             12.0,
-                            0.0,
+                            2.0,
                             7.0
                         ],
                         "Rotation": [
@@ -356,8 +356,8 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetGuid": "CE62691A-4CB0-B760-42F8-E79C88DC0146",
+                    "MeshAssetPath": "/Game/Models/Monkey/Torus_ZUp.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -414,7 +414,7 @@
                     "Guid": "D3161E70-4CDE-BA0E-058C-979DAC44EC6B",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
-                    "bActive": false,
+                    "bActive": true,
                     "Transform": {
                         "Position": [
                             0.0,
@@ -496,7 +496,7 @@
                     "Parent": "5DB1E24C-47D7-A211-AC7E-F4A597F642A8",
                     "bVisible": true,
                     "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
-                    "MeshAssetPath": "/Game/Models/Cube/Cube.obj",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -683,12 +683,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.75
+                        0.75,
+                        0.5
                     ],
                     "UVMax": [
-                        0.25,
-                        1.0
+                        1.0,
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -748,11 +748,11 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
+                        0.75,
                         0.5
                     ],
                     "UVMax": [
-                        0.5,
+                        1.0,
                         0.75
                     ],
                     "Color": [
@@ -813,12 +813,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.0
+                        0.5,
+                        0.5
                     ],
                     "UVMax": [
-                        0.25,
-                        0.25
+                        0.75,
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -879,11 +879,11 @@
                     ],
                     "UVMin": [
                         0.25,
-                        0.75
+                        0.25
                     ],
                     "UVMax": [
                         0.5,
-                        1.0
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -935,7 +935,7 @@
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
                     "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
-                    "MeshAssetPath": "/Game/Models/Monkey/Monkey.obj",
+                    "MeshAssetPath": "/Game/Models/Monkey/Monkey.bin",
                     "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
                     "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
                     "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
@@ -1084,98 +1084,6 @@
                 }
             ],
             "GuidRootComponent": "DF0CA3E5-4001-1D10-0681-239C4A602D1C"
-        },
-        {
-            "Guid": "5DC9FC6F-4CB0-C8A3-49E4-09926D60BCCF",
-            "TypeName": "AActor",
-            "Name": "AActor_7",
-            "Components": [
-                {
-                    "Guid": "93708C70-4F57-39B9-04CC-9595A5F2DDDB",
-                    "TypeName": "UStaticMeshComponent",
-                    "Name": "",
-                    "bActive": true,
-                    "Transform": {
-                        "Position": [
-                            -3.796109676361084,
-                            4.758771896362305,
-                            2.979534864425659
-                        ],
-                        "Rotation": [
-                            0.0,
-                            0.0,
-                            0.0,
-                            1.0
-                        ],
-                        "Scale": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ],
-                        "bAbsoluteLocation": false,
-                        "bAbsoluteRotation": false,
-                        "bAbsoluteScale": false
-                    },
-                    "Parent": "00000000-0000-0000-0000-000000000000",
-                    "bVisible": true,
-                    "MeshAssetGuid": "3680945E-48C7-FD3F-9693-2791B4BDC250",
-                    "MeshAssetPath": "/Game/multi_Textrued Cube_Relative/multi_Textrued Cube_Relative.obj",
-                    "MaterialAssetGuid": "6C0DD15D-4CB3-4432-3E25-25986F2ED62A",
-                    "MaterialAssetPath": "/Game/multi_Textrued Cube_Relative/multi_Textrued_Cube_Relative.mtl",
-                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
-                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
-                },
-                {
-                    "Guid": "C47BD76E-4CE7-7E81-3DF1-BAB5379E9EDA",
-                    "TypeName": "UNameTagComponent",
-                    "Name": "",
-                    "bActive": false,
-                    "Transform": {
-                        "Position": [
-                            0.0,
-                            0.0,
-                            0.0
-                        ],
-                        "Rotation": [
-                            0.0,
-                            0.0,
-                            0.0,
-                            1.0
-                        ],
-                        "Scale": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ],
-                        "bAbsoluteLocation": false,
-                        "bAbsoluteRotation": false,
-                        "bAbsoluteScale": false
-                    },
-                    "Parent": "00000000-0000-0000-0000-000000000000",
-                    "bVisible": true,
-                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
-                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
-                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
-                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
-                    "Text": "5DC9FC6F-4CB0-C8A3-49E4-09926D60BCCF",
-                    "Color": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                    ],
-                    "CharacterHeight": 1.0,
-                    "LetterSpacing": 0.0,
-                    "LineSpacing": 0.0,
-                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
-                    "TargetLocalOffset": [
-                        0.0,
-                        1.0,
-                        0.0
-                    ]
-                }
-            ],
-            "GuidRootComponent": "93708C70-4F57-39B9-04CC-9595A5F2DDDB"
         }
     ]
 }
