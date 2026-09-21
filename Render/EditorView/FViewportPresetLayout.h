@@ -42,6 +42,9 @@ public:
     const FRect& GetViewportRect(FViewportId ViewportId) const;
     void CollectSplitters(std::vector<SSplitter*>& OutSplitters) const;
 
+    void GetSplitterRatios(std::array<float, MaximumSplitterCount>& OutRatios, uint32& OutCount) const;
+    bool RestoreSplitterRatios(const std::array<float, MaximumSplitterCount>& Ratios, uint32 RatioCount);
+
 private:
     SSplitter* AddTopBottomSplitter(SWindow* First, SWindow* Second, float Ratio = 0.5f, const FSplitterRatio* SharedRatio = nullptr);
     SSplitter* AddLeftRightSplitter(SWindow* First, SWindow* Second, float Ratio = 0.5f, const FSplitterRatio* SharedRatio = nullptr);

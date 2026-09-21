@@ -396,6 +396,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
     
     EditorSettings = EditorContext.GetEditorSettings();
+    // 마지막에 사용한 viewport 저장
+    if (FViewportHostWindow* Host =
+        EditorUIManager.GetViewportHostWindow()) {
+        Host->CaptureLayoutSettings(EditorSettings);
+    }
     FEditorConfigManager::Save(EditorSettings);
 
     // ImGui 소멸
