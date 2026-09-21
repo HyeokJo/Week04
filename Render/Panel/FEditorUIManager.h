@@ -25,12 +25,12 @@ public:
         AddWindow(std::make_unique<FStatPanel>(World));
         AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry));
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
-        AddViewerWindow(AssetRegistry, WindowHandle, EditorContext);
+        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
     }
 
     void InitializeViewer(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext) {
         AddPanel(std::make_unique<FViewerToolBar>(EditorContext));
-        AddViewerWindow(AssetRegistry, WindowHandle, EditorContext);
+        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
     }
 
     void Tick() {
@@ -85,7 +85,7 @@ private:
         Elements.emplace_back(std::move(Window));
     }
 
-    void AddViewerWindow(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext) {
+    void AddViewerWindow(FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FWorldEditorContext& EditorContext2) {
         AddWindow(std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender()));
     }
 

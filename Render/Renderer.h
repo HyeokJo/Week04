@@ -44,9 +44,9 @@ public:
 	void BeginUiRender();
 	void RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera, const FRenderSettings& Settings);
 	void RenderGizmos(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera);
-	void RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera);
+	void RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bRenderSky = true);
 	void RenderText(const FRenderProbe& Probe, const CameraProbe& Camera);
-	void RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline = false);
+	void RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline = false, bool bRenderSky = true);
 	void EndFrame();
 
 	ID3D11Device* GetDevice() const { return Device.Get(); }

@@ -49,7 +49,7 @@ void FViewerPanel::DrawMenuBar()
 
             FString FilePath = OpenFileDialog(FString("./Content/ModelingFiles"), OpenFileName);
 
-            EditorToWorldSender.TryEmplace<FMessageImportMesh>(FString("ObjImport"), FString(FilePath), FString("./Content/Metadata/MonkeyMesh.meta"));
+            EditorToWorldSender.TryEmplace<FMessageImportMesh>(FString("ObjImport"), FString(FilePath), FString(""));
 
             
         }
@@ -60,17 +60,49 @@ void FViewerPanel::DrawMenuBar()
     if (ImGui::BeginMenu("Asset"))
     {
         static const char* const MeshNames[]{
-            "CubeMesh", "SphereMesh", "ConeMesh", "CapsuleMesh",
-            "CylinderMesh", "TorusMesh", "PlaneMesh"
+            "/Game/System/Mesh/Cube.obj", "/Game/System/Mesh/Sphere.obj", "/Game/System/Mesh/Cone.obj", "/Game/System/Mesh/Capsule.obj",
+            "/Game/System/Mesh/Cylinder.obj", "/Game/System/Mesh/Torus.obj", "/Game/System/Mesh/Plane.obj"
         };
 
-        for (const char* Name : MeshNames)
-        {
-            if (ImGui::MenuItem(Name))
-            {
-                //MeshHandle = Registry != nullptr ? Registry->GetAsset(Name) : FAssetHandle{};
-            }
+
+
+        UAsset* Current = Registry->ResolveAsset<UAsset>(MeshHandle);
+        if (Current != nullptr && !Current->GetTypeInfo()->IsA(Current->GetTypeInfo())) {
+            Current = nullptr;
         }
+        const FString PreviewName = Current != nullptr ? Current->GetAssetName() : FString("None");
+        if (ImGui::BeginCombo("Label", PreviewName.c_str())) {
+            if (ImGui::Selectable("None", Current == nullptr)) {
+                MeshHandle = {};
+            }
+            for (const FAssetEntry& Entry : Registry->GetAssetEntries()) {
+                if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(Current->GetTypeInfo())) {
+                    continue;
+                }
+                UAsset* Asset = Entry.Asset.get();
+                const FString& Name = Entry.AssetPath.Path;
+                ImGui::PushID(Asset);
+                if (ImGui::Selectable(Name.c_str(), Asset == Current)) {
+				    MeshHandle = Entry.Handle;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+        
+
+        //for (const char* Name : MeshNames)
+        //{
+        //    if (ImGui::MenuItem(Name))
+        //    {
+        //        //MeshHandle = Registry != nullptr ? Registry->GetAsset(Name) : FAssetHandle{};
+        //        MeshHandle = Registry != nullptr ? Registry->FindAsset(FAssetPath{ Name }) : FAssetHandle{};
+        //    }
+        //}
+
+
+
+
 
         ImGui::EndMenu();
     }
@@ -141,7 +173,7 @@ FMatrix FViewerPanel::MakeCameraWorldMatrix(
 }
 
 
-FRenderProbe FViewerPanel::BuildPreviewProbe() const
+FRenderProbe FViewerPanel::BuildPreviewProbe()
 {
     FRenderProbe Probe{};
 
@@ -154,15 +186,16 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() const
     FAssetHandle Mesh = MeshHandle;
     if (!Mesh)
     {
-        //Mesh = Registry->GetAsset("CubeMesh");
+		MeshHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.obj" });
+        Mesh = MeshHandle;
     }
 
     if (Mesh)
     {
         FActorProbe ActorProbe{};
         ActorProbe.MeshHandle = Mesh;
-        //ActorProbe.MaterialHandle = Registry->GetAsset("GreyMaterial");
-        //ActorProbe.PipelineHandle = Registry->GetAsset("BasePipeline");
+		ActorProbe.MaterialHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" });
+		ActorProbe.PipelineHandle = Registry->FindAsset(FAssetPath{ "/Game/Pipeline/Base" });
 
         Probe.ActorProbes.push_back(ActorProbe);
     }

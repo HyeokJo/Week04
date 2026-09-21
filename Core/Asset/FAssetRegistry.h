@@ -46,6 +46,8 @@ public:
 
     bool RemoveAsset(FAssetHandle Handle);
 
+    FAssetHandle LoadExternAsset(const std::filesystem::path& PhysicalPath, EAssetType AssetType); 
+
     template<typename T>
     requires std::is_base_of_v<UAsset, T>
     T* ResolveAsset(FAssetHandle Handle) {

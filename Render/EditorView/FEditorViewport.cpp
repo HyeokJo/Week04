@@ -15,6 +15,9 @@ FEditorViewport::FEditorViewport(FViewportId InViewportId, ID3D11Device* InDevic
     , EditorContext(&InEditorContext)
     , ViewportId(InViewportId)
     , ProjectionType(InViewportId == 0 ? EProjectionType::Perspective : EProjectionType::Orthographic) {
+    CameraRotation.Normalize();
+    RenderSettings.bRenderSky = ProjectionType == EProjectionType::Perspective;
+
     if (Device != nullptr) {
         RenderSurface.InitializeOffscreen(Device, 1, 1);
     }
@@ -130,7 +133,7 @@ void FEditorViewport::ResizeRenderSurface() {
 }
 
 bool FEditorViewport::BuildCameraProbe(CameraProbe& OutCamera) {
-    if (!InitializeCameraFromWorldState() || Width == 0 || Height == 0) {
+    if (Width == 0 || Height == 0) {
         return false;
     }
 
@@ -148,32 +151,18 @@ bool FEditorViewport::BuildCameraProbe(CameraProbe& OutCamera) {
     return true;
 }
 
-bool FEditorViewport::InitializeCameraFromWorldState() {
-    if (bCameraInitialized) {
-        return true;
-    }
-
-    const FCameraSnapshot* CameraState = EditorContext != nullptr ? EditorContext->GetCameraState() : nullptr;
-    if (CameraState == nullptr) {
-        return false;
-    }
-
-    CameraPosition = CameraState->Position;
-    CameraRotation = CameraState->RotationQuaternion;
-    FieldOfView = CameraState->FOV;
-    NearPlane = CameraState->NearPlane;
-    FarPlane = CameraState->FarPlane;
-    bCameraInitialized = true;
-    return true;
-}
-
 void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& NavigationInput) {
+    if (ProjectionType == EProjectionType::Orthographic && NavigationInput.WheelSteps != 0.0f) {
+        OrthographicWidth *= std::pow(0.85f, NavigationInput.WheelSteps);
+        OrthographicWidth = std::clamp(OrthographicWidth, 0.1f, 10000.0f);
+    }
+
     if (NavigationInput.RotationDeltaX == 0.0f && NavigationInput.RotationDeltaY == 0.0f) {
         return;
     }
 
-    const FCameraSnapshot* CameraState = EditorContext != nullptr ? EditorContext->GetCameraState() : nullptr;
-    const float RotationSensitivity = (CameraState != nullptr ? CameraState->RotationSensitivity : 1.0f) * 0.001f;
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    const float RotationSensitivity = Settings.RotationSensitivity * 0.001f;
     constexpr float MaximumPitch = 0.99f;
 
     FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, NavigationInput.RotationDeltaX * RotationSensitivity);
@@ -211,18 +200,23 @@ void FEditorViewport::ApplyKeyboardNavigation(const FViewportKeyboardNavigationI
     }
 
     const FTransform CameraTransform{ CameraPosition, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
-    const FMatrix CameraWorldMatrix = CameraTransform.ToMatrixNoScale();
-    const FVector3 ForwardDirection = CameraWorldMatrix.Forward();
-    const FVector3 RightDirection = -CameraWorldMatrix.Right();
-    FVector3 MoveDirection = ForwardDirection * NavigationInput.ForwardAxis + RightDirection * NavigationInput.RightAxis;
+    FVector3 MoveDirection{};
+
+    if (ProjectionType == EProjectionType::Orthographic) {
+        const FMatrix CameraWorldMatrix = UCameraComponent::CameraBasis * CameraTransform.ToMatrixNoScale();
+        MoveDirection = CameraWorldMatrix.Up() * NavigationInput.ForwardAxis + CameraWorldMatrix.Right() * NavigationInput.RightAxis;
+    } else {
+        const FMatrix CameraWorldMatrix = CameraTransform.ToMatrixNoScale();
+        MoveDirection = CameraWorldMatrix.Forward() * NavigationInput.ForwardAxis - CameraWorldMatrix.Right() * NavigationInput.RightAxis;
+    }
 
     if (MoveDirection.LengthSquared() <= 0.0f) {
         return;
     }
 
     MoveDirection.Normalize();
-    const FCameraSnapshot* CameraState = EditorContext != nullptr ? EditorContext->GetCameraState() : nullptr;
-    const float MoveSensitivity = CameraState != nullptr ? CameraState->MoveSensitivity : 5.0f;
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    const float MoveSensitivity = Settings.MoveSensitivity;
     CameraPosition = CameraPosition + MoveDirection * MoveSensitivity * NavigationInput.DeltaTime;
 }
 
@@ -236,6 +230,10 @@ const D3D11_VIEWPORT& FEditorViewport::GetRenderViewport() const {
 
 const FRenderSettings& FEditorViewport::GetRenderSettings() const {
     return RenderSettings;
+}
+
+const FVector3& FEditorViewport::GetCameraPosition() const {
+    return CameraPosition;
 }
 
 void FEditorViewport::ReleaseRenderResources() {

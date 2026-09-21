@@ -5,6 +5,7 @@
 #include "Render/FSceneRenderSurface.h"
 #include "Core/Base/FRenderProbe.h"
 #include "Core/Channel/FMessageChannel.h"
+#include "Core/Asset/FAssetHandle.h"
 
 class FRenderer;
 class FAssetRegistry;
@@ -43,7 +44,7 @@ private:
 	void DrawPreview();
 
 	void ResizeSurfaceIfNeeded(ID3D11Device* Device, uint32 Width, uint32 Height);
-	FRenderProbe BuildPreviewProbe() const;
+	FRenderProbe BuildPreviewProbe();
 	CameraProbe BuildPreviewCamera() const;
 	void ProcessInput();
 
@@ -54,7 +55,10 @@ private:
 private:
 	FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN);
 	FAssetRegistry* Registry = nullptr;
+	
 	FMessageChannel::FSender EditorToWorldSender;
+	
+
 
 	HWND WindowHandle;
 	FSceneRenderSurface Surface;

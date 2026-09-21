@@ -18,6 +18,7 @@ enum EMouseSide : uint32 {
 struct FViewportMouseNavigationInput {
     float RotationDeltaX = 0.0f;
     float RotationDeltaY = 0.0f;
+    float WheelSteps = 0.0f;
 };
 
 class FMouseInput

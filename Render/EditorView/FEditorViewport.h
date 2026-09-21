@@ -32,6 +32,7 @@ public:
     FSceneRenderSurface& GetRenderSurface();
     const D3D11_VIEWPORT& GetRenderViewport() const;
     const FRenderSettings& GetRenderSettings() const;
+    const FVector3& GetCameraPosition() const;
     void ReleaseRenderResources();
 
 private:
@@ -41,7 +42,6 @@ private:
     };
 
     void ResizeRenderSurface();
-    bool InitializeCameraFromWorldState();
     void ApplyMouseNavigation(const FViewportMouseNavigationInput& NavigationInput);
     void ApplyKeyboardNavigation(const FViewportKeyboardNavigationInput& NavigationInput);
     D3D11_VIEWPORT BuildInputViewport() const;
@@ -52,8 +52,8 @@ private:
     FRenderSettings RenderSettings;
     FViewportId ViewportId = 0;
     EProjectionType ProjectionType = EProjectionType::Perspective;
-    FVector3 CameraPosition{};
-    FQuat CameraRotation{};
+    FVector3 CameraPosition{ -13.567042f, -26.165287f, 31.506821f };
+    FQuat CameraRotation{ -0.205543f, 0.040122f, -0.187332f, 0.959713f };
     float FieldOfView = 1.0472f;
     float OrthographicWidth = 50.0f;
     float NearPlane = 0.1f;
@@ -66,5 +66,4 @@ private:
     bool bVisible = false;
     bool bHovered = false;
     bool bFocused = false;
-    bool bCameraInitialized = false;
 };

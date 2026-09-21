@@ -56,8 +56,7 @@ protected:
     // Billboard 렌더링에 사용할 World Transform을 반환한다.
     // 기본 구현 : 자신의 ComponentToWorld 사용
     // UNameTagComponent: Target Actor Transform + Offset 사용
-    virtual bool TryGetBillBoardWorld(
-        FMatrix& OutWorld) const;
+    virtual bool TryGetBillBoardWorld(FMatrix& OutWorld) const;
 
 private:
     FAssetHandle TextureHandle{};

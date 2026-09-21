@@ -18,14 +18,6 @@
 
 void FControlPanel::DrawPanel()  
 {
-    // 1. 상태 채널에서 카메라 정보 읽기 (Engine -> UI)
-    if (EditorContext != nullptr && EditorContext->GetCameraState() != nullptr)
-    {
-        CachedCamPos = EditorContext->GetCameraState()->Position;
-        CachedCamRot = EditorContext->GetCameraState()->Rotation;
-        CachedFOV = EditorContext->GetCameraState()->FOV;
-    }
-
     // 전역 메뉴 바는 뷰포트의 상단에 고정되며 도킹 레이아웃의 일부가 아니다.
     if (!ImGui::BeginMainMenuBar())
     {
@@ -271,37 +263,20 @@ void FControlPanel::DrawPanel()
         ImGui::EndMenu();
     }
 
-    // Camera: 카메라 요청 메시지와 감도 설정을 한 팝업에 모은다.
+    // Camera: Viewport camera navigation settings are editor-owned.
     if (ImGui::BeginMenu("Camera"))
     {
-        bool bCameraChanged = false;
-        float FOVDegrees = CachedFOV * 180.0f / 3.1415926535f;
-
-        if (ImGui::SliderFloat("FOV", &FOVDegrees, 30.0f, 120.0f))
-        {
-            CachedFOV = FOVDegrees * 3.1415926535f / 180.0f;
-            bCameraChanged = true;
-        }
-
-        bCameraChanged |= ImGui::DragFloat3("Location", &CachedCamPos.x, 0.1f);
-        bCameraChanged |= ImGui::DragFloat3("Rotation", &CachedCamRot.x, 0.01f);
-
-        if (bCameraChanged)
-        {
-            EditorToWorldSender.TryEmplace<FMessageSetEditorCameraRequest>(
-                CachedCamPos, CachedCamRot, CachedFOV);
-        }
-
-        float MoveSensitivity = EditorContext->GetWorld()->GetSettings().MoveSensitivity;
+        const FEditorSettings Settings = EditorContext->GetEditorSettings();
+        float MoveSensitivity = Settings.MoveSensitivity;
         if (ImGui::SliderFloat("MoveSensitivity", &MoveSensitivity, 1.f, 100.0f))
         {
-            EditorContext->GetWorld()->GetSettings().MoveSensitivity = MoveSensitivity;
+            EditorContext->SetMoveSensitivity(MoveSensitivity);
         }
 
-        float RotationSensitivity = EditorContext->GetWorld()->GetSettings().RotationSensitivity;
+        float RotationSensitivity = Settings.RotationSensitivity;
         if (ImGui::SliderFloat("RotationSensitivity", &RotationSensitivity, 0.1f, 5.0f))
         {
-            EditorContext->GetWorld()->GetSettings().RotationSensitivity = RotationSensitivity;
+            EditorContext->SetRotationSensitivity(RotationSensitivity);
         }
 
         ImGui::EndMenu();
@@ -309,10 +284,10 @@ void FControlPanel::DrawPanel()
 
     if (ImGui::BeginMenu("Grid"))
     {
-        float GridSize = EditorContext->GetWorld()->GetSettings().GridSize;
+        float GridSize = EditorContext->GetEditorSettings().GridSize;
         if (ImGui::SliderFloat("GridSize", &GridSize, 0.1f, 100.0f))
         {
-            EditorContext->GetWorld()->GetSettings().GridSize = GridSize;
+            EditorContext->SetGridSize(GridSize);
         }
         ImGui::EndMenu();
     }

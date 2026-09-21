@@ -682,7 +682,7 @@ void FTransformGizmo::UpdateDrag(const FRay& WorldRay) {
 		if (Session.ModifyMode == EModifyMode::Translate) 
 		{
 			Session.AccumulatedDelta += Delta;
-			const float GridSize = EditorContext->GetWorld()->GetSettings().GridSize;
+			const float GridSize = EditorContext->GetEditorSettings().GridSize;
 
 			if (GridSize > 0.0f && abs(Session.AccumulatedDelta) >= GridSize) {
 				const float Steps = truncf(Session.AccumulatedDelta / GridSize);

@@ -19,12 +19,8 @@
 #include "Core/Base/UObjectSystem.h"
 #include "Core/Base/FRenderProbe.h"
 #include "FWorldEditorContext.h"
-#include "FKeyboardCameraMoveRequestMessage.h"
-#include "FMouseCameraRotateRequestMessage.h"
 #include "FMousePickRequestMessage.h"
 #include "Render/Panel/FEditorInfo.h"
-
-#include "../Serialize/FEditorConfigManager.h"
 
 class AActor;
 class UCameraComponent;
@@ -38,10 +34,10 @@ class URenderSubsystem;
 class UBillboardSubsystem;
 class UTextSubsystem;
 class ULightSubsystem;
-
-//TODO : Message들 전방선언
-class FMouseCameraMoveRequestMessage;
-class FMouseCameraDollyRequestMessage;
+struct FKeyboardCameraMoveRequestMessage;
+struct FMouseCameraRotateRequestMessage;
+struct FMouseCameraMoveRequestMessage;
+struct FMouseCameraDollyRequestMessage;
 
 class UWorld : public UObject
 {
@@ -101,13 +97,13 @@ public:
 	JG_DECLARE_DERIVED_TYPEINFO(UWorld, UObject);
 
     void HandleMousePickRequest(const FMousePickRequestMessage& Message);
+    void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
+#ifdef OBJ_VIEWER
     void HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message);
     void HandleKeyboardCameraMoveRequest(const FKeyboardCameraMoveRequestMessage& Message);
-    void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
     void HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message);
     void HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message);
-
-    void UpdateEditorCameraState();
+#endif
     void SetAssetRegistry(FAssetRegistry* InAssetRegistry);
 
     FAssetRegistry* GetAssetRegistry() const;
@@ -117,12 +113,9 @@ public:
     FName MakeUniqueObjectName(std::string_view SourceName);
     AActor* FindActorByName(FName InName) const;
 
-    FEditorSettings& GetSettings() { return Settings; }
 private:
 	void InitializeSubsystems();
 	void DeinitializeSubsystems();
-
-    void PublishEditorCameraState();
 
 private:
     TArray<std::unique_ptr<AActor>> Actors;
@@ -144,6 +137,4 @@ private:
     std::unique_ptr<ULightSubsystem> LightSubsystem;
 
     FRenderProbe Probe{};
-
-    FEditorSettings Settings;
 };

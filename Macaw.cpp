@@ -42,11 +42,13 @@
 #include "Render/Panel/FEditorUIManager.h"
 
 #include "FMousePickRequestMessage.h"
+#ifdef OBJ_VIEWER
 #include "FMouseCameraRotateRequestMessage.h"
-#include "FKeyboardInput.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
 #include "FMouseCameraMoveRequestMessage.h"
 #include "FMouseCameraDollyRequestMessage.h"
+#endif
+#include "FKeyboardInput.h"
 
 #include "Core/Base/UndoSystem/FUndoSystem.h"
 #include "Core/Base/UndoSystem/FUndoMessages.h"
@@ -242,6 +244,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // test
     UWorld World{};
     FWorldEditorContext EditorContext{};
+    FEditorSettings EditorSettings{};
+    if (!FEditorConfigManager::Load(EditorSettings)) {
+        FEditorConfigManager::Save(EditorSettings);
+    }
+
+    EditorContext.SetEditorSettings(EditorSettings);
     World.SetEditorContext(&EditorContext);
 	EditorContext.SetWorld(&World);
 
@@ -275,36 +283,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     WorldCommandChannel.TryBind<FMousePickRequestMessage>(
         [&World](const FMousePickRequestMessage& Message) { World.HandleMousePickRequest(Message); });
 
-    WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>(
-        [&World](const FMouseCameraRotateRequestMessage& Message)
-        {
-            World.HandleMouseCameraRotateRequest(Message);
-        });
+#ifdef OBJ_VIEWER
+    WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>([&World](const FMouseCameraRotateRequestMessage& Message) {
+        World.HandleMouseCameraRotateRequest(Message);
+    });
+    WorldCommandChannel.TryBind<FKeyboardCameraMoveRequestMessage>([&World](const FKeyboardCameraMoveRequestMessage& Message) {
+        World.HandleKeyboardCameraMoveRequest(Message);
+    });
+    WorldCommandChannel.TryBind<FMouseCameraMoveRequestMessage>([&World](const FMouseCameraMoveRequestMessage& Message) {
+        World.HandleMouseCameraMoveRequestMessage(Message);
+    });
+    WorldCommandChannel.TryBind<FMouseCameraDollyRequestMessage>([&World](const FMouseCameraDollyRequestMessage& Message) {
+        World.HandleMouseCameraDollyRequestMessage(Message);
+    });
+#endif
 
-    WorldCommandChannel.TryBind<
-        FKeyboardCameraMoveRequestMessage>(
-            [&World](
-                const FKeyboardCameraMoveRequestMessage& Message)
-            {
-                World.HandleKeyboardCameraMoveRequest(Message);
-            });
-
-    WorldCommandChannel.TryBind<
-        FMouseCameraMoveRequestMessage>(
-            [&World](
-                const FMouseCameraMoveRequestMessage& Message)
-            {
-                World.HandleMouseCameraMoveRequestMessage(Message);
-            });
-
-    WorldCommandChannel.TryBind<
-        FMouseCameraDollyRequestMessage>(
-            [&World](
-                const FMouseCameraDollyRequestMessage& Message)
-            {
-                World.HandleMouseCameraDollyRequestMessage(Message);
-            });
-	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
 
     AssetRegistry.Finalize(); 
@@ -373,7 +366,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 				
                 Renderer.RenderScene(Viewport->GetRenderSurface(), Probe, Camera, Viewport->GetRenderSettings());
                
-                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetRenderViewport());
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetCameraPosition(), Viewport->GetRenderViewport());
 				
                 Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
 				Renderer.RenderText(Probe, Camera);
@@ -399,7 +392,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
     
-    FEditorConfigManager::Save(World.GetSettings());
+    EditorSettings = EditorContext.GetEditorSettings();
+    FEditorConfigManager::Save(EditorSettings);
 
     // ImGui 소멸
     ImGui_ImplDX11_Shutdown();
@@ -560,5 +554,3 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
-
-

@@ -73,6 +73,7 @@ struct CameraProbe {
 
 struct FRenderSettings {
 	FVector4 ClearColor{ 0.2f, 0.2f, 0.7f, 1.0f };
+	bool bRenderSky{ true };
 };
 
 

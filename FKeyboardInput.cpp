@@ -1,7 +1,9 @@
 ﻿#include "PCH.h"
 
 #include "FKeyboardInput.h"
+#ifdef OBJ_VIEWER
 #include "FKeyboardCameraMoveRequestMessage.h"
+#endif
 
 FKeyboardInput::FKeyboardInput()
 {

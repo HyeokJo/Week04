@@ -8,10 +8,7 @@
 #include "../../FMouseInput.h"
 
 #include "../../Scene/Component/UCollisionComponent.h"
-
-#include "../../Serialize/FEditorConfigManager.h"
-
-#include "../../Scene/UWorld.h"
+#include "../../Scene/Component/UMeshComponent.h"
 
 void EditorViewport::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext) {
 	LineRenderer->Initialize(Device);
@@ -32,16 +29,17 @@ void EditorViewport::RenderInProbe(FRenderProbe& Probe, const CameraProbe& Camer
 	TransformGizmo.Render(Probe);
 }
 
-void EditorViewport::RenderGrid(ELineDepthMode DepthMode) {
-	float GridInterval = 1.0f;
-	UWorld* World = EditorContext->GetWorld();
-	GridInterval = World->GetSettings().GridSize;
+void EditorViewport::RenderGrid(const FVector3& CameraPosition, ELineDepthMode DepthMode) {
+	const float GridInterval = EditorContext != nullptr ? EditorContext->GetEditorSettings().GridSize : 1.0f;
+	if (GridInterval <= 0.0f) {
+		return;
+	}
+
 	int GridSize = (static_cast<int>(300 / GridInterval));
 	float LineLength = static_cast<float>(GridSize) * GridInterval;
-	FVector CameraPos = EditorContext->GetCameraState()->Position;
 
-	float SnappedX = std::floor(CameraPos.x / GridInterval) * GridInterval;
-	float SnappedY = std::floor(CameraPos.y / GridInterval) * GridInterval;
+	float SnappedX = std::floor(CameraPosition.x / GridInterval) * GridInterval;
+	float SnappedY = std::floor(CameraPosition.y / GridInterval) * GridInterval;
 
 	for (auto x : std::views::iota(-GridSize, GridSize + 1)) {
 		float LineX = SnappedX + static_cast<float>(x) * GridInterval;
@@ -198,11 +196,11 @@ void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, const C
 	});
 }
 
-void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport)
+void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport)
 {
 	const ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
 
-	RenderGrid(DepthMode);
+	RenderGrid(CameraPosition, DepthMode);
 	RenderAxis(DepthMode);
 	RenderBounds(DepthMode);
 	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Camera.ViewProjection,

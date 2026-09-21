@@ -37,14 +37,6 @@ private:
     int SelectedMeshIndex = 0;
     int SpawnCountToRequest = 1;
 
-    FVector3 CachedCamPos{};
-    FRotator CachedCamRot{};
-
-    // UCameraComponent와 동일하게 radians
-    float CachedFOV = 1.0472f;
-
-    float GridSize{};
-
     size_t RenderModeIndex = 0;
 
     // Components 체크리스트에서 컴포넌트 타입을 검색한다.

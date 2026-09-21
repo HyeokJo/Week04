@@ -74,8 +74,8 @@ void FRenderer::RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const C
 	if (AssetRegistry != nullptr) {
 		AssetRegistry->GetMaterialBuffer().Flush(DeviceContext.Get());
 	}
-	RenderActorList(Probe.ActorProbes, Camera);
-	RenderOutline(Probe.ActorProbes, Camera);
+	RenderActorList(Probe.ActorProbes, Camera, false, Settings.bRenderSky);
+	RenderOutline(Probe.ActorProbes, Camera, Settings.bRenderSky);
 
 	if (AssetRegistry != nullptr) {
 		//TextRenderer.Render(DeviceContext.Get(), Probe.TextProbes, Camera, AssetRegistry);
@@ -104,7 +104,7 @@ void FRenderer::RenderGizmos(IRenderSurface& Target, FRenderProbe& Probe, const 
 	RenderActorList(Probe.GizmoProbes, Camera);
 }
 
-void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera) {
+void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bRenderSky) {
 	TArray<FActorProbe> OutlineProbes;
 
 	for (const FActorProbe& ActorProbe : ActorProbes)
@@ -120,10 +120,10 @@ void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const Came
 		return;
 	}
 
-	RenderActorList(OutlineProbes, Camera, true);
+	RenderActorList(OutlineProbes, Camera, true, bRenderSky);
 }
 
-void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline) {
+void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline, bool bRenderSky) {
     if (ActorProbes.empty() || AssetRegistry == nullptr) {
         return;
     }
@@ -136,8 +136,13 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
         uint32 IndexCount{ 0 };
     };
 
+    const FAssetHandle SkyPipelineHandle = AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/SkyDome.json" });
     TArray<FDrawItem> DrawItems{};
     for (const FActorProbe& Probe : ActorProbes) {
+        if (!bRenderSky && Probe.PipelineHandle == SkyPipelineHandle) {
+            continue;
+        }
+
         UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(Probe.MeshHandle);
         if (Mesh == nullptr || AssetRegistry->ResolveAsset<UPipeline>(Probe.PipelineHandle) == nullptr) {
             continue;

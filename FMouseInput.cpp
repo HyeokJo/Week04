@@ -2,10 +2,12 @@
 
 #include "FMouseInput.h"
 #include "FMousePickRequestMessage.h"
+#ifdef OBJ_VIEWER
 #include "FMouseCameraRotateRequestMessage.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
 #include "FMouseCameraMoveRequestMessage.h"
 #include "FMouseCameraDollyRequestMessage.h"
+#endif
 
 namespace
 {
@@ -218,6 +220,9 @@ FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::
     if (DragOwners[Right] == EDragOwner::World && (PendingDeltaX != 0.0f || PendingDeltaY != 0.0f)) {
         NavigationInput.RotationDeltaX = PendingDeltaX;
         NavigationInput.RotationDeltaY = PendingDeltaY;
+    }
+    if (!bMouseCapturedByUI) {
+        NavigationInput.WheelSteps = PendingWheelSteps;
     }
 #endif
 

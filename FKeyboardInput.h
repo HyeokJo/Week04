@@ -39,4 +39,3 @@ private:
     std::optional<FMessageChannel::FSender> WorldCommandSender;
 
 };
-
