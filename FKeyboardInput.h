@@ -9,6 +9,12 @@
 #include "Core/Channel/FMessageChannel.h"
 #include "EKeyState.h"
 
+struct FViewportKeyboardNavigationInput {
+    float ForwardAxis = 0.0f;
+    float RightAxis = 0.0f;
+    float DeltaTime = 0.0f;
+};
+
 class FKeyboardInput
 {
 public:
@@ -18,7 +24,7 @@ public:
 
     void ProcessWindowMessage(UINT Message, WPARAM WParam, LPARAM LParam);
 
-    void DispatchPendingWorldCommands(float DeltaTime, bool bKeyboardCaptureByUI);
+    FViewportKeyboardNavigationInput ConsumeViewportNavigation(float DeltaTime, bool bKeyboardCaptureByUI);
 
     EKeyState GetKeyState(std::uint8_t VirtualKey) const;
 
@@ -33,4 +39,3 @@ private:
     std::optional<FMessageChannel::FSender> WorldCommandSender;
 
 };
-

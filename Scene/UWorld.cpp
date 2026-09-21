@@ -18,10 +18,14 @@
 #include "Subsystem/ULightSubsystem.h"
 #include "Component/UCollisionComponent.h"
 #include "Component/UBillboardTextComponent.h"
-#include "FMouseCameraRotateRequestMessage.h"
 #include "FMousePickRequestMessage.h"
 #include "FWorldEditorContext.h"
+#ifdef OBJ_VIEWER
 #include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraRotateRequestMessage.h"
+#endif
 #include "Render/Panel/FEditorInfo.h"
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Asset/UMesh.h"
@@ -40,7 +44,6 @@
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/prettywriter.h>
 
-#include "../Serialize/FEditorConfigManager.h"
 #include "Component/UNameTagComponent.h"
 
 UWorld::UWorld() {
@@ -170,11 +173,6 @@ void UWorld::InitializeSubsystems() {
 	TextSubsystem->Initialize(this);
 	LightSubsystem->Initialize(this);
 
-	if (!FEditorConfigManager::Load(Settings))
-	{
-		FEditorConfigManager::Save(Settings);
-	}
-
 	BillboardSubsystem->Initialize(this);
 }
 
@@ -234,20 +232,6 @@ FRenderProbe& UWorld::BuildRenderProbe() {
 	RenderSubsystem->BuildRenderProbes(AssetRegistry, Probe);
 	LightSubsystem->BuildLightProbes(Probe);
 	TextSubsystem->BuildTextProbes(Probe);
-	
-    if (CameraSubsystem->GetMainCamera() != nullptr)
-    {
-		auto Camera = CameraSubsystem->GetMainCamera();
-
-        Probe.MainCameraProbe.View =
-            Camera->GetViewMatrix();
-
-        Probe.MainCameraProbe.Projection =
-            Camera->GetProjectionMatrix();
-
-		Probe.MainCameraProbe.ViewProjection =
-			Camera->GetViewProjectionMatrix();
-	}
 
 	BillboardSubsystem->BuildRenderProbes(AssetRegistry, Probe);
 	return Probe;
@@ -266,14 +250,6 @@ FWorldEditorContext* UWorld::GetEditorContext() const noexcept {
 }
 
 void UWorld::Tick(float DeltaTime) {
-	if (UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera(); Camera != nullptr && WindowInfoReader.HasChanged()) {
-		Camera->SetAspectRatio(static_cast<float>(WindowInfoReader.Read().ScreenWidth) / static_cast<float>(WindowInfoReader.Read().ScreenHeight));
-	}
-
-	if (EditorContext != nullptr && EditorContext->GetCameraState() == nullptr) {
-		PublishEditorCameraState();
-	}
-
 	for (const std::unique_ptr<AActor>& Actor : Actors) {
 		Actor->Tick(DeltaTime);
 	}
@@ -462,15 +438,12 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 }
 
 void UWorld::HandleMousePickRequest(const FMousePickRequestMessage& Message) {
-	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
-
-	const RenderWindowInfo& WindowInfo = WindowInfoReader.Read();
-	if (Camera != nullptr && Message.ViewportWidth != 0 && Message.ViewportHeight != 0 && WindowInfo.Viewport.Width != 0.0f && WindowInfo.Viewport.Height != 0.0f) {
-		const float NdcX = (2.0f * (static_cast<float>(Message.ScreenX) - WindowInfo.Viewport.TopLeftX) / static_cast<float>(Message.ViewportWidth)) - 1.0f;
-		const float NdcY = 1.0f - (2.0f * (static_cast<float>(Message.ScreenY) - WindowInfo.Viewport.TopLeftY) / static_cast<float>(Message.ViewportHeight));
+	if (Message.ViewportWidth != 0 && Message.ViewportHeight != 0) {
+		const float NdcX = (2.0f * (static_cast<float>(Message.ScreenX) - static_cast<float>(Message.ViewportLeft)) / static_cast<float>(Message.ViewportWidth)) - 1.0f;
+		const float NdcY = 1.0f - (2.0f * (static_cast<float>(Message.ScreenY) - static_cast<float>(Message.ViewportTop)) / static_cast<float>(Message.ViewportHeight));
 
 		FMatrix InverseViewProjection;
-		if (!Camera->GetViewProjectionMatrix().TryInverse(InverseViewProjection)) return;
+		if (!Message.ViewProjection.TryInverse(InverseViewProjection)) return;
 		FVector3 RayOrigin, RayEnd;
 		if (!InverseViewProjection.TransformCoord({NdcX, NdcY, 0.0f}, RayOrigin) || !InverseViewProjection.TransformCoord({NdcX, NdcY, 1.0f}, RayEnd)) return;
 		FVector3 RayDirection = RayEnd - RayOrigin;
@@ -514,72 +487,95 @@ void UWorld::HandleMousePickRequest(const FMousePickRequestMessage& Message) {
 
 }
 
+#ifdef OBJ_VIEWER
+void UWorld::HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message) {
+    UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+    if (Camera == nullptr) {
+        return;
+    }
 
-void UWorld::HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message)
-{
-	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
-	if (Camera == nullptr)
-	{
-		return;
-	}
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    const float RotationSensitivity = Settings.RotationSensitivity * 0.001f;
+    constexpr float MaximumPitch = 0.99f;
+    FTransform& CameraTransform = Camera->GetRelativeTransform();
+    const FQuat CurrentRotation = CameraTransform.GetRotationQuaternion();
+    FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, Message.DeltaX * RotationSensitivity);
+    YawDelta.Normalize();
 
-	float RotationSensitivity = EditorContext->GetWorld()->GetSettings().RotationSensitivity * 0.001f;
-	constexpr float MaximumPitch = 0.99f;
+    FQuat YawedRotation = FQuat::Concatenate(YawDelta, CurrentRotation);
+    YawedRotation.Normalize();
+    FTransform YawedTransform;
+    YawedTransform.SetRotation(YawedRotation);
+    const FMatrix YawMatrix = YawedTransform.ToMatrixWithScale();
+    FVector3 Right = YawMatrix.Right();
+    FVector3 Forward = YawMatrix.Forward();
+    Right.Normalize();
+    Forward.Normalize();
 
-	FTransform& CameraTransform = Camera->GetRelativeTransform();
-	const FQuat CurrentRotation = CameraTransform.GetRotationQuaternion();
-	const FMatrix CurrentWorld = Camera->GetComponentToWorld();
+    float PitchAngle = Message.DeltaY * RotationSensitivity;
+    const float ForwardUp = Forward.Dot(FVector3::UnitZ);
+    if ((ForwardUp > MaximumPitch && Message.DeltaY > 0.0f) || (ForwardUp < -MaximumPitch && Message.DeltaY < 0.0f)) {
+        PitchAngle = 0.0f;
+    }
 
-	FVector3 CameraForward = UCameraComponent::CameraBasis.Forward();
-	FVector3 CameraRight = UCameraComponent::CameraBasis.Right();
-	FVector3 CameraUp = UCameraComponent::CameraBasis.Up();
-
-	auto a = UCameraComponent::CameraBasis.Up();
-
-	FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, Message.DeltaX * RotationSensitivity);
-	YawDelta.Normalize();
-
-	// Yaw 적용
-	FQuat YawedRotation = FQuat::Concatenate(YawDelta, CurrentRotation);
-	YawedRotation.Normalize();
-
-	// Yaw 적용 후의 축을 행렬에서 가져옴
-	FTransform YawedTransform;
-	YawedTransform.SetRotation(YawedRotation);
-
-	FMatrix YawMatrix =  YawedTransform.ToMatrixWithScale();
-
-	FVector Right = YawMatrix.Right();
-	Right.Normalize();
-
-	FVector Forward = YawMatrix.Forward();
-	Forward.Normalize();
-
-	FVector Up = FVector(0, 0, 1);
-	FQuat PitchDelta;
-
-	if (Forward.Dot(Up) > MaximumPitch && Message.DeltaY > 0.0f) {
-		PitchDelta = FQuat::CreateFromAxisAngle(Right, 0 * RotationSensitivity);
-	}
-	else if (Forward.Dot(Up) < -MaximumPitch && Message.DeltaY < 0.0f) {
-		PitchDelta = FQuat::CreateFromAxisAngle(Right, 0 * RotationSensitivity);
-	}
-	else {
-		PitchDelta = FQuat::CreateFromAxisAngle(Right, Message.DeltaY * RotationSensitivity);
-	}
-
-	PitchDelta.Normalize();
-
-	FQuat FinalRotation;
-	auto worldDelta = FQuat::Concatenate(PitchDelta, YawDelta);
-
-	worldDelta.Normalize();
-	CameraTransform.SetRotation(FQuat::Concatenate(worldDelta, CurrentRotation));
-
-	// CameraTransform.SetRotation(FQuat::Concatenate(CurrentRotation, PitchDelta));
-
-	PublishEditorCameraState();
+    FQuat PitchDelta = FQuat::CreateFromAxisAngle(Right, PitchAngle);
+    PitchDelta.Normalize();
+    FQuat WorldDelta = FQuat::Concatenate(PitchDelta, YawDelta);
+    WorldDelta.Normalize();
+    CameraTransform.SetRotation(FQuat::Concatenate(WorldDelta, CurrentRotation));
 }
+
+void UWorld::HandleKeyboardCameraMoveRequest(const FKeyboardCameraMoveRequestMessage& Message) {
+    UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+    if (Camera == nullptr || Message.DeltaTime <= 0.0f) {
+        return;
+    }
+
+    const FMatrix CameraWorldMatrix = Camera->GetComponentToWorld();
+    FVector3 MoveDirection = CameraWorldMatrix.Forward() * Message.ForwardAxis - CameraWorldMatrix.Right() * Message.RightAxis;
+    if (MoveDirection.LengthSquared() <= 0.0f) {
+        return;
+    }
+
+    MoveDirection.Normalize();
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    FTransform& CameraTransform = Camera->GetRelativeTransform();
+    CameraTransform.SetPosition(CameraTransform.GetPosition() + MoveDirection * Settings.MoveSensitivity * Message.DeltaTime);
+}
+
+void UWorld::HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message) {
+    UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+    if (Camera == nullptr) {
+        return;
+    }
+
+    const FMatrix CameraWorld = Camera->GetComponentToWorld();
+    FVector3 Right = CameraWorld.Right();
+    FVector3 Up = CameraWorld.Up();
+    Right.Normalize();
+    Up.Normalize();
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    const float PanScale = Settings.MoveSensitivity * 0.01f;
+    FTransform& CameraTransform = Camera->GetRelativeTransform();
+    const FVector3 Offset = Right * (-Message.DeltaX * PanScale) + Up * (-Message.DeltaY * PanScale);
+    CameraTransform.SetPosition(CameraTransform.GetPosition() + Offset);
+}
+
+void UWorld::HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message) {
+    UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
+    if (Camera == nullptr) {
+        return;
+    }
+
+    FVector3 ForwardDirection = Camera->GetComponentToWorld().Forward();
+    ForwardDirection.Normalize();
+    const FEditorSettings Settings = EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{};
+    const float DollySpeed = Settings.MoveSensitivity * 0.3f;
+    FTransform& CameraTransform = Camera->GetRelativeTransform();
+    CameraTransform.SetPosition(CameraTransform.GetPosition() + ForwardDirection * (Message.Steps * DollySpeed));
+}
+#endif
+
 
 AActor* UWorld::AddActor(std::unique_ptr<AActor> InActor) 
 {
@@ -604,43 +600,6 @@ AActor* UWorld::AddActor(std::unique_ptr<AActor> InActor)
 
 	return Actor;
 }
-
-void UWorld::HandleKeyboardCameraMoveRequest(
-	const FKeyboardCameraMoveRequestMessage& Message)
-{
-	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
-	if (Camera == nullptr || Message.DeltaTime <= 0.0f)
-	{
-		return;
-	}
-
-	const FMatrix CameraWorldMatrix = Camera->GetComponentToWorld();
-
-	const FVector3 ForwardDirection = CameraWorldMatrix.Forward();
-	const FVector3 RightDirection = -CameraWorldMatrix.Right();
-
-
-	const FVector3 Forward = ForwardDirection * Message.ForwardAxis;
-
-	FVector3 MoveDirection = ForwardDirection * Message.ForwardAxis + RightDirection * Message.RightAxis;
-
-	if (MoveDirection.LengthSquared() <= 0.0f)
-	{
-		return;
-	}
-
-	MoveDirection.Normalize();
-
-	float CameraMoveSpeed = Settings.MoveSensitivity;
-
-
-	FTransform& CameraTransform = Camera->GetRelativeTransform();
-
-	CameraTransform.SetPosition(CameraTransform.GetPosition() + MoveDirection * CameraMoveSpeed * Message.DeltaTime);
-
-	PublishEditorCameraState();
-}
-
 
 void UWorld::HandleSpawnComponent(
 	const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry)
@@ -714,6 +673,8 @@ void UWorld::HandleSpawnComponent(
 }
 
 
+
+
 FAssetRegistry* UWorld::GetAssetRegistry() const {
 	return AssetRegistry;
 }
@@ -772,30 +733,6 @@ AActor* UWorld::FindActorByName(FName InName) const
 	return nullptr;
 }
 
-void UWorld::UpdateEditorCameraState() {
-
-}
-
 void UWorld::SetAssetRegistry(FAssetRegistry* InAssetRegistry) {
 	AssetRegistry = InAssetRegistry;
-}
-
-void UWorld::PublishEditorCameraState()
-{
-	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
-	if (EditorContext == nullptr || Camera == nullptr)
-	{
-		return;
-	}
-
-	const FTransform& CameraTransform =
-		Camera->GetRelativeTransform();
-
-	const FCameraSnapshot CameraState{
-		CameraTransform.GetPosition(),
-		CameraTransform.GetRotation(),
-		Camera->GetFOV()
-	};
-
-	EditorContext->PublishCameraState(CameraState);
 }

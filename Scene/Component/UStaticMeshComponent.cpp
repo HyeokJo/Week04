@@ -41,8 +41,10 @@ void UStaticMeshComponent::DrawPanels(FPropertyEditorContext& Context)
 {
     UMeshComponent::DrawPanels(Context);
     AActor* Owner = GetOwner();
+
     UWorld* World = Owner != nullptr ? Owner->GetWorld() : nullptr;
     FAssetRegistry* Registry = World != nullptr ? World->GetAssetRegistry() : nullptr;
+
     if (Registry == nullptr) {
         Context.DrawDisabledText("Material/Pipeline: Asset registry unavailable");
         return;

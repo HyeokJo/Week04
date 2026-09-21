@@ -13,21 +13,14 @@
 #include "Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UMesh.h"
 #include "Core/Base/TObjectRef.h"
-#include "Core/Channel/FStateChannel.h"
 
 #include "Common.h"
 #include "Core/Base/UObject.h"
 #include "Core/Base/UObjectSystem.h"
 #include "Core/Base/FRenderProbe.h"
 #include "FWorldEditorContext.h"
-#include "FKeyboardCameraMoveRequestMessage.h"
-#include "FMouseCameraRotateRequestMessage.h"
 #include "FMousePickRequestMessage.h"
 #include "Render/Panel/FEditorInfo.h"
-
-#include "../Render/RenderWindowInfo.h"
-
-#include "../Serialize/FEditorConfigManager.h"
 
 class AActor;
 class UCameraComponent;
@@ -41,6 +34,10 @@ class URenderSubsystem;
 class UBillboardSubsystem;
 class UTextSubsystem;
 class ULightSubsystem;
+struct FKeyboardCameraMoveRequestMessage;
+struct FMouseCameraRotateRequestMessage;
+struct FMouseCameraMoveRequestMessage;
+struct FMouseCameraDollyRequestMessage;
 
 class UWorld : public UObject
 {
@@ -100,13 +97,14 @@ public:
 	JG_DECLARE_DERIVED_TYPEINFO(UWorld, UObject);
 
     void HandleMousePickRequest(const FMousePickRequestMessage& Message);
+    void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
+#ifdef OBJ_VIEWER
     void HandleMouseCameraRotateRequest(const FMouseCameraRotateRequestMessage& Message);
     void HandleKeyboardCameraMoveRequest(const FKeyboardCameraMoveRequestMessage& Message);
-    void HandleSpawnComponent(const FMessageSpawnComponent& Message, FAssetRegistry& AssetRegistry);
-
-	void UpdateEditorCameraState();
+    void HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message);
+    void HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message);
+#endif
     void SetAssetRegistry(FAssetRegistry* InAssetRegistry);
-	void SetWindowInfoReader(FStateChannel<RenderWindowInfo>::FReader InReader) { WindowInfoReader = InReader; }
 
     FAssetRegistry* GetAssetRegistry() const;
 
@@ -115,12 +113,9 @@ public:
     FName MakeUniqueObjectName(std::string_view SourceName);
     AActor* FindActorByName(FName InName) const;
 
-    FEditorSettings& GetSettings() { return Settings; }
 private:
 	void InitializeSubsystems();
 	void DeinitializeSubsystems();
-
-    void PublishEditorCameraState();
 
 private:
     TArray<std::unique_ptr<AActor>> Actors;
@@ -128,8 +123,6 @@ private:
    
     TArray<UStaticMeshComponent*> RenderableComponents;
     TArray<TObjectRef<UCollisionComponent>> CollisionComponents;
-
-	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader;
 
     FWorldEditorContext* EditorContext{ nullptr };
     FAssetRegistry* AssetRegistry{ nullptr };
@@ -144,6 +137,4 @@ private:
     std::unique_ptr<ULightSubsystem> LightSubsystem;
 
     FRenderProbe Probe{};
-
-    FEditorSettings Settings;
 };

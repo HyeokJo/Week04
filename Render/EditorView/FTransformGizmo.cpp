@@ -13,11 +13,10 @@
 #include "../../Scene/Component/UPrimitiveComponent.h"
 #include "../../Scene/UWorld.h"
 
-void FTransformGizmo::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FStateChannel<RenderWindowInfo>::FReader InWindowInfoReader, FWorldEditorContext& InEditorContext) {
+void FTransformGizmo::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext) {
 	this->AssetRegistry = &AssetRegistry;
 	RefreshAssetHandles();
 
-	WindowInfoReader = InWindowInfoReader;
 	EditorContext = &InEditorContext;
 
 	GizmoMode = GizmoModeChannel.GetReadWriter();
@@ -77,11 +76,12 @@ void FTransformGizmo::ProcessInput(FKeyboardInput& KeyboardInput, FMouseInput& M
 	}
 }
 
-void FTransformGizmo::Update(const CameraProbe& Camera) {
+void FTransformGizmo::Update(const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport) {
 	LastCamera = Camera;
+	LastViewport = Viewport;
 	bHasCamera = true;
 
-	if (EditorContext == nullptr || !WindowInfoReader.HasValue()) {
+	if (EditorContext == nullptr) {
 		if (DragSession.has_value()) {
 			EndDrag();
 		}
@@ -162,8 +162,7 @@ void FTransformGizmo::Update(const CameraProbe& Camera) {
 	else {
 		BoundsCenterInGizmoSpace = FVector3::Zero;
 	}
-	const RenderWindowInfo& WindowInfo = WindowInfoReader.Read();
-	const float ViewportHeight = WindowInfo.Viewport.Height;
+	const float ViewportHeight = Viewport.Height;
 	const float ProjectionYScale = Camera.Projection.m[1][1];
 	const FVector3 BoundsCenterWorld = FVector3::Transform(BoundsCenterInGizmoSpace, GizmoWorldTransform);
 	const float ViewDepth = FVector3::Transform(BoundsCenterWorld, Camera.View).z;
@@ -363,11 +362,11 @@ void FTransformGizmo::UpdateBoundsInGizmoSpace(const UPrimitiveComponent& Primit
 }
 
 std::optional<FRay> FTransformGizmo::MakeWorldRay(const POINT& ScreenPosition) const {
-	if (!bHasCamera || !WindowInfoReader.HasValue()) {
+	if (!bHasCamera) {
 		return std::nullopt;
 	}
 
-	const D3D11_VIEWPORT& Viewport = WindowInfoReader.Peek().Viewport;
+	const D3D11_VIEWPORT& Viewport = LastViewport;
 	if (Viewport.Width <= 0.0f || Viewport.Height <= 0.0f) {
 		return std::nullopt;
 	}
@@ -683,7 +682,7 @@ void FTransformGizmo::UpdateDrag(const FRay& WorldRay) {
 		if (Session.ModifyMode == EModifyMode::Translate) 
 		{
 			Session.AccumulatedDelta += Delta;
-			const float GridSize = EditorContext->GetWorld()->GetSettings().GridSize;
+			const float GridSize = EditorContext->GetEditorSettings().GridSize;
 
 			if (GridSize > 0.0f && abs(Session.AccumulatedDelta) >= GridSize) {
 				const float Steps = truncf(Session.AccumulatedDelta / GridSize);

@@ -2,7 +2,6 @@
 #include "doctest.h"
 
 #include "../Core/Base/UObjectSystem.h"
-#include "../Render/RenderWindowInfo.h"
 #include "../Scene/AActor.h"
 #include "../Scene/Component/UActorComponent.h"
 #include "../Scene/UWorld.h"
@@ -158,8 +157,6 @@ TEST_SUITE("CH1 Component Registration")
 
         {
             UWorld World;
-            FStateChannel<RenderWindowInfo> WindowInfoChannel;
-            World.SetWindowInfoReader(WindowInfoChannel.GetReader());
 
             AActor* Actor = World.AdoptActor<AActor>();
             REQUIRE(Actor != nullptr);

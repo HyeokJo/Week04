@@ -7,14 +7,7 @@
 #include "ImGui/imgui.h"
 #include "Scene/AActor.h"
 
-void DrawStatWindow(const UWorld& World)
-{
-	if (!ImGui::Begin("Stats"))
-	{
-		ImGui::End();
-		return;
-	}
-
+void DrawStatContents(const UWorld& World) {
 	const float FPS = ImGui::GetIO().Framerate;
 	const float FrameTimeMs = FPS > 0.0f ? 1000.0f / FPS : 0.0f;
 
@@ -97,6 +90,4 @@ void DrawStatWindow(const UWorld& World)
 
 	ImGui::Separator();
 	ImGui::TextDisabled("Tracked allocations made through Memory::Allocate()");
-
-	ImGui::End();
 }

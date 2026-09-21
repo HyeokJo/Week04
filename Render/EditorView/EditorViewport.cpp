@@ -8,51 +8,38 @@
 #include "../../FMouseInput.h"
 
 #include "../../Scene/Component/UCollisionComponent.h"
+#include "../../Scene/Component/UMeshComponent.h"
 
-#include "../../Serialize/FEditorConfigManager.h"
-
-#include "../../Scene/UWorld.h"
-
-void EditorViewport::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FStateChannel<RenderWindowInfo>::FReader windowReader, FWorldEditorContext& InEditorContext) {
+void EditorViewport::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext) {
 	LineRenderer->Initialize(Device);
-	TransformGizmo.Initialize(Device, AssetRegistry, windowReader, InEditorContext);
-	WindowInfoReader = windowReader;
+	TransformGizmo.Initialize(Device, AssetRegistry, InEditorContext);
 	EditorContext = &InEditorContext;
+}
+
+void EditorViewport::PrepareInput(const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport) {
+	TransformGizmo.Update(Camera, Viewport);
 }
 
 void EditorViewport::ProcessInput(FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, bool bMouseCapturedByUI) {
 	TransformGizmo.ProcessInput(KeyboardInput, MouseInput, bMouseCapturedByUI);
 }
 
-void EditorViewport::RenderInProbe(FRenderProbe& Probe) {
-	TransformGizmo.Update(Probe.MainCameraProbe);
+void EditorViewport::RenderInProbe(FRenderProbe& Probe, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport) {
+	TransformGizmo.Update(Camera, Viewport);
 	TransformGizmo.Render(Probe);
 }
 
-void EditorViewport::Render(ID3D11DeviceContext* Context, FRenderProbe& Probe) {
-	ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
+void EditorViewport::RenderGrid(const FVector3& CameraPosition, ELineDepthMode DepthMode) {
+	const float GridInterval = EditorContext != nullptr ? EditorContext->GetEditorSettings().GridSize : 1.0f;
+	if (GridInterval <= 0.0f) {
+		return;
+	}
 
-	RenderGrid(DepthMode);
-	RenderAxis(DepthMode);
-
-	LineRenderer->Render(Context, FLineViewData{
-		.ViewProjection = Probe.MainCameraProbe.ViewProjection,
-		.ViewportSize = FVector2D{ WindowInfoReader.Read().Viewport.Width, WindowInfoReader.Read().Viewport.Height }
-	});
-
-	RenderOrientationAxis(Context, Probe.MainCameraProbe);
-}
-
-void EditorViewport::RenderGrid(ELineDepthMode DepthMode) {
-	float GridInterval = 1.0f;
-	UWorld* World = EditorContext->GetWorld();
-	GridInterval = World->GetSettings().GridSize;
 	int GridSize = (static_cast<int>(300 / GridInterval));
 	float LineLength = static_cast<float>(GridSize) * GridInterval;
-	FVector CameraPos = EditorContext->GetCameraState()->Position;
 
-	float SnappedX = std::floor(CameraPos.x / GridInterval) * GridInterval;
-	float SnappedY = std::floor(CameraPos.y / GridInterval) * GridInterval;
+	float SnappedX = std::floor(CameraPosition.x / GridInterval) * GridInterval;
+	float SnappedY = std::floor(CameraPosition.y / GridInterval) * GridInterval;
 
 	for (auto x : std::views::iota(-GridSize, GridSize + 1)) {
 		float LineX = SnappedX + static_cast<float>(x) * GridInterval;
@@ -191,7 +178,7 @@ void EditorViewport::RenderBounds(ELineDepthMode DepthMode) {
 	}
 }
 
-void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, CameraProbe& Probe) {
+void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe) {
 	FMatrix view = Probe.View;
 	view.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
 
@@ -209,17 +196,17 @@ void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, CameraP
 	});
 }
 
-void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context,FRenderProbe& Probe)
+void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport)
 {
 	const ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
 
-	RenderGrid(DepthMode);
+	RenderGrid(CameraPosition, DepthMode);
 	RenderAxis(DepthMode);
 	RenderBounds(DepthMode);
-	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Probe.MainCameraProbe.ViewProjection,
+	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Camera.ViewProjection,
 			.ViewportSize = FVector2D{
-				WindowInfoReader.Read().Viewport.Width,
-				WindowInfoReader.Read().Viewport.Height
+				Viewport.Width,
+				Viewport.Height
 			}
 		}
 	);

@@ -42,9 +42,13 @@
 #include "Render/Panel/FEditorUIManager.h"
 
 #include "FMousePickRequestMessage.h"
+#ifdef OBJ_VIEWER
 #include "FMouseCameraRotateRequestMessage.h"
-#include "FKeyboardInput.h"
 #include "FKeyboardCameraMoveRequestMessage.h"
+#include "FMouseCameraMoveRequestMessage.h"
+#include "FMouseCameraDollyRequestMessage.h"
+#endif
+#include "FKeyboardInput.h"
 
 #include "Core/Base/UndoSystem/FUndoSystem.h"
 #include "Core/Base/UndoSystem/FUndoMessages.h"
@@ -56,6 +60,7 @@
 #include "Core/Asset/UTexture.h"
 
 #include "Render/EditorView/EditorViewport.h"
+#include "Render/EditorView/FEditorViewport.h"
 
 #include "Core/Asset/UFont.h"
 #include "Core/Asset/UFreeTypeFont.h"
@@ -67,6 +72,7 @@
 
 #include "Scene/Component/UBillboardComponent.h"
 #include "Scene/Component/USubUVComponent.h"
+#include "TObjectIterator.h"
 
 #define MAX_LOADSTRING 100
 
@@ -238,6 +244,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // test
     UWorld World{};
     FWorldEditorContext EditorContext{};
+    FEditorSettings EditorSettings{};
+    if (!FEditorConfigManager::Load(EditorSettings)) {
+        FEditorConfigManager::Save(EditorSettings);
+    }
+
+    EditorContext.SetEditorSettings(EditorSettings);
     World.SetEditorContext(&EditorContext);
 	EditorContext.SetWorld(&World);
 
@@ -255,38 +267,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     
 
     EditorViewport EditorView{};
-    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), EditorContext);
+    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, EditorContext);
 
     FEditorUIManager EditorUIManager;
-
-    EditorUIManager.Initialize(World, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+    #ifdef OBJ_VIEWER
+        EditorUIManager.InitializeViewer(AssetRegistry, gHWND, EditorContext);
+    #else
+        EditorUIManager.Initialize(World, Renderer, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+    #endif
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
-	World.SetWindowInfoReader(Renderer.GetWindowInfoReader());
 	World.SetAssetRegistry(&AssetRegistry);
 
     WorldCommandChannel.TryBind<FMousePickRequestMessage>(
         [&World](const FMousePickRequestMessage& Message) { World.HandleMousePickRequest(Message); });
 
-    WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>(
-        [&World](const FMouseCameraRotateRequestMessage& Message)
-        {
-            World.HandleMouseCameraRotateRequest(Message);
-        });
+#ifdef OBJ_VIEWER
+    WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>([&World](const FMouseCameraRotateRequestMessage& Message) {
+        World.HandleMouseCameraRotateRequest(Message);
+    });
+    WorldCommandChannel.TryBind<FKeyboardCameraMoveRequestMessage>([&World](const FKeyboardCameraMoveRequestMessage& Message) {
+        World.HandleKeyboardCameraMoveRequest(Message);
+    });
+    WorldCommandChannel.TryBind<FMouseCameraMoveRequestMessage>([&World](const FMouseCameraMoveRequestMessage& Message) {
+        World.HandleMouseCameraMoveRequestMessage(Message);
+    });
+    WorldCommandChannel.TryBind<FMouseCameraDollyRequestMessage>([&World](const FMouseCameraDollyRequestMessage& Message) {
+        World.HandleMouseCameraDollyRequestMessage(Message);
+    });
+#endif
 
-    WorldCommandChannel.TryBind<
-        FKeyboardCameraMoveRequestMessage>(
-            [&World](
-                const FKeyboardCameraMoveRequestMessage& Message)
-            {
-                World.HandleKeyboardCameraMoveRequest(Message);
-            });
-
-  
-	
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
-  
+
     AssetRegistry.Finalize(); 
 
     IMGUI_CHECKVERSION();
@@ -297,7 +310,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ImGui::StyleColorsDark();
     
     auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; 
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    // 창을 메인 윈도우 밖으로 끌면 ImGui 가 실제 OS 창을 만든다.
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
 
@@ -318,66 +333,67 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             const float DeltaTime = std::chrono::duration<float>(CurrentTickTime - LastTickTime).count();
             LastTickTime = CurrentTickTime;
 
+            // 오프스크린 패널은 ImGui 프레임이 시작되기 전에 그린다.
+            // 여기서 서피스가 리사이즈되며 SRV 가 재생성될 수 있는데,
+            // 그 뒤에 기록되는 드로우 명령이 항상 새 SRV 를 가리키게 하기 위함이다.
+            EditorUIManager.RenderOffscreen(Renderer, AssetRegistry);
+
 			ImGui_ImplDX11_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
-			const ImGuiID DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 			EditorUIManager.Tick();
-
-            // 장면을 그릴 Imgui 창의 Resize 절차
-			ImGui::SetNextWindowDockID(DockSpaceId, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Viewport###SceneViewport");
-			const ImVec2 SceneViewportPosition = ImGui::GetCursorScreenPos();
-			const ImVec2 SceneViewportSize = ImGui::GetContentRegionAvail();
-			const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
-			const bool bSceneViewportHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-			const bool bSceneViewportFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-			const uint32 SceneViewportWidth = static_cast<uint32>(std::max(0.0f, SceneViewportSize.x));
-			const uint32 SceneViewportHeight = static_cast<uint32>(std::max(0.0f, SceneViewportSize.y));
-			Renderer.ResizeSceneSurface(SceneViewportWidth, SceneViewportHeight, SceneViewportPosition.x - MainViewportPosition.x, SceneViewportPosition.y - MainViewportPosition.y);
-
-			// 입력 상태는 WndProc의 ProcessWindowMessage에서 갱신한다.
-			EditorView.ProcessInput(GKeyboardInput, GMouseInput, !bSceneViewportHovered);
-
-			GMouseInput.DispatchPendingWorldCommands(SceneViewportWidth, SceneViewportHeight, !bSceneViewportHovered);
-			GKeyboardInput.DispatchPendingWorldCommands(DeltaTime, !bSceneViewportFocused || ImGui::GetIO().WantCaptureKeyboard);
+			#ifndef OBJ_VIEWER
+			FViewportHostWindow* ViewportHostWindow = EditorUIManager.GetViewportHostWindow();
+			ViewportHostWindow->ProcessInput(EditorView, GKeyboardInput, GMouseInput, DeltaTime);
 
             WorldCommandChannel.Dispatch();
             World.Tick(DeltaTime);
-
 			EditorContext.Dispatch();
 
-			//UndoCommandChannel.Dispatch();
+			for (FViewportId Id = 0; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
+				FEditorViewport* Viewport = ViewportHostWindow->PrepareViewportForRender(Id);
+				if (Viewport == nullptr) {
+					continue;
+				}
 
-			FRenderProbe& Probe{ World.BuildRenderProbe() };
-			EditorView.RenderInProbe(Probe);
-			Renderer.BeginSceneRender();
+				CameraProbe Camera{};
+				if (!Viewport->BuildCameraProbe(Camera)) {
+					continue;
+				}
 
-			Renderer.RenderScene(Probe);
-            EditorView.RenderSceneGuides(Renderer.GetDeviceContext(),Probe);
-			Renderer.RenderGizmos(Probe);
-            
-
-			Renderer.RenderText(Probe);
-            
-
-			EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(),Probe.MainCameraProbe);
-
-
-			ImGui::Image(reinterpret_cast<ImTextureID>(Renderer.GetSceneShaderResourceView()), SceneViewportSize);
-			ImGui::End();
+				FRenderProbe& Probe = World.BuildRenderProbe();
+				EditorView.RenderInProbe(Probe, Camera, Viewport->GetRenderViewport());
+				
+                Renderer.RenderScene(Viewport->GetRenderSurface(), Probe, Camera, Viewport->GetRenderSettings());
+               
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetCameraPosition(), Viewport->GetRenderViewport());
+				
+                Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
+				Renderer.RenderText(Probe, Camera);
+                
+                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Camera);
+			}
+			#endif
 
 			ImGui::Render();
 			Renderer.BeginUiRender();
 			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-            
+
+			// 메인 윈도우 밖으로 분리된 창들을 각자의 OS 창에 그린다.
+			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+			}
+
             Renderer.EndFrame();
 
             GMouseInput.EndFrame();
         }
     }
     
-    FEditorConfigManager::Save(World.GetSettings());
+    EditorSettings = EditorContext.GetEditorSettings();
+    FEditorConfigManager::Save(EditorSettings);
 
     // ImGui 소멸
     ImGui_ImplDX11_Shutdown();
@@ -388,6 +404,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		World.SaveScene("test", &AssetRegistry);
     }
 
+    EditorUIManager.ReleaseRenderResources();
     Renderer.Terminate();
     Renderer.ReportLiveObjects(); 
     return (int) msg.wParam;
@@ -537,5 +554,3 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
-
-

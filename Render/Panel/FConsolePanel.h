@@ -1,20 +1,17 @@
 ﻿#pragma once
 
-#include "Render/Panel/IEditorPanel.h"
+#include "Render/Panel/FEditorWindow.h"
 #include "Render/Panel/Console/ConsoleWindow.h"
 
-class FConsolePanel : public IEditorPanel
-{
+class FConsolePanel : public FEditorWindow {
 public:
-    explicit FConsolePanel(FConsoleOutputHandle InHandle) : Handle(InHandle)
-    {
-    }
-
-    void DrawPanel() override
-    {
-        DrawConsole(Console::STDOutHandle);
+    explicit FConsolePanel(FConsoleOutputHandle InHandle) : FEditorWindow("Console"), Handle(InHandle) {
     }
 
 private:
+    void DrawContents() override {
+        DrawConsoleContents(Handle);
+    }
+
     FConsoleOutputHandle Handle;
 };

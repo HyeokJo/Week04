@@ -11,26 +11,20 @@
 
 
 
+
 FRenderer::~FRenderer() {
 
 }
 
 void FRenderer::Create(HWND WindowHandle, UINT width, UINT height) {
-	WindowInfoWriter.Emplace(RenderWindowInfo{
-		.ScreenWidth = width,
-		.ScreenHeight = height,
-		.Viewport = {}
-	});
+	BackBufferWidth = width;
+	BackBufferHeight = height;
 
 	FRenderer::CreateDeviceAndSwapChain(WindowHandle);
 	auto BackBuffer = std::make_unique<FSceneRenderSurface>();
 	BackBuffer->InitializeSwapChain(Device.Get(), SwapChain.Get());
 	BackBufferSurface = std::move(BackBuffer);
-	
-	auto Scene = std::make_unique<FSceneRenderSurface>();
-	Scene->InitializeOffscreen(Device.Get(), width, height);
-	SceneSurface = std::move(Scene);
-	
+
 	FRenderer::CreateSamplerStates();
 
 	ModelContextArray.Initialize(Device.Get(), DeviceContext.Get(), 128);
@@ -45,14 +39,9 @@ void FRenderer::Create(HWND WindowHandle, UINT width, UINT height) {
 #endif
 }
 
-void FRenderer::BeginSceneRender() {
-	SceneSurface->Bind(DeviceContext.Get());
-	SceneSurface->Clear(DeviceContext.Get(), ClearColor);
-}
-
 void FRenderer::BeginUiRender() {
 	BackBufferSurface->Bind(DeviceContext.Get());
-	BackBufferSurface->Clear(DeviceContext.Get(), ClearColor);
+	BackBufferSurface->Clear(DeviceContext.Get(), UiClearColor);
 }
 
 void FRenderer::BindSamplerStates() {
@@ -67,7 +56,11 @@ void FRenderer::EndFrame() {
 	SwapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 }
 
-void FRenderer::RenderScene(FRenderProbe& Probe) {
+void FRenderer::RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera, const FRenderSettings& Settings) {
+	const float ClearColor[4]{ Settings.ClearColor.x, Settings.ClearColor.y, Settings.ClearColor.z, Settings.ClearColor.w };
+	Target.Bind(DeviceContext.Get());
+	Target.Clear(DeviceContext.Get(), ClearColor);
+
 	if (!UploadLightContext(Probe)) {
 		return;
 	}
@@ -81,14 +74,12 @@ void FRenderer::RenderScene(FRenderProbe& Probe) {
 	if (AssetRegistry != nullptr) {
 		AssetRegistry->GetMaterialBuffer().Flush(DeviceContext.Get());
 	}
-	DeviceContext->RSSetViewports(1,&this->SceneSurface->GetViewport());
-
-	RenderActorList(Probe.ActorProbes,Probe.MainCameraProbe);
-	RenderOutline(Probe.ActorProbes, Probe.MainCameraProbe);
+	RenderActorList(Probe.ActorProbes, Camera, false, Settings.bRenderSky);
+	RenderOutline(Probe.ActorProbes, Camera, Settings.bRenderSky);
 
 	if (AssetRegistry != nullptr) {
-		//TextRenderer.Render(DeviceContext.Get(),Probe.TextProbes,Probe.MainCameraProbe, AssetRegistry);
-		//BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Probe.MainCameraProbe, AssetRegistry);
+		//TextRenderer.Render(DeviceContext.Get(), Probe.TextProbes, Camera, AssetRegistry);
+		//BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Camera, AssetRegistry);
 	}
 }
 
@@ -103,17 +94,17 @@ bool FRenderer::UploadLightContext(const FRenderProbe& Probe) {
 }
 
 
-void FRenderer::RenderGizmos(FRenderProbe& Probe) {
+void FRenderer::RenderGizmos(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera) {
 	if (Probe.GizmoProbes.empty()) {
 		return;
 	}
 
-	SceneSurface->ClearDepth(DeviceContext.Get());
+	Target.ClearDepth(DeviceContext.Get());
 
-	RenderActorList(Probe.GizmoProbes,Probe.MainCameraProbe);
+	RenderActorList(Probe.GizmoProbes, Camera);
 }
 
-void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& MainCameraProbe) {
+void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bRenderSky) {
 	TArray<FActorProbe> OutlineProbes;
 
 	for (const FActorProbe& ActorProbe : ActorProbes)
@@ -129,10 +120,10 @@ void FRenderer::RenderOutline(const TArray<FActorProbe>& ActorProbes, const Came
 		return;
 	}
 
-	RenderActorList(OutlineProbes, MainCameraProbe, true);
+	RenderActorList(OutlineProbes, Camera, true, bRenderSky);
 }
 
-void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& MainCameraProbe, bool bOutline) {
+void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline, bool bRenderSky) {
     if (ActorProbes.empty() || AssetRegistry == nullptr) {
         return;
     }
@@ -145,8 +136,13 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
         uint32 IndexCount{ 0 };
     };
 
+    const FAssetHandle SkyPipelineHandle = AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/SkyDome.json" });
     TArray<FDrawItem> DrawItems{};
     for (const FActorProbe& Probe : ActorProbes) {
+        if (!bRenderSky && Probe.PipelineHandle == SkyPipelineHandle) {
+            continue;
+        }
+
         UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(Probe.MeshHandle);
         if (Mesh == nullptr || AssetRegistry->ResolveAsset<UPipeline>(Probe.PipelineHandle) == nullptr) {
             continue;
@@ -236,9 +232,9 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 	};
 
 	RootConstants.SetGraphicsRoot32BitConstants(CameraData{
-		.View = MainCameraProbe.View,
-		.Projection = MainCameraProbe.Projection,
-		.ViewProjection = MainCameraProbe.ViewProjection
+		.View = Camera.View,
+		.Projection = Camera.Projection,
+		.ViewProjection = Camera.ViewProjection
 		}, 0);
 
 	RootConstants.SetGraphicsRoot32BitConstant(FrameLightCount, 49);
@@ -315,31 +311,16 @@ void FRenderer::ReSize(uint32 width, uint32 height) {
 
 	DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
 	BackBufferSurface->Resize(Device.Get(), width, height);
-}
-
-void FRenderer::ResizeSceneSurface(uint32 Width, uint32 Height, float Left, float Top) {
-	if (Width == 0 || Height == 0) {
-		return;
-	}
-
-	SceneSurface->Resize(Device.Get(), Width, Height);
-	WindowInfoWriter.Modify([&](RenderWindowInfo& Info) {
-		Info.ScreenWidth = Width;
-		Info.ScreenHeight = Height;
-		Info.Viewport = { Left, Top, static_cast<float>(Width), static_cast<float>(Height), 0.0f, 1.0f };
-	});
+	BackBufferWidth = width;
+	BackBufferHeight = height;
 }
 
 void FRenderer::Terminate() {
 	DeviceContext->ClearState();
 
-	if (SceneSurface != nullptr) {
-		SceneSurface->Reset();
-	}
 	if (BackBufferSurface != nullptr) {
 		BackBufferSurface->Reset();
 	}
-	SceneSurface.reset();
 	BackBufferSurface.reset();
 	SwapChain.Reset();
 }
@@ -356,8 +337,8 @@ void FRenderer::CreateDeviceAndSwapChain(HWND WindowHandle) {
 
 	// 스왑 체인 설정 구조체 초기화
 	DXGI_SWAP_CHAIN_DESC swapchaindesc = {};
-	swapchaindesc.BufferDesc.Width = WindowInfoReader.Read().ScreenWidth; // 창 크기에 맞게 자동으로 설정
-	swapchaindesc.BufferDesc.Height = WindowInfoReader.Read().ScreenHeight; // 창 크기에 맞게 자동으로 설정
+	swapchaindesc.BufferDesc.Width = BackBufferWidth; // 창 크기에 맞게 자동으로 설정
+	swapchaindesc.BufferDesc.Height = BackBufferHeight; // 창 크기에 맞게 자동으로 설정
 	swapchaindesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 색상 포맷
 	swapchaindesc.SampleDesc.Count = 1; // 멀티 샘플링 비활성화
 	swapchaindesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 렌더 타겟으로 사용
@@ -424,11 +405,11 @@ void FRenderer::CreateSamplerStates() {
 	CreateSampler(5, ShadowDescription, "ShadowCompare");
 }
 
-void FRenderer::RenderText(const FRenderProbe& Probe)
+void FRenderer::RenderText(const FRenderProbe& Probe, const CameraProbe& Camera)
 {
 	if (AssetRegistry != nullptr)
 	{
-		TextRenderer.Render(DeviceContext.Get(),Probe.TextProbes,Probe.MainCameraProbe,AssetRegistry);
-		BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Probe.MainCameraProbe, AssetRegistry);
+		TextRenderer.Render(DeviceContext.Get(), Probe.TextProbes, Camera, AssetRegistry);
+		BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Camera, AssetRegistry);
 	}
 }

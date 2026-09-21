@@ -6,12 +6,19 @@
 
 #include <Windows.h>
 
+#include "FMath.h"
 #include "Core/Channel/FMessageChannel.h"
 #include "EKeyState.h"
 
 
 enum EMouseSide : uint32 {
     Left, Right, MAX
+};
+
+struct FViewportMouseNavigationInput {
+    float RotationDeltaX = 0.0f;
+    float RotationDeltaY = 0.0f;
+    float WheelSteps = 0.0f;
 };
 
 class FMouseInput
@@ -21,9 +28,10 @@ public:
 
 	void ProcessWindowMessage(UINT Message, WPARAM WParam, LPARAM LParam);
 
-	void DispatchPendingWorldCommands(std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, bool bMouseCaptureByUI);
+	FViewportMouseNavigationInput DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, bool bMouseCaptureByUI);
 
     EKeyState GetKeyState(EMouseSide Side) const;
+    bool IsWorldDragActive(EMouseSide Side) const;
 
     struct DragCapture
     {
@@ -61,6 +69,9 @@ private:
         EDragOwner::None
     };
 
-    float PendingRotateDeltaX = 0.0f;
-    float PendingRotateDeltaY = 0.0f;
+    float PendingDeltaX = 0.0f;
+    float PendingDeltaY = 0.0f;
+        
+    float PendingWheelSteps = 0.0f;
+
 };

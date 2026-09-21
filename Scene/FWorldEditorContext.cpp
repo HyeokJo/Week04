@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FWorldEditorContext.h"
 
 #include "AActor.h"
@@ -73,12 +73,14 @@ void FWorldEditorContext::InitializeChannels(FAssetRegistry& AssetRegistry, ID3D
     });
 	EditorToWorld.TryBind<FMessageImportMesh>([this, &AssetRegistry, Device](const FMessageImportMesh& Message)
 											  {
-												  //OBJ 로드에 사용하는 MonkeyMesh.meta 파일 내부의 로드할 Obj 파일 경로를 수정합니다.
-												  //meta 파일 생성 혹은 meta 파일 로드 시스템이 개선되면 수정이 필요합니다.
-												  if (ReWriteObjFilePath(Message.MetaPath, Message.FilePath))
-												  {
-													  //AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
-												  }
+												  ////OBJ 로드에 사용하는 MonkeyMesh.meta 파일 내부의 로드할 Obj 파일 경로를 수정합니다.
+												  ////meta 파일 생성 혹은 meta 파일 로드 시스템이 개선되면 수정이 필요합니다.
+												  //if (ReWriteObjFilePath(Message.MetaPath, Message.FilePath))
+												  //{
+													 // //AssetRegistry.EmplaceAsset<UMesh>(Device, Message.AssetName, std::filesystem::path{ Message.MetaPath });
+												  //}
+
+			AssetRegistry.LoadExternAsset(std::filesystem::path{ Message.FilePath.c_str() }, EAssetType::Mesh);
 											  });
 }
 
@@ -90,13 +92,32 @@ void FWorldEditorContext::Dispatch() {
 FMessageChannel::FSender FWorldEditorContext::GetEditorToWorldSender() { return EditorToWorld.GetSender(); }
 FMessageChannel::FSender FWorldEditorContext::GetWorldToEditorSender() { return WorldToEditor.GetSender(); }
 
-const FCameraSnapshot* FWorldEditorContext::GetCameraState() const noexcept {
-    const auto Reader = SharedState.GetReader();
-    return Reader.Peek().Camera ? &*Reader.Peek().Camera : nullptr;
+FEditorSettings FWorldEditorContext::GetEditorSettings() const {
+    return SharedState.GetReader().Peek().EditorSettings;
 }
 
-void FWorldEditorContext::PublishCameraState(const FCameraSnapshot& State) {
-    SharedState.GetWriter().Modify([&State](FWorldEditorSharedState& Shared) { Shared.Camera = State; });
+void FWorldEditorContext::SetEditorSettings(const FEditorSettings& Settings) {
+    SharedState.GetWriter().Modify([&Settings](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings = Settings;
+    });
+}
+
+void FWorldEditorContext::SetMoveSensitivity(float Value) {
+    SharedState.GetWriter().Modify([Value](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.MoveSensitivity = Value;
+    });
+}
+
+void FWorldEditorContext::SetRotationSensitivity(float Value) {
+    SharedState.GetWriter().Modify([Value](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.RotationSensitivity = Value;
+    });
+}
+
+void FWorldEditorContext::SetGridSize(float Value) {
+    SharedState.GetWriter().Modify([Value](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.GridSize = Value;
+    });
 }
 
 const size_t FWorldEditorContext::GetRenderModeState() const noexcept

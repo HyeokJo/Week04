@@ -1,7 +1,6 @@
 ﻿#include "PCH.h"
 #include "doctest.h"
 
-#include "../Render/RenderWindowInfo.h"
 #include "../Scene/AActor.h"
 #include "../Scene/Component/USceneComponent.h"
 #include "../Scene/UWorld.h"
@@ -95,8 +94,6 @@ TEST_SUITE("CH3 Actor Lifecycle")
         GActorLifecycleEvents.clear();
 
         UWorld World;
-        FStateChannel<RenderWindowInfo> WindowInfoChannel;
-        World.SetWindowInfoReader(WindowInfoChannel.GetReader());
 
         ALifecycleTrackingActor* Actor = World.AdoptActor<ALifecycleTrackingActor>();
         REQUIRE(Actor != nullptr);

@@ -164,6 +164,21 @@ bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
     return true;
 }
 
+FAssetHandle FAssetRegistry::LoadExternAsset(const std::filesystem::path& PhysicalPath, EAssetType AssetType) {
+    FAssetEntry entry{ MakeAssetPath(PhysicalPath), PhysicalPath, MakeSidecarPath(PhysicalPath), {}, AssetType, {} };
+
+	entry.Handle = AllocateHandle();
+
+    entry.AssetPath = FAssetPath{ FString{ PhysicalPath.generic_string() }};
+    if (AssetType == EAssetType::Mesh) {
+        LoadMesh(entry, Device);
+    }
+  
+	Assets.emplace_back(std::move(entry));
+
+    return {};
+}
+
 void FAssetRegistry::Reset() {
     Assets.clear();
     FreeHandles.clear();

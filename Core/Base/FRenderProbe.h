@@ -71,6 +71,11 @@ struct CameraProbe {
 	FMatrix Projection{};
 };
 
+struct FRenderSettings {
+	FVector4 ClearColor{ 0.2f, 0.2f, 0.7f, 1.0f };
+	bool bRenderSky{ true };
+};
+
 
 struct FLightProbe {
     FVector3 Color{ 1.0f, 1.0f, 1.0f };
@@ -97,6 +102,4 @@ struct FRenderProbe {
 	TArray<FLightProbe> LightProbes{};
 
 	bool bForceUnlit{ false };
-
-	CameraProbe MainCameraProbe{}; 
 };

@@ -1,6 +1,6 @@
 workspace "Macaw"
     location ""
-    configurations { "Debug", "Release" }
+    configurations { "Debug", "Release","Viewer" }
     platforms { "x64" }
     defaultplatform "x64"
     startproject "Macaw"
@@ -18,6 +18,11 @@ filter "configurations:Debug"
 
 filter "configurations:Release"
     defines { "NDEBUG" }
+    optimize "Speed"
+    runtime "Release"
+
+filter "configurations:Viewer"
+    defines { "NDEBUG", "OBJ_VIEWER" }
     optimize "Speed"
     runtime "Release"
 
@@ -88,6 +93,9 @@ filter "configurations:Debug"
 filter "configurations:Release"
     libdirs { "Externals/bin/release" }
 
+filter "configurations:Viewer"
+    libdirs { "Externals/bin/release" }
+
 filter {}
 
 project "MacawTests"
@@ -111,6 +119,10 @@ project "MacawTests"
         "NOMINMAX",
     }
 
+    buildoptions {
+        "/utf-8",
+    }
+
     -- 테스트는 실제 엔진 소스를 함께 링크하되, Win32/ImGui 에디터 진입점은 제외한다.
     files {
         "**.h",
@@ -119,13 +131,22 @@ project "MacawTests"
         "Serialize/**.cpp",
         "SimpleMath/**.cpp",
         "ErrorHandler.cpp",
+        "FName.cpp",
+        "city.cc",
+        "Render/Panel/FPropertyEditorContext.cpp",
+        "Render/EditorView/FViewportPresetLayout.cpp",
+        "Render/EditorView/SSplitter.cpp",
+        "Render/Pipeline/**.cpp",
+        "ImGui/imgui.cpp",
+        "ImGui/imgui_draw.cpp",
+        "ImGui/imgui_tables.cpp",
+        "ImGui/imgui_widgets.cpp",
         "pch.cpp",
         "Tests/**.cpp",
     }
 
     removefiles {
         "Tests/TestUndo.cpp", -- 오래된 중복 doctest main 및 폐기된 include 경로
-        "ImGui/**",
         "Externals/**",
     }
 
@@ -151,7 +172,13 @@ filter "configurations:Debug"
 filter "configurations:Release"
     libdirs { "Externals/bin/release" }
 
+filter "configurations:Viewer"
+    libdirs { "Externals/bin/release" }
+
 filter "files:SimpleMath/SimpleMath.cpp"
+    enablepch "Off"
+
+filter "files:ImGui/**.cpp"
     enablepch "Off"
 
 filter "files:Tests/**.cpp"

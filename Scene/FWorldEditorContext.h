@@ -1,12 +1,11 @@
 ﻿#pragma once
 
 #include <d3d11.h>
-#include <optional>
-
 #include "Core/Base/TObjectRef.h"
 #include "Core/Channel/FMessageChannel.h"
 #include "Core/Channel/FStateChannel.h"
 #include "Render/Panel/FEditorInfo.h"
+#include "Serialize/FEditorSettings.h"
 
 class AActor;
 class FAssetRegistry;
@@ -15,7 +14,7 @@ class USceneComponent;
 class UWorld;
 
 struct FWorldEditorSharedState {
-    std::optional<FCameraSnapshot> Camera;
+    FEditorSettings EditorSettings{};
     size_t ModeIndex{ 0 };
 };
 
@@ -28,8 +27,11 @@ public:
     FMessageChannel::FSender GetEditorToWorldSender();
     FMessageChannel::FSender GetWorldToEditorSender();
 
-    const FCameraSnapshot* GetCameraState() const noexcept;
-    void PublishCameraState(const FCameraSnapshot& State);
+    FEditorSettings GetEditorSettings() const;
+    void SetEditorSettings(const FEditorSettings& Settings);
+    void SetMoveSensitivity(float Value);
+    void SetRotationSensitivity(float Value);
+    void SetGridSize(float Value);
 
     const size_t GetRenderModeState() const noexcept;
     void SetRenderModeState(const size_t State);

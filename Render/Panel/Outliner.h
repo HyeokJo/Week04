@@ -1,18 +1,20 @@
 #pragma once
 
 #include "ImGui/imgui.h"
-#include "Render/Panel/IEditorPanel.h"
+#include "Render/Panel/FEditorWindow.h"
 #include "Scene/UWorld.h"
 
 class FWorldEditorContext;
 
-class FOutlinerPanel : public IEditorPanel {
+class FOutlinerPanel : public FEditorWindow {
 public:
     FOutlinerPanel(UWorld& InWorld, FWorldEditorContext& InEditorContext);
 
-    void DrawPanel() override;
-
 private:
+    void DrawContents() override;
+    void PushWindowStyle() override;
+    void PopWindowStyle() override;
+
     bool MatchesActor(const AActor& Actor) const;
     bool IsActorAttachedTo(const AActor& Actor, const AActor& ParentActor) const;
     bool IsRootActor(const AActor& Actor) const;
