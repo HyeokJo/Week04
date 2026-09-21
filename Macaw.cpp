@@ -67,6 +67,7 @@
 #include "Scene/Component/UBillBoardComponent.h"
 #include "Scene/Component/UBillBoardTextComponent.h"
 #include "Scene/Component/UNameTagComponent.h"
+#include "Scene/Component/UScrollUVComponent.h"
 
 #include "Serialize/FEditorConfigManager.h"
 
@@ -221,6 +222,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	
     TypeRegistry::Register(UBillboardComponent::StaticTypeInfo());
     TypeRegistry::Register(USubUVComponent::StaticTypeInfo());
+
+    TypeRegistry::Register(UScrollUVComponent::StaticTypeInfo());
 
     // 전역 문자열을 초기화합니다.
     //LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
