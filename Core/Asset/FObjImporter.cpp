@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 #include "../Console/Console.h"
-#include "../../Serialize/FObjSerializer.h"
 
 bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 {
@@ -177,12 +176,6 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		BuildGeometry(ObjInfo, OutGeometry);
 	}
 
-	//바이너리 저장
-	//FString BinaryName = "./Content/Meshes/" + ObjInfo.AssetName;
-	//임시 저장 파일 이름 : meta 데이터에 에셋 이름이 기록되면 수정한다.
-	FString BinaryName = "./Content/Meshes/ObjMesh.bin";
-	FObjSerializer::SaveBinary(OutGeometry, BinaryName);
-	
 	//다각형이 포함된 모델이라면 배열 조합을 다르게 처리한다.
 	return true;
 }

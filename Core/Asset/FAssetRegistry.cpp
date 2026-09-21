@@ -5,8 +5,10 @@
 #include "UMesh.h"
 #include "USurfaceOpaque.h"
 #include "UTexture.h"
+#include "FObjImporter.h"
 #include "Render/Pipeline/UPipeline.h"
 #include "Core/Console/Console.h"
+#include "Serialize/FObjSerializer.h"
 
 #include <algorithm>
 #include <array>
@@ -23,6 +25,14 @@ constexpr const char* DefaultStaticMeshMaterialAssetPath = "/Game/System/Materia
 constexpr const char* DefaultStaticMeshPipelineAssetPath = "/Game/Pipeline/Base";
 constexpr const char* DefaultCheckerboardTexturePath = "/Game/Texture/checkerboard.png";
 constexpr const char* GizmoPipelineAssetPath = "/Game/Pipeline/Gizmo.json";
+
+FString GetLowercaseExtension(const std::filesystem::path& FilePath) {
+    FString Extension = FilePath.extension().generic_string().c_str();
+    std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) {
+        return static_cast<char>(std::tolower(Character));
+    });
+    return Extension;
+}
 }
 
 bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
@@ -164,19 +174,59 @@ bool FAssetRegistry::RemoveAsset(FAssetHandle Handle) {
     return true;
 }
 
-FAssetHandle FAssetRegistry::LoadExternAsset(const std::filesystem::path& PhysicalPath, EAssetType AssetType) {
-    FAssetEntry entry{ MakeAssetPath(PhysicalPath), PhysicalPath, MakeSidecarPath(PhysicalPath), {}, AssetType, {} };
-
-	entry.Handle = AllocateHandle();
-
-    entry.AssetPath = FAssetPath{ FString{ PhysicalPath.generic_string() }};
-    if (AssetType == EAssetType::Mesh) {
-        LoadMesh(entry, Device);
+FAssetHandle FAssetRegistry::ImportMesh(const std::filesystem::path& SourceObjPath, const FString& TargetVirtualFolder) {
+    std::error_code ErrorCode{};
+    const std::filesystem::path AbsoluteSourcePath = std::filesystem::absolute(SourceObjPath, ErrorCode).lexically_normal();
+    if (ErrorCode || !std::filesystem::is_regular_file(AbsoluteSourcePath, ErrorCode) || GetLowercaseExtension(AbsoluteSourcePath) != ".obj") {
+        return {};
     }
-  
-	Assets.emplace_back(std::move(entry));
 
-    return {};
+    const std::filesystem::path TargetFolder = ResolveContentFolder(TargetVirtualFolder);
+    if (TargetFolder.empty()) {
+        return {};
+    }
+
+    std::filesystem::create_directories(TargetFolder, ErrorCode);
+    if (ErrorCode) {
+        return {};
+    }
+
+    std::filesystem::path TargetBinaryPath = TargetFolder / AbsoluteSourcePath.filename();
+    TargetBinaryPath.replace_extension(".bin");
+    const bool bTargetExists = std::filesystem::exists(TargetBinaryPath, ErrorCode);
+    if (ErrorCode) {
+        return {};
+    }
+    if (bTargetExists) {
+        Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Mesh import target already exists: %s", TargetBinaryPath.generic_string().c_str());
+        return {};
+    }
+
+    FObjImporter Importer{};
+    FGeometry Geometry{};
+    if (!Importer.LoadObjFile(AbsoluteSourcePath.string().c_str(), Geometry) || !FObjSerializer::SaveBinary(Geometry, TargetBinaryPath.string().c_str())) {
+        std::filesystem::remove(TargetBinaryPath, ErrorCode);
+        return {};
+    }
+
+    if (!DiscoverAssetFile(TargetBinaryPath)) {
+        std::filesystem::remove(TargetBinaryPath, ErrorCode);
+        std::filesystem::remove(MakeSidecarPath(TargetBinaryPath), ErrorCode);
+        return {};
+    }
+
+    const FAssetHandle Handle = FindAsset(MakeAssetPath(TargetBinaryPath));
+    FAssetEntry* Entry = FindEntry(Handle);
+    if (Entry == nullptr || Entry->AssetType != EAssetType::Mesh || !LoadMesh(*Entry, Device)) {
+        if (Handle) {
+            RemoveAsset(Handle);
+        }
+        std::filesystem::remove(TargetBinaryPath, ErrorCode);
+        std::filesystem::remove(MakeSidecarPath(TargetBinaryPath), ErrorCode);
+        return {};
+    }
+
+    return Handle;
 }
 
 void FAssetRegistry::Reset() {
@@ -219,22 +269,40 @@ FAssetHandle FAssetRegistry::EnsureDefaultStaticMeshPipeline() {
     return DefaultPipelineHandle;
 }
 
+std::filesystem::path FAssetRegistry::ResolveContentFolder(const FString& VirtualFolder) const {
+    constexpr std::string_view VirtualRoot = "/Game";
+
+    if (VirtualFolder == VirtualRoot) {
+        return ContentRoot;
+    }
+
+    constexpr std::string_view VirtualPrefix = "/Game/";
+
+    if (!VirtualFolder.starts_with(VirtualPrefix)) {
+        return {};
+    }
+
+    const FString RelativeFolder = VirtualFolder.substr(VirtualPrefix.size());
+
+    return (ContentRoot / std::filesystem::path(RelativeFolder)).lexically_normal();
+}
+
 bool FAssetRegistry::EnsureSystemAssets() {
 	struct FSystemMeshDefinition {
 		const char* AssetPath;
 	};
 
 	constexpr std::array SystemMeshes{
-		FSystemMeshDefinition{ "/Game/System/Mesh/Capsule.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Cone.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Cube.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Cylinder.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/GizmoTorus.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Plane.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Pyramid.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/SkyDome.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Sphere.obj" },
-		FSystemMeshDefinition{ "/Game/System/Mesh/Torus.obj" }
+		FSystemMeshDefinition{ "/Game/System/Mesh/Capsule.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cone.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cube.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Cylinder.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/GizmoTorus.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Plane.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Pyramid.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/SkyDome.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Sphere.bin" },
+		FSystemMeshDefinition{ "/Game/System/Mesh/Torus.bin" }
 	};
 
 	for (const FSystemMeshDefinition& Definition : SystemMeshes) {
@@ -367,9 +435,17 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UMesh> Mesh = std::make_unique<UMesh>();
 	Mesh->SetAssetName(Entry.AssetPath.Path);
 
+	const bool bBinaryAsset = GetLowercaseExtension(Entry.PhysicalPath) == ".bin";
+	const std::filesystem::path SourceObjPath = bBinaryAsset ? std::filesystem::path{} : Entry.PhysicalPath;
+	std::filesystem::path BinaryPath = Entry.PhysicalPath;
+	if (!bBinaryAsset) {
+		BinaryPath.replace_extension(".bin");
+	}
+
 	const bool bInitialized = Mesh->Initialize(
 		Device,
-		Entry.PhysicalPath,
+		SourceObjPath,
+		BinaryPath,
 		[this](const std::filesystem::path& MaterialPath) {
 			return FindAsset(MakeAssetPath(MaterialPath));
 		},
@@ -501,13 +577,9 @@ FAssetPath FAssetRegistry::MakeAssetPath(const std::filesystem::path& PhysicalPa
 }
 
 EAssetType FAssetRegistry::GetAssetType(const std::filesystem::path& FilePath) {
-    FString Extension = FilePath.extension().generic_string().c_str();
+    const FString Extension = GetLowercaseExtension(FilePath);
 
-    std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) {
-        return static_cast<char>(std::tolower(Character));
-    });
-
-    if (Extension == ".obj") {
+    if (Extension == ".bin") {
         return EAssetType::Mesh;
     }
 

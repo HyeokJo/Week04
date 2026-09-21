@@ -46,7 +46,7 @@ public:
 
     bool RemoveAsset(FAssetHandle Handle);
 
-    FAssetHandle LoadExternAsset(const std::filesystem::path& PhysicalPath, EAssetType AssetType); 
+    FAssetHandle ImportMesh(const std::filesystem::path& SourceObjPath, const FString& TargetVirtualFolder);
 
     template<typename T>
     requires std::is_base_of_v<UAsset, T>
@@ -107,6 +107,7 @@ public:
     FAssetHandle EnsureDefaultStaticMeshPipeline();
 
 private:
+	std::filesystem::path ResolveContentFolder(const FString& VirtualFolder) const;
 	bool EnsureSystemAssets();
 	bool DiscoverAssetFile(const std::filesystem::path& FilePath);
 	bool LoadTexture(FAssetEntry& Entry, ID3D11Device* Device);

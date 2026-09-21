@@ -60,8 +60,8 @@ void FViewerPanel::DrawMenuBar()
     if (ImGui::BeginMenu("Asset"))
     {
         static const char* const MeshNames[]{
-            "/Game/System/Mesh/Cube.obj", "/Game/System/Mesh/Sphere.obj", "/Game/System/Mesh/Cone.obj", "/Game/System/Mesh/Capsule.obj",
-            "/Game/System/Mesh/Cylinder.obj", "/Game/System/Mesh/Torus.obj", "/Game/System/Mesh/Plane.obj"
+            "/Game/System/Mesh/Cube.bin", "/Game/System/Mesh/Sphere.bin", "/Game/System/Mesh/Cone.bin", "/Game/System/Mesh/Capsule.bin",
+            "/Game/System/Mesh/Cylinder.bin", "/Game/System/Mesh/Torus.bin", "/Game/System/Mesh/Plane.bin"
         };
 
 
@@ -186,7 +186,7 @@ FRenderProbe FViewerPanel::BuildPreviewProbe()
     FAssetHandle Mesh = MeshHandle;
     if (!Mesh)
     {
-		MeshHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.obj" });
+		MeshHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.bin" });
         Mesh = MeshHandle;
     }
 

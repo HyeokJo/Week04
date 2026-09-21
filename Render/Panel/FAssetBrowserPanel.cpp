@@ -9,9 +9,36 @@
 #include <string_view>
 
 namespace {
-constexpr float FolderPaneWidth = 190.0f;
-constexpr float ThumbnailSize = 96.0f;
-constexpr float TileWidth = ThumbnailSize + 18.0f;
+    constexpr float FolderPaneWidth = 190.0f;
+    constexpr float ThumbnailSize = 96.0f;
+    constexpr float TileWidth = ThumbnailSize + 18.0f;
+
+    FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN)
+    {
+        char FileName[MAX_PATH] = { 0 };
+
+        OPENFILENAMEA OpenFileName = OFN;
+
+        OpenFileName.lpstrFile = FileName;
+
+        std::string InitialDirectoryPath = std::filesystem::absolute(FilePath.c_str()).string();
+
+        if (!std::filesystem::exists(InitialDirectoryPath))
+        {
+            std::filesystem::create_directories(InitialDirectoryPath);
+        }
+
+        OpenFileName.lpstrInitialDir = InitialDirectoryPath.c_str();
+
+        if (GetOpenFileNameA(&OpenFileName))
+        {
+            return FString(FileName);
+        }
+
+        return "";
+    }
+
+
 }
 
 FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry)
@@ -23,6 +50,27 @@ void FAssetBrowserPanel::DrawContents() {
     ImGui::TextDisabled("Content");
     ImGui::SameLine();
     ImGui::TextUnformatted(SelectedFolder.c_str());
+    ImGui::SameLine();
+    
+    if (ImGui::Button("Import")) {
+
+        OPENFILENAMEA OpenFileName = { 0 };
+
+        OpenFileName.lStructSize = sizeof(OpenFileName);
+        OpenFileName.hwndOwner = nullptr;
+        OpenFileName.lpstrFilter = "OBJ Files(*.obj)\0*.obj\0All Files(*.*)\0*.*\0";
+        OpenFileName.nMaxFile = MAX_PATH;
+        OpenFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+        OpenFileName.lpstrDefExt = "obj";
+
+        FString FilePath = OpenFileDialog(FString("./Content"), OpenFileName);
+
+        if (!FilePath.empty()) {
+            const std::filesystem::path SourcePath{ FilePath };
+            AssetRegistry->ImportMesh(SourcePath, SelectedFolder);
+        }
+    }
+   
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::InputTextWithHint("##AssetFilter", "Search assets", AssetFilter.InputBuf, IM_ARRAYSIZE(AssetFilter.InputBuf))) {
@@ -193,3 +241,4 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
     ImGui::TextDisabled("%s", GetAssetTypeLabel(Entry.AssetType));
     ImGui::PopID();
 }
+
