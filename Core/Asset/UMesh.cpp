@@ -3,7 +3,7 @@
 
 #include "../Console/Console.h"
 
-#include "FObjInporter.h"
+#include "FObjImporter.h"
 #include "../../Serialize/FObjSerializer.h"
 
 bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
@@ -12,7 +12,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 		return false;
 	}
 
-	FObjInporter ObjImporter{};
+	FObjImporter ObjImporter{};
 	FGeometry Geometry{};
 	std::filesystem::path BinaryPath = ObjPath;
 	BinaryPath.replace_extension(".bin");

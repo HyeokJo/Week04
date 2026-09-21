@@ -1,5 +1,5 @@
 #include "PCH.h"
-#include "FObjInporter.h"
+#include "FObjImporter.h"
 #include <filesystem>
 #include <fstream>
 #include <format>
@@ -8,7 +8,7 @@
 #include "../Console/Console.h"
 #include "../../Serialize/FObjSerializer.h"
 
-bool FObjInporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
+bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 {
 	std::ifstream File(FilePath.c_str());
 	if (!File.is_open())
@@ -187,7 +187,7 @@ bool FObjInporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 	return true;
 }
 
-bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
+bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
 {
 	if (ObjInfo.Positions.empty() || ObjInfo.FaceVertices_Polygon.empty())
 	{
@@ -254,7 +254,7 @@ bool FObjInporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	return true;
 }
 
-bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
+bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
 {
 	//다각형이라면 Ear Clipping 방식을 따라갑니다.
 	//아래 조건을 만족하는 삼각형을 찾아갑니다.
@@ -441,7 +441,7 @@ bool FObjInporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	return true;
 }
 
-void FObjInporter::AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo& ObjInfo, FGeometry& OutGeometry, 
+void FObjImporter::AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo& ObjInfo, FGeometry& OutGeometry,
 								std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash>& CacheMap) const
 {
 
@@ -485,7 +485,7 @@ void FObjInporter::AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo&
 	OutGeometry.Indices.push_back(NewIndex);
 }
 
-TArray<FString> FObjInporter::SplitTokens(const FString& Line)
+TArray<FString> FObjImporter::SplitTokens(const FString& Line)
 {
 	TArray<FString> Tokens;
 	std::istringstream Stream(Line);
@@ -497,7 +497,7 @@ TArray<FString> FObjInporter::SplitTokens(const FString& Line)
 	return Tokens;
 }
 
-int32 FObjInporter::NormalizeIndex(int32 RawIndex, int32 ArraySize) const
+int32 FObjImporter::NormalizeIndex(int32 RawIndex, int32 ArraySize) const
 {
 	if (RawIndex > 0){
 		return RawIndex - 1;

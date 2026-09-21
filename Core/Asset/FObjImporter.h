@@ -69,17 +69,17 @@ class UMesh;
 //    TArray<uint32> SubMeshIndexCounts;
 //};
 
-class FObjInporter
+class FObjImporter
 {
 public:
-    FObjInporter() = default;
-    ~FObjInporter() = default;
+    FObjImporter() = default;
+    ~FObjImporter() = default;
 
-    FObjInporter(const FObjInporter&) = delete;
-    FObjInporter& operator=(const FObjInporter&) = delete;
+    FObjImporter(const FObjImporter&) = delete;
+    FObjImporter& operator=(const FObjImporter&) = delete;
 
-    FObjInporter(FObjInporter&&) noexcept = default;
-    FObjInporter& operator=(FObjInporter&&) noexcept = default;
+    FObjImporter(FObjImporter&&) noexcept = default;
+    FObjImporter& operator=(FObjImporter&&) noexcept = default;
 
     //Obj 파일 로드
     //std::unique_ptr<UObject> LoadObjFile(const FString& FilePath);
