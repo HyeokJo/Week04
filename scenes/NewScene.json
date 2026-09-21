@@ -255,9 +255,9 @@
                     "bCollisionEnabled": true,
                     "GuidMeshComponent": "89632C7B-4D7E-C1D9-C70F-EAABCB478764",
                     "OBB_Center": [
-                        0.007106006145477295,
-                        0.0013610124588012695,
-                        0.000025987625122070313
+                        0.0,
+                        0.0,
+                        0.0
                     ],
                     "OBB_Extent": [
                         0.5,
@@ -683,11 +683,11 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
+                        0.75,
                         0.25
                     ],
                     "UVMax": [
-                        0.5,
+                        1.0,
                         0.5
                     ],
                     "Color": [
@@ -814,11 +814,11 @@
                     ],
                     "UVMin": [
                         0.75,
-                        0.0
+                        0.5
                     ],
                     "UVMax": [
                         1.0,
-                        0.25
+                        0.75
                     ],
                     "Color": [
                         1.0,
@@ -878,12 +878,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.5
+                        0.5,
+                        0.0
                     ],
                     "UVMax": [
-                        0.25,
-                        0.75
+                        0.75,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -992,6 +992,234 @@
                 }
             ],
             "GuidRootComponent": "CEECA7DC-49C0-2DD3-2401-0AB5B2B9D8E2"
+        },
+        {
+            "Guid": "A199B57F-410F-92E3-5B83-4191A85BB99A",
+            "TypeName": "AActor",
+            "Name": "AActor_1",
+            "Components": [
+                {
+                    "Guid": "690E1DD8-4A9D-EB4F-1314-F3BA880960CC",
+                    "TypeName": "USubUVComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            -4.464896202087402,
+                            -0.9105672836303711,
+                            7.805392265319824
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "TextureAssetGuid": "C3C476E4-AF7A-4E96-B55B-7A50F5115493",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.png",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
+                    "Size": [
+                        1.0,
+                        1.0
+                    ],
+                    "UVMin": [
+                        0.0,
+                        0.0
+                    ],
+                    "UVMax": [
+                        1.0,
+                        1.0
+                    ],
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "TotalFrame": 1,
+                    "SubImageHorizontal": 1,
+                    "SubImageVertical": 1,
+                    "FrameRate": 30.0,
+                    "bLooping": true,
+                    "bPlaying": true
+                },
+                {
+                    "Guid": "10CE20BA-461C-6D27-16BD-6B92396812A1",
+                    "TypeName": "UNameTagComponent",
+                    "Name": "",
+                    "bActive": false,
+                    "Transform": {
+                        "Position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
+                    "Text": "A199B57F-410F-92E3-5B83-4191A85BB99A",
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "CharacterHeight": 1.0,
+                    "LetterSpacing": 0.0,
+                    "LineSpacing": 0.0,
+                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
+                    "TargetLocalOffset": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ]
+                }
+            ],
+            "GuidRootComponent": "690E1DD8-4A9D-EB4F-1314-F3BA880960CC"
+        },
+        {
+            "Guid": "063B4C6F-4B7D-406D-4234-D59895D7E1DD",
+            "TypeName": "AActor",
+            "Name": "AActor_7",
+            "Components": [
+                {
+                    "Guid": "FD2BE2E7-4079-1F87-B7B8-A2B4EFAA6131",
+                    "TypeName": "UScrollUVComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            -1.9869410991668701,
+                            -4.380220413208008,
+                            6.401943206787109
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "TextureAssetGuid": "AB0466D3-1BAE-42D4-A678-A010DA40565D",
+                    "TextureAssetPath": "/Game/Texture/Epic_BlueSunset_EquiRect_flat.dds",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
+                    "Size": [
+                        1.0,
+                        1.0
+                    ],
+                    "UVMin": [
+                        0.7410558462142944,
+                        0.27511242032051086
+                    ],
+                    "UVMax": [
+                        1.7410558462142944,
+                        1.2751123905181885
+                    ],
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "ScrollSpeed": [
+                        0.9300000071525574,
+                        -4.21999979019165
+                    ],
+                    "bLooping": true,
+                    "bPlaying": true
+                },
+                {
+                    "Guid": "E8D6D673-4EB2-FD49-F0F1-54B0FD0636EF",
+                    "TypeName": "UNameTagComponent",
+                    "Name": "",
+                    "bActive": false,
+                    "Transform": {
+                        "Position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
+                    "Text": "063B4C6F-4B7D-406D-4234-D59895D7E1DD",
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "CharacterHeight": 1.0,
+                    "LetterSpacing": 0.0,
+                    "LineSpacing": 0.0,
+                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
+                    "TargetLocalOffset": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ]
+                }
+            ],
+            "GuidRootComponent": "FD2BE2E7-4079-1F87-B7B8-A2B4EFAA6131"
         }
     ]
 }

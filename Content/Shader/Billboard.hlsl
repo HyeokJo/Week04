@@ -11,6 +11,7 @@ struct FBillboardData
 StructuredBuffer<FBillboardData> Billboards : register(t0);
 
 Texture2D SpriteTexture : register(t3);
+SamplerState LinearWrap : register(s0);
 SamplerState LinearClamp : register(s1);
 
 cbuffer BillboardViewConstans : register(b0)
@@ -81,7 +82,7 @@ void mainGS(point VS_OUTPUT Input[1], inout TriangleStream<PS_INPUT> Stream)
 
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
-    float4 TextColor = SpriteTexture.Sample(LinearClamp, Input.UV);
+    float4 TextColor = SpriteTexture.Sample(LinearWrap, Input.UV);
     float4 ResultColor = TextColor * Input.Color;
     
     return ResultColor;

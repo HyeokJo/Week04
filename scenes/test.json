@@ -683,12 +683,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.5,
-                        0.25
+                        0.75,
+                        0.0
                     ],
                     "UVMax": [
-                        0.75,
-                        0.5
+                        1.0,
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -749,11 +749,11 @@
                     ],
                     "UVMin": [
                         0.5,
-                        0.75
+                        0.0
                     ],
                     "UVMax": [
                         0.75,
-                        1.0
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -813,12 +813,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.0,
-                        0.25
+                        0.5,
+                        0.75
                     ],
                     "UVMax": [
-                        0.25,
-                        0.5
+                        0.75,
+                        1.0
                     ],
                     "Color": [
                         1.0,
@@ -879,11 +879,11 @@
                     ],
                     "UVMin": [
                         0.5,
-                        0.5
+                        0.0
                     ],
                     "UVMax": [
                         0.75,
-                        0.75
+                        0.25
                     ],
                     "Color": [
                         1.0,
@@ -992,6 +992,120 @@
                 }
             ],
             "GuidRootComponent": "CEECA7DC-49C0-2DD3-2401-0AB5B2B9D8E2"
+        },
+        {
+            "Guid": "A846D207-4CA0-1195-8151-8FB13FF6AB5B",
+            "TypeName": "AActor",
+            "Name": "AActor_1",
+            "Components": [
+                {
+                    "Guid": "2CA4788A-4DD0-8D84-6FF8-3E8A49BF0A98",
+                    "TypeName": "UScrollUVComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            -1.1077303886413574,
+                            2.6354923248291016,
+                            4.7179341316223145
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "TextureAssetGuid": "C3C476E4-AF7A-4E96-B55B-7A50F5115493",
+                    "TextureAssetPath": "/Game/Texture/Fire+Sparks-Sheet.png",
+                    "PipelineAssetGuid": "08738909-AF2A-4BD3-81B5-3FDFE7C7FF42",
+                    "PipelineAssetPath": "/Game/Pipeline/Billboard.json",
+                    "Size": [
+                        1.0,
+                        1.0
+                    ],
+                    "UVMin": [
+                        0.37174567580223083,
+                        0.37174567580223083
+                    ],
+                    "UVMax": [
+                        1.3717457056045532,
+                        1.3717457056045532
+                    ],
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "ScrollSpeed": [
+                        0.10000000149011612,
+                        0.10000000149011612
+                    ],
+                    "bLooping": true,
+                    "bPlaying": true
+                },
+                {
+                    "Guid": "13131730-4EB2-359F-B289-CDA1A1C4C028",
+                    "TypeName": "UNameTagComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
+                    "Text": "A846D207-4CA0-1195-8151-8FB13FF6AB5B",
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "CharacterHeight": 1.0,
+                    "LetterSpacing": 0.0,
+                    "LineSpacing": 0.0,
+                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
+                    "TargetLocalOffset": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ]
+                }
+            ],
+            "GuidRootComponent": "2CA4788A-4DD0-8D84-6FF8-3E8A49BF0A98"
         }
     ]
 }
