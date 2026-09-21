@@ -684,11 +684,11 @@
                     ],
                     "UVMin": [
                         0.25,
-                        0.25
+                        0.75
                     ],
                     "UVMax": [
                         0.5,
-                        0.5
+                        1.0
                     ],
                     "Color": [
                         1.0,
@@ -748,12 +748,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.75,
-                        0.5
+                        0.0,
+                        0.25
                     ],
                     "UVMax": [
-                        1.0,
-                        0.75
+                        0.25,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -813,12 +813,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.75
+                        0.0,
+                        0.25
                     ],
                     "UVMax": [
-                        0.5,
-                        1.0
+                        0.25,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -878,11 +878,11 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.5,
+                        0.25,
                         0.0
                     ],
                     "UVMax": [
-                        0.75,
+                        0.5,
                         0.25
                     ],
                     "Color": [
@@ -924,9 +924,9 @@
                             1.0
                         ],
                         "Scale": [
-                            0.009999999776482582,
-                            0.009999999776482582,
-                            0.009999999776482582
+                            1.0,
+                            1.0,
+                            1.0
                         ],
                         "bAbsoluteLocation": false,
                         "bAbsoluteRotation": false,
@@ -934,10 +934,10 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "D0361E1A-46EB-8B98-B5B7-F79E48A41436",
-                    "MeshAssetPath": "/Game/ModelingFiles/sponza.bin",
-                    "MaterialAssetGuid": "B0ED68AC-4645-D311-8FA3-D2BAFEBC20B5",
-                    "MaterialAssetPath": "/Game/Sponza-master/sponza.mtl",
+                    "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
+                    "MeshAssetPath": "/Game/Models/Monkey/Monkey.bin",
+                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
+                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
                     "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
                     "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
                 },

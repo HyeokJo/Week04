@@ -6,6 +6,9 @@
 #include "Core/Asset/UAsset.h"
 #include "Core/Base/TypeInfo.h"
 
+#include "../../Core/Asset/UTexture.h"
+#include "../../Core/Asset/UMesh.h"
+
 #include <array>
 #include <cstring>
 
@@ -106,29 +109,61 @@ void FPropertyEditorContext::DrawReferencePicker(const char* Label, const char* 
 
 void FPropertyEditorContext::DrawAssetPicker(const char* Label, FAssetRegistry& Registry, const FTypeInfo& AssetType, FAssetHandle CurrentHandle, const std::function<void(FAssetHandle)>& Setter) const {
     UAsset* Current = Registry.ResolveAsset<UAsset>(CurrentHandle);
+
     if (Current != nullptr && !Current->GetTypeInfo()->IsA(&AssetType)) {
         Current = nullptr;
     }
+
     const FString PreviewName = Current != nullptr ? Current->GetAssetName() : FString("None");
-    if (!ImGui::BeginCombo(Label, PreviewName.c_str())) {
-        return;
-    }
-    if (ImGui::Selectable("None", Current == nullptr)) {
-        Setter({});
-    }
-    for (const FAssetEntry& Entry : Registry.GetAssetEntries()) {
-        if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(&AssetType)) {
-            continue;
+    const bool bSupportsThumbnail = SupportsAssetThumbnail(AssetType);
+
+    ImGui::PushID(Label);
+
+    if (bSupportsThumbnail) {
+        ID3D11ShaderResourceView* Thumbnail = GetAssetThumbnail(Registry, CurrentHandle);
+
+        if (Thumbnail != nullptr) {
+            ImGui::Image(ImTextureRef(reinterpret_cast<ImTextureID>(Thumbnail)), ImVec2(48.0f, 48.0f));
         }
-        UAsset* Asset = Entry.Asset.get();
-        const FString& Name = Entry.AssetPath.Path;
-        ImGui::PushID(Asset);
-        if (ImGui::Selectable(Name.c_str(), Asset == Current)) {
-            Setter(Entry.Handle);
+        else {
+            ImGui::BeginDisabled();
+            ImGui::Button("##AssetThumbnail", ImVec2(48.0f, 48.0f));
+            ImGui::EndDisabled();
         }
+
+        ImGui::SameLine();
+    }
+
+    if (ImGui::BeginCombo(Label, PreviewName.c_str())) {
+        ImGui::PushID("None");
+
+        if (DrawAssetOption("None", nullptr, Current == nullptr)) {
+            Setter({});
+        }
+
         ImGui::PopID();
+
+        for (const FAssetEntry& Entry : Registry.GetAssetEntries()) {
+            if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(&AssetType)) {
+                continue;
+            }
+
+            UAsset* Asset = Entry.Asset.get();
+            ID3D11ShaderResourceView* Thumbnail = GetAssetThumbnail(Registry, Entry.Handle);
+
+            ImGui::PushID(Asset);
+
+            if (DrawAssetOption(Entry.AssetPath.Path.c_str(), Thumbnail, Asset == Current)) {
+                Setter(Entry.Handle);
+            }
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndCombo();
     }
-    ImGui::EndCombo();
+
+    ImGui::PopID();
 }
 
 void FPropertyEditorContext::UpdateTransformFields(const FTransform& Transform) {
@@ -146,4 +181,56 @@ FTransform FPropertyEditorContext::BuildDesiredTransform() const {
     Transform.SetAbsoluteRotation(bAbsoluteRotation);
     Transform.SetAbsoluteScale(bAbsoluteScale);
     return Transform;
+}
+
+bool FPropertyEditorContext::SupportsAssetThumbnail(const FTypeInfo& AssetType) const {
+    return UMesh::StaticTypeInfo()->IsA(&AssetType) || UMaterial::StaticTypeInfo()->IsA(&AssetType) || UTexture::StaticTypeInfo()->IsA(&AssetType);
+}
+
+ID3D11ShaderResourceView* FPropertyEditorContext::GetAssetThumbnail(FAssetRegistry& Registry, FAssetHandle AssetHandle) const {
+    UAsset* Asset = Registry.ResolveAsset<UAsset>(AssetHandle);
+
+    if (Asset == nullptr) {
+        return nullptr;
+    }
+
+    if (Asset->GetTypeInfo()->IsA(UTexture::StaticTypeInfo())) {
+        return static_cast<UTexture*>(Asset)->GetSRV();
+    }
+
+    if (ThumbnailRenderer == nullptr) {
+        return nullptr;
+    }
+
+    if (Asset->GetTypeInfo()->IsA(UMesh::StaticTypeInfo()) || Asset->GetTypeInfo()->IsA(UMaterial::StaticTypeInfo())) {
+        return ThumbnailRenderer->GetThumbnail(AssetHandle);
+    }
+
+    return nullptr;
+}
+
+bool FPropertyEditorContext::DrawAssetOption(const char* Label, ID3D11ShaderResourceView* Thumbnail, bool bSelected) const {
+    constexpr float RowHeight = 36.0f;
+    constexpr float ImageSize = 32.0f;
+    constexpr float Padding = 2.0f;
+
+    const ImVec2 RowMin = ImGui::GetCursorScreenPos();
+    const ImVec2 RowSize{ ImGui::GetContentRegionAvail().x, RowHeight };
+    const bool bPressed = ImGui::Selectable("##AssetOption", bSelected, ImGuiSelectableFlags_None, RowSize);
+
+    ImDrawList* DrawList = ImGui::GetWindowDrawList();
+    const ImVec2 ImageMin{ RowMin.x + Padding, RowMin.y + Padding };
+    const ImVec2 ImageMax{ ImageMin.x + ImageSize, ImageMin.y + ImageSize };
+
+    if (Thumbnail != nullptr) {
+        DrawList->AddImage(reinterpret_cast<ImTextureID>(Thumbnail), ImageMin, ImageMax);
+    }
+    else {
+        DrawList->AddRect(ImageMin, ImageMax, ImGui::GetColorU32(ImGuiCol_Border));
+    }
+
+    const float TextY = RowMin.y + (RowHeight - ImGui::GetTextLineHeight()) * 0.5f;
+    DrawList->AddText(ImVec2(ImageMax.x + 6.0f, TextY), ImGui::GetColorU32(ImGuiCol_Text), Label);
+
+    return bPressed;
 }

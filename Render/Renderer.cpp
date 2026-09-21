@@ -267,9 +267,9 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 				TextureSRVs[TextureFieldIndex] = Texture != nullptr ? Texture->GetSRV() : nullptr;
 			}
 
-			if (Signature.TextureFieldCount > 0) {
-				DeviceContext->PSSetShaderResources(3, Signature.TextureFieldCount, TextureSRVs.data());
-			}
+			
+			DeviceContext->PSSetShaderResources(3, static_cast<UINT>(TextureSRVs.size()), TextureSRVs.data());
+
 
 			BoundTextureSet = Signature;
 			bTextureSetBound = true;

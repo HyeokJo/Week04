@@ -18,14 +18,16 @@
 #include "Scene/Component/UStaticMeshComponent.h"
 #include "Scene/Component/UBillboardTextComponent.h"
 #include "Scene/Component/UNameTagComponent.h"
+#include "../EditorView/FAssetThumbnailRenderer.h"
 // 목록, 선택, 구조 변경만 담당합니다. 타입별 Details는 Component::DrawPanels()로 위임합니다.
 class FPropertyPanel : public FEditorWindow {
 public:
-    FPropertyPanel(FWorldEditorContext& InEditorContext, FStateChannel<uint8>::FReadWriter InGizmoMode, FStateChannel<uint8>::FReadWriter InGizmoCoordinateSpace)
+    FPropertyPanel(FWorldEditorContext& InEditorContext, FStateChannel<uint8>::FReadWriter InGizmoMode, FStateChannel<uint8>::FReadWriter InGizmoCoordinateSpace, FAssetThumbnailRenderer* InThumbnailRenderer)
         : FEditorWindow("Property Window")
         , EditorContext(&InEditorContext)
         , GizmoMode(std::move(InGizmoMode))
         , GizmoCoordinateSpace(std::move(InGizmoCoordinateSpace)) {
+		PropertyEditor.BindThumbnailRenderer(InThumbnailRenderer);
     }
 
 private:

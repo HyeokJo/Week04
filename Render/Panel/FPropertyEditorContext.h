@@ -4,6 +4,7 @@
 #include "ImGui/imgui.h"
 #include "Core/Asset/FAssetHandle.h"
 #include "Core/Base/FTransform.h"
+#include "../EditorView/FAssetThumbnailRenderer.h"
 
 class FAssetRegistry;
 struct FTypeInfo;
@@ -33,11 +34,21 @@ public:
     void DrawReferencePicker(const char* Label, const char* Preview, bool bNoneSelected, const std::function<void()>& ClearSelection, const std::vector<FPropertyReferenceOption>& Options) const;
     void DrawAssetPicker(const char* Label, FAssetRegistry& Registry, const FTypeInfo& AssetType, FAssetHandle CurrentHandle, const std::function<void(FAssetHandle)>& Setter) const;
 
+	void BindThumbnailRenderer(FAssetThumbnailRenderer* InThumbnailRenderer) {
+		ThumbnailRenderer = InThumbnailRenderer;
+	}
 private:
     void UpdateTransformFields(const FTransform& Transform);
     FTransform BuildDesiredTransform() const;
 
+    bool SupportsAssetThumbnail(const FTypeInfo& AssetType) const;
+
+    ID3D11ShaderResourceView* GetAssetThumbnail(FAssetRegistry& Registry, FAssetHandle AssetHandle) const;
+
+    bool DrawAssetOption(const char* Label, ID3D11ShaderResourceView* Thumbnail, bool bSelected) const;
 private:
+    FAssetThumbnailRenderer* ThumbnailRenderer = nullptr;
+
     ImGuiID EditingTransformId = 0;
     FVector3 EditPosition{};
     FRotator EditRotation{};

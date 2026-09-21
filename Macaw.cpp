@@ -1,3 +1,4 @@
+
 // Macaw.cpp : 애플리케이션에 대한 진입점을 정의합니다.
 //
 #include "PCH.h"
@@ -72,6 +73,8 @@
 #include "Scene/Component/UScrollUVComponent.h"
 
 #include "Serialize/FEditorConfigManager.h"
+#include "Render/EditorView/FAssetThumbnailRenderer.h"
+
 
 #include "Scene/Component/UBillboardComponent.h"
 #include "Scene/Component/USubUVComponent.h"
@@ -334,6 +337,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     AssetRegistry.Initialize(Renderer.GetDevice(), 128);
     Renderer.BindAssetRegistry(&AssetRegistry);
 
+	FAssetThumbnailRenderer ThumbnailRenderer;
+
 
     FMessageChannel WorldCommandChannel{ 64 };
     EditorContext.InitializeChannels(AssetRegistry, Renderer.GetDevice());
@@ -347,7 +352,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     #ifdef OBJ_VIEWER
         EditorUIManager.InitializeViewer(AssetRegistry, gHWND, EditorContext);
     #else
-        EditorUIManager.Initialize(World, Renderer, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace());
+        EditorUIManager.Initialize(World, Renderer, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace(), &ThumbnailRenderer);
     #endif
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
@@ -375,6 +380,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
 
     AssetRegistry.Finalize(); 
+	ThumbnailRenderer.Create(&Renderer, &AssetRegistry);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -492,6 +498,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		World.SaveScene("test", &AssetRegistry);
     }
 
+    ThumbnailRenderer.Terminate();
     EditorUIManager.ReleaseRenderResources();
     Renderer.Terminate();
     Renderer.ReportLiveObjects(); 

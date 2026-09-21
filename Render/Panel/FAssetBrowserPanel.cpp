@@ -46,9 +46,9 @@ namespace {
 
 }
 
-FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext)
+FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer)
     : FEditorWindow("Content Browser###AssetBrowserPanel")
-    , AssetRegistry(&InAssetRegistry) , EditorContext(InEditorContext){
+    , AssetRegistry(&InAssetRegistry) , EditorContext(InEditorContext), ThumbnailRenderer(InThumbnailRenderer) {
 }
 
 void FAssetBrowserPanel::BeginExternalDropFrame() {
@@ -274,18 +274,44 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.36f, 0.66f, 1.0f));
     }
 
-    bool bClicked = false;
+    //bool bClicked = false;
+    //if (Entry.AssetType == EAssetType::Texture) {
+    //    if (const UTexture* Texture = AssetRegistry->ResolveAsset<UTexture>(Entry.Handle);
+    //        Texture != nullptr && Texture->GetSRV() != nullptr) {
+    //        const ImTextureID TextureId = reinterpret_cast<ImTextureID>(Texture->GetSRV());
+    //        bClicked = ImGui::ImageButton("##Thumbnail", ImTextureRef(TextureId), ImVec2(ThumbnailSize, ThumbnailSize));
+    //    }
+    //}
+
+    //if (Entry.AssetType != EAssetType::Texture || !Entry.Asset) {
+    //    bClicked = ImGui::Button(GetAssetTypeLabel(Entry.AssetType), ImVec2(ThumbnailSize, ThumbnailSize));
+    //} 
+
+
+    ID3D11ShaderResourceView* ThumbnailSRV = nullptr;
+
     if (Entry.AssetType == EAssetType::Texture) {
-        if (const UTexture* Texture = AssetRegistry->ResolveAsset<UTexture>(Entry.Handle);
-            Texture != nullptr && Texture->GetSRV() != nullptr) {
-            const ImTextureID TextureId = reinterpret_cast<ImTextureID>(Texture->GetSRV());
-            bClicked = ImGui::ImageButton("##Thumbnail", ImTextureRef(TextureId), ImVec2(ThumbnailSize, ThumbnailSize));
+        const UTexture* Texture = AssetRegistry->ResolveAsset<UTexture>(Entry.Handle);
+
+        if (Texture != nullptr) {
+            ThumbnailSRV = Texture->GetSRV();
         }
     }
+    else if (Entry.AssetType == EAssetType::Mesh || Entry.AssetType == EAssetType::Material) {
+        ThumbnailSRV = ThumbnailRenderer->GetThumbnail(Entry.Handle);
+    }
 
-    if (Entry.AssetType != EAssetType::Texture || !Entry.Asset) {
+    bool bClicked = false;
+
+    if (ThumbnailSRV != nullptr) {
+        bClicked = ImGui::ImageButton("##Thumbnail", ImTextureRef(reinterpret_cast<ImTextureID>(ThumbnailSRV)), ImVec2(ThumbnailSize, ThumbnailSize));
+    }
+    else {
         bClicked = ImGui::Button(GetAssetTypeLabel(Entry.AssetType), ImVec2(ThumbnailSize, ThumbnailSize));
     }
+
+
+
 
     if (bSelected) {
         ImGui::PopStyleColor();

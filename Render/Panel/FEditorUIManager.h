@@ -20,18 +20,20 @@
 
 #include "FEditorInfo.h"
 
+#include "../EditorView/FAssetThumbnailRenderer.h"
+
 class FRenderer;
 
 class FEditorUIManager {
 public:
-    void Initialize(UWorld& World, FRenderer& Renderer, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender) {
+    void Initialize(UWorld& World, FRenderer& Renderer, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender, FAssetThumbnailRenderer* ThumbnailRenderer) {
         AddPanel(std::make_unique<FControlPanel>(EditorContext, WindowHandle, EditorContext.GetEditorToWorldSender()));
         AddViewportHostWindow(Renderer.GetDevice(), EditorContext);
-        AddWindow(std::make_unique<FPropertyPanel>(EditorContext, std::move(GizmoSender), std::move(GizmoCoordinateSpaceSender)));
+        AddWindow(std::make_unique<FPropertyPanel>(EditorContext, std::move(GizmoSender), std::move(GizmoCoordinateSpaceSender), ThumbnailRenderer));
         AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle, StatDisplayChannel.GetWriter()));
         //AddWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddStatWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
-        AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry, EditorContext));
+        AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry, EditorContext, ThumbnailRenderer));
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
         AddViewerWindow(AssetRegistry, EditorContext, WindowHandle);
     }

@@ -2,6 +2,7 @@
 
 #include "Render/Panel/FEditorWindow.h"
 #include "Core/Asset/FAssetEntry.h"
+#include "../EditorView/FAssetThumbnailRenderer.h"
 
 #include "ImGui/imgui.h"
 
@@ -12,7 +13,7 @@ class FAssetRegistry;
 // Registry 초기화가 완료된 뒤 생성되므로, 텍스처는 이미 생성된 GPU SRV를 그대로 썸네일로 사용합니다.
 class FAssetBrowserPanel : public FEditorWindow {
 public:
-    explicit FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext);
+    explicit FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer);
 
     void BeginExternalDropFrame();
     bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition);
@@ -37,4 +38,6 @@ private:
     ImVec2 DropTargetMin{};
     ImVec2 DropTargetMax{};
     bool bDropTargetActive{ false };
+
+	FAssetThumbnailRenderer* ThumbnailRenderer{ nullptr };
 };
