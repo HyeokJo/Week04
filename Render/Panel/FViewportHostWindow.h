@@ -4,6 +4,7 @@
 
 #include "FEditorWindow.h"
 #include "Render/EditorView/FViewportPresetLayout.h"
+#include "Serialize/FEditorSettings.h"
 
 class EditorViewport;
 class FEditorViewport;
@@ -26,6 +27,9 @@ public:
     FEditorViewport* PrepareViewportForRender(FViewportId Id);
     uint32 GetViewportCount() const;
 
+    void ApplyLayoutSettings(const FEditorSettings& Settings);
+    void CaptureLayoutSettings(FEditorSettings& Settings) const;
+
 private:
     void DrawContents() override;
     void PushWindowStyle() override;
@@ -38,4 +42,7 @@ private:
     FViewportId ActiveViewportId = 0;
     ImGuiID DockSpaceId = 0;
     bool bSplitterActive = false;
+
+    FEditorSettings PendingLayoutSettings{};
+    bool bHasPendingLayoutSettings = true;
 };

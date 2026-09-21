@@ -9,7 +9,8 @@
 
 FViewportHostWindow::FViewportHostWindow(ID3D11Device* Device, FWorldEditorContext& EditorContext)
     : FEditorWindow("Viewports###SplitSceneViewport", ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
-    , Layout(EViewportLayoutPreset::FourGrid) {
+    , Layout(EViewportLayoutPreset::FourGrid), PendingLayoutSettings(EditorContext.GetEditorSettings())
+    , bHasPendingLayoutSettings(true) {
     for (FViewportId Id = 0; Id < MaximumViewportCount; ++Id) {
         Viewports[Id] = std::make_unique<FEditorViewport>(Id, Device, EditorContext);
     }
@@ -45,6 +46,44 @@ uint32 FViewportHostWindow::GetViewportCount() const {
     return Layout.GetViewportCount();
 }
 
+void FViewportHostWindow::ApplyLayoutSettings(const FEditorSettings& Settings) {
+    // 기본은 4분할
+    EViewportLayoutPreset Preset = EViewportLayoutPreset::FourGrid;
+
+    if (Settings.ViewportLayoutPreset < static_cast<uint8>(EViewportLayoutPreset::Count)) {
+        Preset = static_cast<EViewportLayoutPreset>(Settings.ViewportLayoutPreset);
+    }
+
+    Layout.SetPreset(Preset);
+
+    const std::array<float, FViewportPresetLayout::MaximumSplitterCount>Ratios
+    {
+            Settings.ViewportSplitterRatio0,
+            Settings.ViewportSplitterRatio1,
+            Settings.ViewportSplitterRatio2
+    };
+
+    Layout.RestoreSplitterRatios(Ratios, Settings.ViewportSplitterCount);
+
+    ActiveViewportId = 0;
+}
+
+void FViewportHostWindow::CaptureLayoutSettings(FEditorSettings& Settings) const
+{
+    std::array<float, FViewportPresetLayout::MaximumSplitterCount> Ratios{ 0.5f, 0.5f, 0.5f };
+
+    uint32 RatioCount = 0;
+
+    Layout.GetSplitterRatios(Ratios, RatioCount);
+
+    Settings.ViewportLayoutPreset = static_cast<uint8>(Layout.GetPreset());
+
+    Settings.ViewportSplitterCount = RatioCount;
+    Settings.ViewportSplitterRatio0 = Ratios[0];
+    Settings.ViewportSplitterRatio1 = Ratios[1];
+    Settings.ViewportSplitterRatio2 = Ratios[2];
+}
+
 void FViewportHostWindow::DrawContents() {
     ImGui::SetNextItemWidth(260.0f);
     if (ImGui::BeginCombo("Layout", Layout.GetPresetName())) {
@@ -74,6 +113,12 @@ void FViewportHostWindow::DrawContents() {
 
     const FPoint Min{ static_cast<int32>(Origin.x), static_cast<int32>(Origin.y) };
     Layout.SetRect({ Min, { Min.X + Width, Min.Y + Height } });
+
+    // 한번만 실행
+    if (bHasPendingLayoutSettings) {
+        ApplyLayoutSettings(PendingLayoutSettings);
+        bHasPendingLayoutSettings = false;
+    }
 
     std::vector<SSplitter*> Splitters;
     Layout.CollectSplitters(Splitters);

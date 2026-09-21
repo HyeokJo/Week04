@@ -162,6 +162,39 @@ void FViewportPresetLayout::CollectSplitters(std::vector<SSplitter*>& OutSplitte
     }
 }
 
+void FViewportPresetLayout::GetSplitterRatios(std::array<float, MaximumSplitterCount>& OutRatios, uint32& OutCount) const {
+    OutCount = SplitterCount;
+
+    for (uint32 Index = 0; Index < SplitterCount; ++Index) {
+        OutRatios[Index] = SplitterDrawOrder[Index]->GetRatio();
+    }
+}
+
+bool FViewportPresetLayout::RestoreSplitterRatios(const std::array<float, MaximumSplitterCount>& Ratios, uint32 RatioCount) {
+    if (RatioCount != SplitterCount || RatioCount > MaximumSplitterCount) {
+        return false;
+    }
+
+    for (uint32 Index = 0; Index < RatioCount; ++Index) {
+        if (SplitterDrawOrder[Index] == nullptr) {
+            return false;
+        }
+
+        const float Ratio = Ratios[Index];
+
+        if (Ratio < 0.0f || Ratio > 1.0f) {
+            return false;
+        }
+    }
+
+    for (uint32 Index = 0; Index < RatioCount; ++Index) {
+        SplitterDrawOrder[Index]->SetRatio(Ratios[Index]);
+    }
+
+    RefreshLayout();
+    return true;
+}
+
 SSplitter* FViewportPresetLayout::AddTopBottomSplitter(SWindow* First, SWindow* Second, float Ratio, const FSplitterRatio* SharedRatio) {
     return AddSplitter(std::make_unique<SSplitterH>(), First, Second, Ratio, SharedRatio);
 }
