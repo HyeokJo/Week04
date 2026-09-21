@@ -26,7 +26,9 @@ public:
         AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle, StatDisplayChannel.GetWriter()));
         //AddWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddStatWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
-        AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry));
+        std::unique_ptr<FAssetBrowserPanel> AssetBrowser = std::make_unique<FAssetBrowserPanel>(AssetRegistry);
+        AssetBrowserPanel = AssetBrowser.get();
+        AddWindow(std::move(AssetBrowser));
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
         AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
     }
@@ -38,6 +40,10 @@ public:
 
     void Tick() {
         DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        if (AssetBrowserPanel != nullptr) {
+            AssetBrowserPanel->BeginExternalDropFrame();
+        }
 
         if (ViewportHostWindow != nullptr) {
             ViewportHostWindow->PrepareFrame(DockSpaceId);
@@ -91,6 +97,11 @@ public:
         return ViewportHostWindow;
     }
 
+    bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
+        return AssetBrowserPanel != nullptr && AssetBrowserPanel->IsVisible() &&
+            AssetBrowserPanel->HandleExternalFileDrop(FilePath, ScreenPosition);
+    }
+
 private:
     void AddPanel(std::unique_ptr<IEditorPanel> Panel) {
         Elements.emplace_back(std::move(Panel));
@@ -123,6 +134,7 @@ private:
     std::vector<std::unique_ptr<IEditorPanel>> Elements;
     std::vector<FEditorWindow*> Windows;
     FViewportHostWindow* ViewportHostWindow = nullptr;
+    FAssetBrowserPanel* AssetBrowserPanel = nullptr;
     ImGuiID DockSpaceId = 0;
 
     //Stat 커멘드 용

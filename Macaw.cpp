@@ -9,7 +9,9 @@
 
 #include <d3d11.h>
 #include <chrono>
+#include <shellapi.h>
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "shell32.lib")
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_internal.h"
@@ -104,6 +106,75 @@ FRenderer Renderer;
 
 namespace {
     constexpr bool bEnableSceneSave = true;
+
+    struct FPendingExternalFileDrop {
+        std::filesystem::path FilePath{};
+        POINT ScreenPosition{};
+    };
+
+    std::vector<FPendingExternalFileDrop> PendingExternalFileDrops{};
+
+    constexpr wchar_t ExternalDropOriginalWndProcProperty[] = L"Macaw.ExternalDropOriginalWndProc";
+
+    void QueueExternalFileDrops(HWND WindowHandle, HDROP DropHandle) {
+        POINT DropPosition{};
+        DragQueryPoint(DropHandle, &DropPosition);
+        ClientToScreen(WindowHandle, &DropPosition);
+
+        const UINT FileCount = DragQueryFileW(DropHandle, 0xFFFFFFFF, nullptr, 0);
+        for (UINT FileIndex = 0; FileIndex < FileCount; ++FileIndex) {
+            const UINT CharacterCount = DragQueryFileW(DropHandle, FileIndex, nullptr, 0);
+            std::wstring FilePath(CharacterCount + 1, L'\0');
+            DragQueryFileW(DropHandle, FileIndex, FilePath.data(), CharacterCount + 1);
+            FilePath.resize(CharacterCount);
+            PendingExternalFileDrops.push_back({ std::filesystem::path{ FilePath }, DropPosition });
+        }
+
+        DragFinish(DropHandle);
+    }
+
+    LRESULT CALLBACK ExternalDropWndProc(HWND WindowHandle, UINT Message, WPARAM WParam, LPARAM LParam) {
+        const WNDPROC OriginalWndProc = reinterpret_cast<WNDPROC>(
+            GetPropW(WindowHandle, ExternalDropOriginalWndProcProperty));
+
+        if (Message == WM_DROPFILES) {
+            QueueExternalFileDrops(WindowHandle, reinterpret_cast<HDROP>(WParam));
+            return 0;
+        }
+
+        if (Message == WM_NCDESTROY) {
+            SetWindowLongPtrW(WindowHandle, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(OriginalWndProc));
+            RemovePropW(WindowHandle, ExternalDropOriginalWndProcProperty);
+        }
+
+        return OriginalWndProc != nullptr
+            ? CallWindowProcW(OriginalWndProc, WindowHandle, Message, WParam, LParam)
+            : DefWindowProcW(WindowHandle, Message, WParam, LParam);
+    }
+
+    void EnableExternalDropsForImGuiViewports() {
+        for (ImGuiViewport* Viewport : ImGui::GetPlatformIO().Viewports) {
+            HWND ViewportWindow = static_cast<HWND>(Viewport->PlatformHandle);
+            if (ViewportWindow == nullptr) {
+                continue;
+            }
+
+            DragAcceptFiles(ViewportWindow, TRUE);
+
+            if (ViewportWindow == hWnd || GetPropW(ViewportWindow, ExternalDropOriginalWndProcProperty) != nullptr) {
+                continue;
+            }
+
+            const WNDPROC OriginalWndProc = reinterpret_cast<WNDPROC>(
+                SetWindowLongPtrW(ViewportWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(ExternalDropWndProc)));
+            if (OriginalWndProc != nullptr) {
+                SetPropW(
+                    ViewportWindow,
+                    ExternalDropOriginalWndProcProperty,
+                    reinterpret_cast<HANDLE>(OriginalWndProc));
+            }
+        }
+    }
 
     void ConfigureTestStaticMesh(UStaticMeshComponent* MeshComponent, const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Location) {
         MeshComponent->SetMeshHandle(MeshHandle);
@@ -345,6 +416,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 			EditorUIManager.Tick();
+
+            for (const FPendingExternalFileDrop& Drop : PendingExternalFileDrops) {
+                EditorUIManager.HandleExternalFileDrop(
+                    Drop.FilePath,
+                    ImVec2(static_cast<float>(Drop.ScreenPosition.x), static_cast<float>(Drop.ScreenPosition.y)));
+            }
+            PendingExternalFileDrops.clear();
+
 			#ifndef OBJ_VIEWER
 			FViewportHostWindow* ViewportHostWindow = EditorUIManager.GetViewportHostWindow();
 			ViewportHostWindow->ProcessInput(EditorView, GKeyboardInput, GMouseInput, DeltaTime);
@@ -386,6 +465,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 			{
 				ImGui::UpdatePlatformWindows();
+				EnableExternalDropsForImGuiViewports();
 				ImGui::RenderPlatformWindowsDefault();
 			}
 
@@ -512,6 +592,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
+    DragAcceptFiles(hWnd, TRUE);
 
 	gHWND = hWnd;
 
@@ -542,6 +623,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
+    case WM_DROPFILES:
+    {
+        const HDROP DropHandle = reinterpret_cast<HDROP>(wParam);
+        QueueExternalFileDrops(hWnd, DropHandle);
+        return 0;
+    }
     case WM_DESTROY:
         PostQuitMessage(0);
         break;

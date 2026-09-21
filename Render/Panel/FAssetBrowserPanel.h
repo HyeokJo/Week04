@@ -13,6 +13,9 @@ class FAssetBrowserPanel : public FEditorWindow {
 public:
     explicit FAssetBrowserPanel(FAssetRegistry& InAssetRegistry);
 
+    void BeginExternalDropFrame();
+    bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition);
+
 private:
     void DrawContents() override;
     void PushWindowStyle() override;
@@ -29,4 +32,7 @@ private:
     FString SelectedFolder{ "/Game" };
     FAssetHandle SelectedAsset{};
     ImGuiTextFilter AssetFilter{};
+    ImVec2 DropTargetMin{};
+    ImVec2 DropTargetMax{};
+    bool bDropTargetActive{ false };
 };

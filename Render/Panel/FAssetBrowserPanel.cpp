@@ -4,7 +4,10 @@
 
 #include "Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UTexture.h"
+#include "Core/Console/Console.h"
 
+#include <algorithm>
+#include <cctype>
 #include <ranges>
 #include <string_view>
 
@@ -46,7 +49,63 @@ FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry)
     , AssetRegistry(&InAssetRegistry) {
 }
 
+void FAssetBrowserPanel::BeginExternalDropFrame() {
+    bDropTargetActive = false;
+}
+
+bool FAssetBrowserPanel::HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
+    if (!bDropTargetActive || AssetRegistry == nullptr ||
+        ScreenPosition.x < DropTargetMin.x || ScreenPosition.x >= DropTargetMax.x ||
+        ScreenPosition.y < DropTargetMin.y || ScreenPosition.y >= DropTargetMax.y) {
+        return false;
+    }
+
+    FString Extension = FilePath.extension().generic_string().c_str();
+    std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) {
+        return static_cast<char>(std::tolower(Character));
+    });
+
+    if (Extension != ".obj") {
+        Console::AddLog(
+            Console::STDOutHandle,
+            ELogLevel::Warning,
+            ELogCategory::Etc,
+            "Only OBJ files can be dropped into the Asset Browser: %s",
+            FilePath.generic_string().c_str());
+        return true;
+    }
+
+    const FAssetHandle ImportedHandle = AssetRegistry->ImportMesh(FilePath, SelectedFolder);
+    if (ImportedHandle) {
+        SelectedAsset = ImportedHandle;
+        Console::AddLog(
+            Console::STDOutHandle,
+            ELogLevel::Log,
+            ELogCategory::Etc,
+            "Imported dropped OBJ into %s: %s",
+            SelectedFolder.c_str(),
+            FilePath.generic_string().c_str());
+    }
+    else {
+        Console::AddLog(
+            Console::STDOutHandle,
+            ELogLevel::Error,
+            ELogCategory::Etc,
+            "Failed to import dropped OBJ into %s: %s",
+            SelectedFolder.c_str(),
+            FilePath.generic_string().c_str());
+    }
+
+    return true;
+}
+
 void FAssetBrowserPanel::DrawContents() {
+    const ImVec2 WindowPosition = ImGui::GetWindowPos();
+    const ImVec2 WindowSize = ImGui::GetWindowSize();
+    DropTargetMin = WindowPosition;
+    DropTargetMax = ImVec2(WindowPosition.x + WindowSize.x, WindowPosition.y + WindowSize.y);
+    bDropTargetActive = true;
+
     ImGui::TextDisabled("Content");
     ImGui::SameLine();
     ImGui::TextUnformatted(SelectedFolder.c_str());
