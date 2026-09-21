@@ -94,6 +94,7 @@ FViewportKeyboardNavigationInput FKeyboardInput::ConsumeViewportNavigation(float
     if (!bKeyboardCapturedByUI) {
         NavigationInput.ForwardAxis = (IsHeld('W') ? 1.0f : 0.0f) - (IsHeld('S') ? 1.0f : 0.0f);
         NavigationInput.RightAxis = (IsHeld('D') ? 1.0f : 0.0f) - (IsHeld('A') ? 1.0f : 0.0f);
+        NavigationInput.UpAxis = (IsHeld('E') ? 1.0f : 0.0f) - (IsHeld('Q') ? 1.0f : 0.0f);
         NavigationInput.DeltaTime = DeltaTime;
 
 #ifdef OBJ_VIEWER

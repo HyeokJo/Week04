@@ -313,13 +313,16 @@ void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& 
 
 void FEditorViewport::ApplyKeyboardNavigation(const FViewportKeyboardNavigationInput& NavigationInput) {
     if (ProjectionType == EProjectionType::Orthographic || NavigationInput.DeltaTime <= 0.0f ||
-        (NavigationInput.ForwardAxis == 0.0f && NavigationInput.RightAxis == 0.0f)) {
+        (NavigationInput.ForwardAxis == 0.0f && NavigationInput.RightAxis == 0.0f && NavigationInput.UpAxis == 0.f)) {
         return;
     }
 
     const FTransform CameraTransform{ CameraPosition, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
     const FMatrix CameraWorldMatrix = CameraTransform.ToMatrixNoScale();
-    FVector3 MoveDirection = CameraWorldMatrix.Forward() * NavigationInput.ForwardAxis - CameraWorldMatrix.Right() * NavigationInput.RightAxis;
+    FVector3 MoveDirection = 
+        CameraWorldMatrix.Forward() * NavigationInput.ForwardAxis 
+        - CameraWorldMatrix.Right() * NavigationInput.RightAxis 
+        + CameraWorldMatrix.Up() * NavigationInput.UpAxis;
 
     if (MoveDirection.LengthSquared() <= 0.0f) {
         return;

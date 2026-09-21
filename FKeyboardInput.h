@@ -12,6 +12,7 @@
 struct FViewportKeyboardNavigationInput {
     float ForwardAxis = 0.0f;
     float RightAxis = 0.0f;
+    float UpAxis = 0.0f;
     float DeltaTime = 0.0f;
 };
 
