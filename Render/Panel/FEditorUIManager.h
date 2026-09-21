@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "PCH.h"
 #include "FEditorWindow.h"
@@ -103,6 +103,11 @@ public:
         return ViewportHostWindow;
     }
 
+    bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
+        return AssetBrowserPanel != nullptr && AssetBrowserPanel->IsVisible() &&
+            AssetBrowserPanel->HandleExternalFileDrop(FilePath, ScreenPosition);
+    }
+
 private:
     void AddPanel(std::unique_ptr<IEditorPanel> Panel) {
         Elements.emplace_back(std::move(Panel));
@@ -141,6 +146,7 @@ private:
     FViewerPanel* ViewerWindow = nullptr;
     FWorldEditorContext* PreviewContext = nullptr;
     ImGuiID DockSpaceId = 0;
+    FAssetBrowserPanel* AssetBrowserPanel = nullptr;
 
     //Stat 커멘드 용
     FStateChannel<FStatDisplayFlags> StatDisplayChannel{ FStatDisplayFlags{false, false, false} };

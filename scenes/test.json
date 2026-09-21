@@ -924,9 +924,9 @@
                             1.0
                         ],
                         "Scale": [
-                            1.0,
-                            1.0,
-                            1.0
+                            0.009999999776482582,
+                            0.009999999776482582,
+                            0.009999999776482582
                         ],
                         "bAbsoluteLocation": false,
                         "bAbsoluteRotation": false,
@@ -934,10 +934,10 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "5439E56D-7097-46D0-BD67-A313928AA0E7",
-                    "MeshAssetPath": "/Game/Models/Monkey/Monkey.bin",
-                    "MaterialAssetGuid": "26ACE055-9ED4-4644-ACFD-7985BCBFBF80",
-                    "MaterialAssetPath": "/Game/Models/Monkey/Monkey.mtl",
+                    "MeshAssetGuid": "D0361E1A-46EB-8B98-B5B7-F79E48A41436",
+                    "MeshAssetPath": "/Game/ModelingFiles/sponza.bin",
+                    "MaterialAssetGuid": "B0ED68AC-4645-D311-8FA3-D2BAFEBC20B5",
+                    "MaterialAssetPath": "/Game/Sponza-master/sponza.mtl",
                     "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
                     "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
                 },
@@ -945,7 +945,7 @@
                     "Guid": "D8B91EDA-4CF8-5596-79AE-4AAD4A5F4739",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
-                    "bActive": false,
+                    "bActive": true,
                     "Transform": {
                         "Position": [
                             0.0,
@@ -1026,8 +1026,8 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "F0112B9B-424E-5509-115C-A092FFF2A0B7",
-                    "MeshAssetPath": "/Game/multi_material_cube/multi_material_cube.obj",
+                    "MeshAssetGuid": "303D4C00-115A-4681-81B6-32484A5EF0EC",
+                    "MeshAssetPath": "/Game/multi_material_cube/multi_material_cube.bin",
                     "MaterialAssetGuid": "6A5AD93D-495A-8822-812F-8985CB1FBB63",
                     "MaterialAssetPath": "/Game/multi_material_cube/multi_material_cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
