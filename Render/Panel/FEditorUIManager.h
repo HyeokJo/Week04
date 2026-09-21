@@ -15,14 +15,17 @@
 #include "Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
 
+#include "FEditorInfo.h"
+
 class FEditorUIManager {
 public:
     void Initialize(UWorld& World, FRenderer& Renderer, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender) {
         AddPanel(std::make_unique<FControlPanel>(EditorContext, WindowHandle, EditorContext.GetEditorToWorldSender()));
         AddViewportHostWindow(Renderer.GetDevice(), EditorContext);
         AddWindow(std::make_unique<FPropertyPanel>(EditorContext, std::move(GizmoSender), std::move(GizmoCoordinateSpaceSender)));
-        AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle));
-        AddWindow(std::make_unique<FStatPanel>(World));
+        AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle, StatDisplayChannel.GetWriter()));
+        //AddWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
+        AddStatWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry));
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
         AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
@@ -39,6 +42,19 @@ public:
         if (ViewportHostWindow != nullptr) {
             ViewportHostWindow->PrepareFrame(DockSpaceId);
         }
+
+        if (StatWindow != nullptr)
+        {
+            if (StatWindow->CheckVisible())
+            {
+                StatWindow->SetVisible(false);
+            }
+            else
+            {
+                StatWindow->SetVisible(true);
+            }
+        }
+        
 
         for (const std::unique_ptr<IEditorPanel>& Element : Elements) {
             if (Element != nullptr && Element->IsVisible()) {
@@ -80,7 +96,8 @@ private:
         Elements.emplace_back(std::move(Panel));
     }
 
-    void AddWindow(std::unique_ptr<FEditorWindow> Window) {
+    void AddWindow(std::unique_ptr<FEditorWindow> Window)
+    {
         Windows.emplace_back(Window.get());
         Elements.emplace_back(std::move(Window));
     }
@@ -95,8 +112,20 @@ private:
         AddWindow(std::move(Window));
     }
 
+    void AddStatWindow(std::unique_ptr<FStatPanel> Window)
+    {
+        StatWindow = Window.get();
+        Windows.emplace_back(Window.get());
+        Elements.emplace_back(std::move(Window));
+
+    }
+
     std::vector<std::unique_ptr<IEditorPanel>> Elements;
     std::vector<FEditorWindow*> Windows;
     FViewportHostWindow* ViewportHostWindow = nullptr;
     ImGuiID DockSpaceId = 0;
+
+    //Stat 커멘드 용
+    FStateChannel<FStatDisplayFlags> StatDisplayChannel{ FStatDisplayFlags{false, false, false} };
+    FStatPanel* StatWindow = nullptr;
 };

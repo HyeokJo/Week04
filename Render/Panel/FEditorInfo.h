@@ -83,3 +83,17 @@ enum class EGizmoCoordinateSpace : uint8
     World,
     Local
 };
+
+enum class EStatDisplayMode : uint8
+{
+    Fps,
+    Memory,
+    None
+};
+
+struct FStatDisplayFlags
+{
+    bool bShowFps = false;
+    bool bShowMemory = false;
+    bool bObjectSystem = false;
+};

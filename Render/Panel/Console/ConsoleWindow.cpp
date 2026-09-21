@@ -1,6 +1,7 @@
 ﻿#include "PCH.h"
 #include "../Console/ConsoleWindow.h"
 #include "ImGui/imgui.h"
+#include "../FEditorInfo.h"
 
 #include <sstream>
 
@@ -22,12 +23,14 @@ namespace
         }
     }
 
-    void ExecuteCommand(FConsoleOutputHandle Handle, const char* Input)
+    void ExecuteCommand(FConsoleOutputHandle Handle, const char* Input, FStateChannel<FStatDisplayFlags>::FWriter Writer)
     {
         std::istringstream Stream(Input);
 
         FString Command;
-        Stream >> Command;
+        //Stream >> Command;
+
+        std::getline(Stream, Command);
 
         if (Command == "clear")
         {
@@ -64,6 +67,24 @@ namespace
                 "> %s",
                 Text.c_str());
         }
+        else if (Command == "stat fps")
+        {
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bShowFps = !Flags.bShowFps; });
+        }
+        else if (Command == "stat memory")
+        {
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bShowMemory = !Flags.bShowMemory; });
+        }
+        else if (Command == "stat object system")
+        {
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bObjectSystem = !Flags.bObjectSystem; });
+        }
+        else if (Command == "stat none")
+        {
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bShowFps = false; });
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bShowMemory = false; });
+            Writer.Modify([](FStatDisplayFlags& Flags) { Flags.bObjectSystem = false; });
+        }
         else
         {
             Console::AddLog(
@@ -76,7 +97,7 @@ namespace
     }
 }
 
-void DrawConsoleContents(FConsoleOutputHandle Handle) {
+void DrawConsoleContents(FConsoleOutputHandle Handle, FStateChannel<FStatDisplayFlags>::FWriter Writer) {
     const size_t Count = Console::GetMessageCount(Handle);
 
     // 로그 영역
@@ -148,7 +169,7 @@ void DrawConsoleContents(FConsoleOutputHandle Handle) {
     {
         if (InputBuf[0] != '\0')
         {
-            ExecuteCommand(Console::STDOutHandle, InputBuf);
+            ExecuteCommand(Console::STDOutHandle, InputBuf, Writer);
             InputBuf[0] = '\0';
 
             ImGui::SetKeyboardFocusHere(-1);
