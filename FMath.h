@@ -57,6 +57,13 @@ struct FVector2
 		y /= Scalar;
 		return *this;
 	}
+
+    FVector2& operator+=(const FVector2& Other)
+    {
+        x += Other.x;
+        y += Other.y;
+        return *this;
+    }
 };
 
 struct FVector

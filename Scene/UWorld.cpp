@@ -18,6 +18,7 @@
 #include "Subsystem/ULightSubsystem.h"
 #include "Component/UCollisionComponent.h"
 #include "Component/UBillboardTextComponent.h"
+#include "Component/UBillboardComponent.h"
 #include "FMousePickRequestMessage.h"
 #include "FWorldEditorContext.h"
 #ifdef OBJ_VIEWER
@@ -623,6 +624,12 @@ void UWorld::HandleSpawnComponent(
 		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" }),
 		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Blue.mtl" })
 	};
+	const bool bIsBillboard = ComponentType->IsA(UBillboardComponent::StaticTypeInfo());
+	const FAssetHandle BillboardPipeline = bIsBillboard
+		? AssetRegistry.FindAsset(FAssetPath{ "/Game/Pipeline/Billboard.json" }) : FAssetHandle{};
+	const FAssetHandle BillboardTexture = bIsBillboard
+		? AssetRegistry.FindAsset(FAssetPath{ "/Game/Texture/Fire+Sparks-Sheet.png" }) : FAssetHandle{};
+
 	std::uniform_int_distribution<size_t> MaterialIndex(0, std::size(Materials) - 1);
 	const FAssetHandle MaterialHandle = bIsStaticMesh ? Materials[MaterialIndex(RandomEngine)] : FAssetHandle{};
 
@@ -661,6 +668,11 @@ void UWorld::HandleSpawnComponent(
 			StaticMeshComponent->SetMeshHandle(MeshHandle);
 			StaticMeshComponent->SetPipelineHandle(PipelineHandle);
 			StaticMeshComponent->SetMaterialHandle(MaterialHandle);
+		}
+		if (bIsBillboard) {
+			auto* Billboard = static_cast<UBillboardComponent*>(Component);
+			Billboard->SetPipelineHandle(BillboardPipeline);
+			Billboard->SetTextureHandle(BillboardTexture);
 		}
 
 		auto tag = Actor->AddComponent<UNameTagComponent>();
