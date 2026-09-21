@@ -14,37 +14,10 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 
 	FObjInporter ObjImporter{};
 	FGeometry Geometry{};
-	std::filesystem::path BinaryPath = ObjPath;
-	BinaryPath.replace_extension(".bin");
 
-	std::error_code FileSystemError{};
-	const bool bHasBinarySidecar = std::filesystem::is_regular_file(BinaryPath, FileSystemError);
-	const bool bLoadedFromBinary = bHasBinarySidecar && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);
-
-	if (bLoadedFromBinary) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Loaded model binary sidecar: %s", BinaryPath.generic_string().c_str());
-	}
-	else {
-		if (bHasBinarySidecar) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary sidecar; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
-		}
-
-		if (!ObjImporter.LoadObjFile(ObjPath.string().c_str(), Geometry)) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", ObjPath.generic_string().c_str());
-			return false;
-		}
-
-		if (!FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to create model binary sidecar: %s", BinaryPath.generic_string().c_str());
-		}
-		else {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Created model binary sidecar: %s", BinaryPath.generic_string().c_str());
-		}
-	}
-
-
-	if (bLoadedFromBinary && Geometry.SubMeshIndexCounts.empty() && !Geometry.Indices.empty()) {
-		Geometry.SubMeshIndexCounts.push_back(static_cast<uint32>(Geometry.Indices.size()));
+	if (!ObjImporter.LoadObjFile(ObjPath.string().c_str(), Geometry)) {
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", ObjPath.generic_string().c_str());
+		return false;
 	}
 
 	if (Geometry.MaterialNames.empty() && Geometry.SubMeshIndexCounts.size() == 1) {
@@ -83,35 +56,28 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model submesh index range is invalid: %s", ObjPath.generic_string().c_str());
 			return false;
 		}
+	}	
+	//else
+	//{
+	//	FString FilePath = MetadataParser.GetOr("FilePath", FString(""));
+	//	
+	//	FObjInporter ObjImporter;
+	//	FGeometry Geometry;
 
-		FirstIndex += SubMesh.IndexCount;
+	//	//바이너리 있는지 읽기.
+	//	if (!FObjSerializer::LoadBinary("./Content/Meshes/ObjMesh.bin", Geometry))
+	//	{
+	//		if (!ObjImporter.LoadObjFile(FilePath.c_str(), Geometry))
+	//		{
+	//			ErrorHandler::Report(false, " [ UMesh ]", "Failed to Import OBJ File: " + FilePath, ErrorHandler::EErrorLevel::Critical);				
+	//		}
+	//	}
 
-		const FString& MaterialName = Geometry.MaterialNames[SubMeshIndex];
-		if (!MaterialName.empty()) {
-			if (ImportedMaterial && MaterialGroupResolver) {
-				const std::optional<uint32> MaterialGroupIndex = MaterialGroupResolver(ImportedMaterial, MaterialName);
-				if (MaterialGroupIndex.has_value()) {
-					SubMesh.MaterialGroupIndex = *MaterialGroupIndex;
-				}
-				else {
-					Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model MTL group was not found; using material group 0: %s in %s", MaterialName.c_str(), ObjPath.generic_string().c_str());
-				}
-			}
-			else {
-				Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Model has no usable MTL; using material group 0: %s", ObjPath.generic_string().c_str());
-			}
-		}
-
-		ImportedSubMeshes.push_back(SubMesh);
-	}
-
-	if (FirstIndex != Geometry.Indices.size() || !Make(Device, Geometry.Indices,
-		MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
-		MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
-		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords))) {
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", ObjPath.generic_string().c_str());
-		return false;
-	}
+	//	UMesh::Make(Device, Geometry.Indices,
+	//				MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
+	//				MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
+	//				MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords));
+	//}
 
 	SubMeshes = std::move(ImportedSubMeshes);
 

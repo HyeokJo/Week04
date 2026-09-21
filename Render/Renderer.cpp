@@ -28,11 +28,9 @@ void FRenderer::Create(HWND WindowHandle, UINT width, UINT height) {
 	BackBuffer->InitializeSwapChain(Device.Get(), SwapChain.Get());
 	BackBufferSurface = std::move(BackBuffer);
 	
-	for (std::unique_ptr<IRenderSurface>& Surface : SceneSurfaces) {
-		auto Scene = std::make_unique<FSceneRenderSurface>();
-		Scene->InitializeOffscreen(Device.Get(), width, height);
-		Surface = std::move(Scene);
-	}
+	auto Scene = std::make_unique<FSceneRenderSurface>();
+	Scene->InitializeOffscreen(Device.Get(), width, height);
+	SceneSurface = std::move(Scene);
 	
 	FRenderer::CreateSamplerStates();
 
@@ -48,14 +46,9 @@ void FRenderer::Create(HWND WindowHandle, UINT width, UINT height) {
 #endif
 }
 
-void FRenderer::BeginSceneRender(FViewportId Id) {
-	if (Id >= ViewportCount || SceneSurfaces[Id] == nullptr) {
-		return;
-	}
-
-	ActiveViewportId = Id;
-	SceneSurfaces[Id]->Bind(DeviceContext.Get());
-	SceneSurfaces[Id]->Clear(DeviceContext.Get(), ClearColor);
+void FRenderer::BeginSceneRender() {
+	SceneSurface->Bind(DeviceContext.Get());
+	SceneSurface->Clear(DeviceContext.Get(), ClearColor);
 }
 
 void FRenderer::BeginUiRender() {
@@ -89,7 +82,7 @@ void FRenderer::RenderScene(FRenderProbe& Probe) {
 	if (AssetRegistry != nullptr) {
 		AssetRegistry->GetMaterialBuffer().Flush(DeviceContext.Get());
 	}
-	DeviceContext->RSSetViewports(1, &SceneSurfaces[ActiveViewportId]->GetViewport());
+	DeviceContext->RSSetViewports(1,&this->SceneSurface->GetViewport());
 
 	RenderActorList(Probe.ActorProbes,Probe.MainCameraProbe);
 	RenderOutline(Probe.ActorProbes, Probe.MainCameraProbe);
@@ -116,7 +109,7 @@ void FRenderer::RenderGizmos(FRenderProbe& Probe) {
 		return;
 	}
 
-	SceneSurfaces[ActiveViewportId]->ClearDepth(DeviceContext.Get());
+	SceneSurface->ClearDepth(DeviceContext.Get());
 
 	RenderActorList(Probe.GizmoProbes,Probe.MainCameraProbe);
 }
@@ -325,12 +318,12 @@ void FRenderer::ReSize(uint32 width, uint32 height) {
 	BackBufferSurface->Resize(Device.Get(), width, height);
 }
 
-void FRenderer::ResizeSceneSurface(FViewportId Id, uint32 Width, uint32 Height, float Left, float Top) {
-	if (Id >= ViewportCount || Width == 0 || Height == 0 || SceneSurfaces[Id] == nullptr) {
+void FRenderer::ResizeSceneSurface(uint32 Width, uint32 Height, float Left, float Top) {
+	if (Width == 0 || Height == 0) {
 		return;
 	}
 
-	SceneSurfaces[Id]->Resize(Device.Get(), Width, Height);
+	SceneSurface->Resize(Device.Get(), Width, Height);
 	WindowInfoWriter.Modify([&](RenderWindowInfo& Info) {
 		Info.ScreenWidth = Width;
 		Info.ScreenHeight = Height;
@@ -341,23 +334,15 @@ void FRenderer::ResizeSceneSurface(FViewportId Id, uint32 Width, uint32 Height, 
 void FRenderer::Terminate() {
 	DeviceContext->ClearState();
 
-	for (std::unique_ptr<IRenderSurface>& Surface : SceneSurfaces) {
-		if (Surface != nullptr) {
-			Surface->Reset();
-			Surface.reset();
-		}
+	if (SceneSurface != nullptr) {
+		SceneSurface->Reset();
 	}
 	if (BackBufferSurface != nullptr) {
 		BackBufferSurface->Reset();
 	}
+	SceneSurface.reset();
 	BackBufferSurface.reset();
 	SwapChain.Reset();
-}
-
-ID3D11ShaderResourceView* FRenderer::GetSceneShaderResourceView(FViewportId Id) const {
-	return Id < ViewportCount && SceneSurfaces[Id] != nullptr
-		? SceneSurfaces[Id]->GetShaderResourceView()
-		: nullptr;
 }
 
 void FRenderer::ReportLiveObjects() const {

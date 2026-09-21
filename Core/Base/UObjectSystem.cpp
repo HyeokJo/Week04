@@ -71,25 +71,6 @@ FObjectHandle UObjectSystem::RegisterWithGuid(UObject* Object, const FGuid& InGu
     return Register(Object);
 }
 
-bool UObjectSystem::TryGet(uint32 index, FObjectHandle& out)
-{
-    FObjectRegistryState& State = GetRegistryState();
-
-    if (index >= State.ObjectItems.size())
-    {
-        return false;
-    }
-
-    FObjectItem& Item = State.ObjectItems[index];
-
-    out = FObjectHandle
-    {
-        .Index = index,
-        .Generation = Item.Generation
-    };
-
-    return true;
-}
 
 void UObjectSystem::Unregister(
     UObject* Object,
@@ -193,13 +174,6 @@ FObjectHandle UObjectSystem::GetHandle(
     }
 
     return Object->GetHandle();
-}
-
-uint32 UObjectSystem::GetItemCount()
-{
-    FObjectRegistryState& State = GetRegistryState();
-
-    return State.ObjectItems.size();
 }
 
 std::uint32_t UObjectSystem::GetObjectCount()
