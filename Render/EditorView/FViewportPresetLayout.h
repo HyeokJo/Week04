@@ -33,6 +33,7 @@ public:
 
     void SetPreset(EViewportLayoutPreset InPreset);
     EViewportLayoutPreset GetPreset() const;
+    static const char* GetPresetName(EViewportLayoutPreset InPreset);
     const char* GetPresetName() const;
     uint32 GetViewportCount() const;
 

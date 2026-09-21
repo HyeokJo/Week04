@@ -218,8 +218,8 @@ FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::
     }
 
     if (DragOwners[Right] == EDragOwner::World && (PendingDeltaX != 0.0f || PendingDeltaY != 0.0f)) {
-        NavigationInput.RotationDeltaX = PendingDeltaX;
-        NavigationInput.RotationDeltaY = PendingDeltaY;
+        NavigationInput.DragDeltaX = PendingDeltaX;
+        NavigationInput.DragDeltaY = PendingDeltaY;
     }
     if (!bMouseCapturedByUI) {
         NavigationInput.WheelSteps = PendingWheelSteps;

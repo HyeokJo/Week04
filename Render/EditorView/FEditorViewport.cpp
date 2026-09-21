@@ -10,6 +10,34 @@
 #include "Scene/Component/UCameraComponent.h"
 #include "Scene/FWorldEditorContext.h"
 
+namespace {
+    constexpr float HalfSqrtTwo = 0.70710678118f;
+
+    const char* GetOrthographicViewName(EOrthographicView View) {
+        switch (View) {
+        case EOrthographicView::Front: return "Front";
+        case EOrthographicView::Back: return "Back";
+        case EOrthographicView::Left: return "Left";
+        case EOrthographicView::Right: return "Right";
+        case EOrthographicView::Top: return "Top";
+        case EOrthographicView::Bottom: return "Bottom";
+        default: return "Orthographic";
+        }
+    }
+
+    FQuat GetOrthographicRotation(EOrthographicView View) {
+        switch (View) {
+        case EOrthographicView::Front: return { 0.0f, 0.0f, 1.0f, 0.0f };
+        case EOrthographicView::Back: return {};
+        case EOrthographicView::Left: return { 0.0f, 0.0f, -HalfSqrtTwo, HalfSqrtTwo };
+        case EOrthographicView::Right: return { 0.0f, 0.0f, HalfSqrtTwo, HalfSqrtTwo };
+        case EOrthographicView::Top: return { -HalfSqrtTwo, 0.0f, 0.0f, HalfSqrtTwo };
+        case EOrthographicView::Bottom: return { HalfSqrtTwo, 0.0f, 0.0f, HalfSqrtTwo };
+        default: return {};
+        }
+    }
+}
+
 FEditorViewport::FEditorViewport(FViewportId InViewportId, ID3D11Device* InDevice, FWorldEditorContext& InEditorContext)
     : Device(InDevice)
     , EditorContext(&InEditorContext)
@@ -17,6 +45,17 @@ FEditorViewport::FEditorViewport(FViewportId InViewportId, ID3D11Device* InDevic
     , ProjectionType(InViewportId == 0 ? EProjectionType::Perspective : EProjectionType::Orthographic) {
     CameraRotation.Normalize();
     RenderSettings.bRenderSky = ProjectionType == EProjectionType::Perspective;
+
+    if (ProjectionType == EProjectionType::Orthographic) {
+        const EOrthographicView InitialViews[]{
+            EOrthographicView::Front,
+            EOrthographicView::Top,
+            EOrthographicView::Front,
+            EOrthographicView::Right
+        };
+        OrthographicView = InitialViews[std::min<std::size_t>(ViewportId, std::size(InitialViews) - 1)];
+        ApplyOrthographicView();
+    }
 
     if (Device != nullptr) {
         RenderSurface.InitializeOffscreen(Device, 1, 1);
@@ -44,37 +83,94 @@ bool FEditorViewport::Draw(const FRect& Rect, const ImVec2& MainViewportPosition
     }
 
     DisplayRect = Rect;
-    Width = static_cast<uint32>(Rect.GetWidth());
-    Height = static_cast<uint32>(Rect.GetHeight());
-    RenderLeft = static_cast<float>(Rect.Min.X) - MainViewportPosition.x;
-    RenderTop = static_cast<float>(Rect.Min.Y) - MainViewportPosition.y;
-    bVisible = true;
-
-    ResizeRenderSurface();
 
     const ImVec2 Position{ static_cast<float>(Rect.Min.X), static_cast<float>(Rect.Min.Y) };
     const ImVec2 Size{ static_cast<float>(Rect.GetWidth()), static_cast<float>(Rect.GetHeight()) };
     ImGui::SetCursorScreenPos(Position);
     ImGui::PushID(static_cast<int>(ViewportId));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    const bool bChildVisible = ImGui::BeginChild("##SceneViewport", Size, ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    const bool bChildVisible = ImGui::BeginChild("##SceneViewport", Size, ImGuiChildFlags_None,
+        ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     bool bActivated = false;
 
     if (bChildVisible) {
+        bActivated = DrawMenuBar();
+
         const ImVec2 ImagePosition = ImGui::GetCursorScreenPos();
-        ImGui::InvisibleButton("##SceneSurface", Size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
+        const ImVec2 ImageSize = ImGui::GetContentRegionAvail();
 
-        if (ID3D11ShaderResourceView* ShaderResourceView = RenderSurface.GetShaderResourceView()) {
-            ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(ShaderResourceView), ImagePosition, ImVec2(ImagePosition.x + Size.x, ImagePosition.y + Size.y));
+        if (ImageSize.x > 0.0f && ImageSize.y > 0.0f) {
+            Width = static_cast<uint32>(ImageSize.x);
+            Height = static_cast<uint32>(ImageSize.y);
+            RenderLeft = ImagePosition.x - MainViewportPosition.x;
+            RenderTop = ImagePosition.y - MainViewportPosition.y;
+            DisplayRect = {
+                { static_cast<int32>(ImagePosition.x), static_cast<int32>(ImagePosition.y) },
+                { static_cast<int32>(ImagePosition.x + ImageSize.x), static_cast<int32>(ImagePosition.y + ImageSize.y) }
+            };
+            bVisible = true;
+            ResizeRenderSurface();
+
+            ImGui::InvisibleButton("##SceneSurface", ImageSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
+
+            if (ID3D11ShaderResourceView* ShaderResourceView = RenderSurface.GetShaderResourceView()) {
+                ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(ShaderResourceView), ImagePosition, ImVec2(ImagePosition.x + ImageSize.x, ImagePosition.y + ImageSize.y));
+            }
+
+            bHovered = !bInputBlocked && ImGui::IsItemHovered();
+            bActivated = bActivated || (bHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
         }
-
-        bHovered = !bInputBlocked && ImGui::IsItemHovered();
-        bActivated = bHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right));
     }
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
     ImGui::PopID();
+    return bActivated;
+}
+
+bool FEditorViewport::DrawMenuBar() {
+    if (!ImGui::BeginMenuBar()) {
+        return false;
+    }
+
+    bool bActivated = false;
+    ImGui::TextUnformatted("View");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(std::min(120.0f, ImGui::GetContentRegionAvail().x));
+    const bool bComboOpen = ImGui::BeginCombo("##ViewMode", GetViewModeName());
+    bActivated = ImGui::IsItemActivated();
+    if (bComboOpen) {
+        const bool bPerspectiveSelected = ProjectionType == EProjectionType::Perspective;
+        if (ImGui::Selectable("Perspective", bPerspectiveSelected)) {
+            SetProjectionType(EProjectionType::Perspective);
+            bActivated = true;
+        }
+        if (bPerspectiveSelected) {
+            ImGui::SetItemDefaultFocus();
+        }
+
+        constexpr EOrthographicView Views[]{
+            EOrthographicView::Front,
+            EOrthographicView::Back,
+            EOrthographicView::Left,
+            EOrthographicView::Right,
+            EOrthographicView::Top,
+            EOrthographicView::Bottom
+        };
+        for (EOrthographicView View : Views) {
+            const bool bSelected = ProjectionType == EProjectionType::Orthographic && OrthographicView == View;
+            if (ImGui::Selectable(GetOrthographicViewName(View), bSelected)) {
+                SetOrthographicView(View);
+                bActivated = true;
+            }
+            if (bSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::EndMenuBar();
     return bActivated;
 }
 
@@ -104,7 +200,8 @@ void FEditorViewport::ProcessInput(EditorViewport& SharedEditorViewport, FKeyboa
 
     const bool bViewportNavigationActive = MouseInput.IsWorldDragActive(Right);
     const bool bImGuiOwnsKeyboard = ImGui::GetIO().WantCaptureKeyboard && !bViewportNavigationActive;
-    const bool bBlockKeyboard = bInputBlocked || !bVisible || !bFocused || !bHasCamera || bImGuiOwnsKeyboard;
+    const bool bBlockKeyboard = ProjectionType == EProjectionType::Orthographic ||
+        bInputBlocked || !bVisible || !bFocused || !bHasCamera || bImGuiOwnsKeyboard;
     const FViewportKeyboardNavigationInput KeyboardNavigation = KeyboardInput.ConsumeViewportNavigation(DeltaTime, bBlockKeyboard);
 
     if (bHasCamera) {
@@ -152,12 +249,32 @@ bool FEditorViewport::BuildCameraProbe(CameraProbe& OutCamera) {
 }
 
 void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& NavigationInput) {
-    if (ProjectionType == EProjectionType::Orthographic && NavigationInput.WheelSteps != 0.0f) {
-        OrthographicWidth *= std::pow(0.85f, NavigationInput.WheelSteps);
-        OrthographicWidth = std::clamp(OrthographicWidth, 0.1f, 10000.0f);
+    if (ProjectionType == EProjectionType::Orthographic) {
+        if (NavigationInput.WheelSteps != 0.0f) {
+            OrthographicWidth *= std::pow(0.85f, NavigationInput.WheelSteps);
+            OrthographicWidth = std::clamp(OrthographicWidth, 0.1f, 10000.0f);
+        }
+
+        if ((NavigationInput.DragDeltaX != 0.0f || NavigationInput.DragDeltaY != 0.0f) && Width > 0) {
+            const FTransform CameraTransform{ CameraPosition, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
+            const FMatrix CameraMatrix = CameraTransform.ToMatrixNoScale();
+            FVector3 CameraForward = CameraMatrix.Forward();
+            FVector3 PlaneUp = CameraMatrix.Up();
+            CameraForward.Normalize();
+            PlaneUp.Normalize();
+
+            FVector3 PlaneRight = PlaneUp.Cross(CameraForward);
+            PlaneRight.Normalize();
+
+            const float WorldUnitsPerPixel = OrthographicWidth / static_cast<float>(Width);
+            const FVector3 Offset = PlaneRight * (-NavigationInput.DragDeltaX * WorldUnitsPerPixel) + PlaneUp * (-NavigationInput.DragDeltaY * WorldUnitsPerPixel);
+            CameraPosition = CameraPosition + Offset;
+            OrthographicTarget = OrthographicTarget + Offset;
+        }
+        return;
     }
 
-    if (NavigationInput.RotationDeltaX == 0.0f && NavigationInput.RotationDeltaY == 0.0f) {
+    if (NavigationInput.DragDeltaX == 0.0f && NavigationInput.DragDeltaY == 0.0f) {
         return;
     }
 
@@ -165,7 +282,7 @@ void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& 
     const float RotationSensitivity = Settings.RotationSensitivity * 0.001f;
     constexpr float MaximumPitch = 0.99f;
 
-    FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, NavigationInput.RotationDeltaX * RotationSensitivity);
+    FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, NavigationInput.DragDeltaX * RotationSensitivity);
     YawDelta.Normalize();
 
     FQuat YawedRotation = FQuat::Concatenate(YawDelta, CameraRotation);
@@ -180,8 +297,8 @@ void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& 
     Forward.Normalize();
 
     const float ForwardUp = Forward.Dot(FVector3::UnitZ);
-    float PitchAngle = NavigationInput.RotationDeltaY * RotationSensitivity;
-    if ((ForwardUp > MaximumPitch && NavigationInput.RotationDeltaY > 0.0f) || (ForwardUp < -MaximumPitch && NavigationInput.RotationDeltaY < 0.0f)) {
+    float PitchAngle = NavigationInput.DragDeltaY * RotationSensitivity;
+    if ((ForwardUp > MaximumPitch && NavigationInput.DragDeltaY > 0.0f) || (ForwardUp < -MaximumPitch && NavigationInput.DragDeltaY < 0.0f)) {
         PitchAngle = 0.0f;
     }
 
@@ -195,20 +312,14 @@ void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& 
 }
 
 void FEditorViewport::ApplyKeyboardNavigation(const FViewportKeyboardNavigationInput& NavigationInput) {
-    if (NavigationInput.DeltaTime <= 0.0f || (NavigationInput.ForwardAxis == 0.0f && NavigationInput.RightAxis == 0.0f)) {
+    if (ProjectionType == EProjectionType::Orthographic || NavigationInput.DeltaTime <= 0.0f ||
+        (NavigationInput.ForwardAxis == 0.0f && NavigationInput.RightAxis == 0.0f)) {
         return;
     }
 
     const FTransform CameraTransform{ CameraPosition, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
-    FVector3 MoveDirection{};
-
-    if (ProjectionType == EProjectionType::Orthographic) {
-        const FMatrix CameraWorldMatrix = UCameraComponent::CameraBasis * CameraTransform.ToMatrixNoScale();
-        MoveDirection = CameraWorldMatrix.Up() * NavigationInput.ForwardAxis + CameraWorldMatrix.Right() * NavigationInput.RightAxis;
-    } else {
-        const FMatrix CameraWorldMatrix = CameraTransform.ToMatrixNoScale();
-        MoveDirection = CameraWorldMatrix.Forward() * NavigationInput.ForwardAxis - CameraWorldMatrix.Right() * NavigationInput.RightAxis;
-    }
+    const FMatrix CameraWorldMatrix = CameraTransform.ToMatrixNoScale();
+    FVector3 MoveDirection = CameraWorldMatrix.Forward() * NavigationInput.ForwardAxis - CameraWorldMatrix.Right() * NavigationInput.RightAxis;
 
     if (MoveDirection.LengthSquared() <= 0.0f) {
         return;
@@ -234,6 +345,72 @@ const FRenderSettings& FEditorViewport::GetRenderSettings() const {
 
 const FVector3& FEditorViewport::GetCameraPosition() const {
     return CameraPosition;
+}
+
+void FEditorViewport::SetProjectionType(EProjectionType InProjectionType) {
+    if (ProjectionType == InProjectionType) {
+        return;
+    }
+
+    if (InProjectionType == EProjectionType::Perspective) {
+        ProjectionType = EProjectionType::Perspective;
+        CameraPosition = PerspectiveCameraPosition;
+        CameraRotation = PerspectiveCameraRotation;
+    } else {
+        PerspectiveCameraPosition = CameraPosition;
+        PerspectiveCameraRotation = CameraRotation;
+        ProjectionType = EProjectionType::Orthographic;
+        ApplyOrthographicView();
+    }
+    RenderSettings.bRenderSky = ProjectionType == EProjectionType::Perspective;
+}
+
+void FEditorViewport::SetOrthographicView(EOrthographicView InView) {
+    if (ProjectionType == EProjectionType::Perspective) {
+        PerspectiveCameraPosition = CameraPosition;
+        PerspectiveCameraRotation = CameraRotation;
+    }
+
+    ProjectionType = EProjectionType::Orthographic;
+    OrthographicView = InView;
+    ApplyOrthographicView();
+    RenderSettings.bRenderSky = false;
+}
+
+void FEditorViewport::SetCameraParameter(const FVector3& InPosition, const FQuat& InRotation, float InFieldOfView, float InOrthographicWidth, float InNearPlane, float InFarPlane) {
+    CameraPosition = InPosition;
+    CameraRotation = InRotation;
+    CameraRotation.Normalize();
+    FieldOfView = InFieldOfView;
+    OrthographicWidth = InOrthographicWidth;
+    NearPlane = InNearPlane;
+    FarPlane = InFarPlane;
+
+    if (ProjectionType == EProjectionType::Perspective) {
+        PerspectiveCameraPosition = CameraPosition;
+        PerspectiveCameraRotation = CameraRotation;
+    } else {
+        const FTransform CameraTransform{ CameraPosition, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
+        FVector3 CameraForward = CameraTransform.ToMatrixNoScale().Forward();
+        CameraForward.Normalize();
+        const float CameraDistance = (NearPlane + FarPlane) * 0.5f;
+        OrthographicTarget = CameraPosition + CameraForward * CameraDistance;
+    }
+}
+
+void FEditorViewport::ApplyOrthographicView() {
+    CameraRotation = GetOrthographicRotation(OrthographicView);
+    CameraRotation.Normalize();
+
+    const FTransform RotationTransform{ FVector3{}, CameraRotation, FVector3{ 1.0f, 1.0f, 1.0f } };
+    FVector3 CameraForward = RotationTransform.ToMatrixNoScale().Forward();
+    CameraForward.Normalize();
+    const float CameraDistance = (NearPlane + FarPlane) * 0.5f;
+    CameraPosition = OrthographicTarget - CameraForward * CameraDistance;
+}
+
+const char* FEditorViewport::GetViewModeName() const {
+    return ProjectionType == EProjectionType::Perspective ? "Perspective" : GetOrthographicViewName(OrthographicView);
 }
 
 void FEditorViewport::ReleaseRenderResources() {
