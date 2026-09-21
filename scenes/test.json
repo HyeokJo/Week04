@@ -336,7 +336,7 @@
                     "Transform": {
                         "Position": [
                             12.0,
-                            2.0,
+                            0.0,
                             7.0
                         ],
                         "Rotation": [
@@ -356,8 +356,8 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "CE62691A-4CB0-B760-42F8-E79C88DC0146",
-                    "MeshAssetPath": "/Game/Models/Monkey/Torus_ZUp.bin",
+                    "MeshAssetGuid": "F5ED0E73-1522-4260-8596-9CE70AD33C6E",
+                    "MeshAssetPath": "/Game/Models/Cube/Cube.bin",
                     "MaterialAssetGuid": "D50C9D31-6F6E-4278-A8A1-2A3EC7E805AF",
                     "MaterialAssetPath": "/Game/Models/Cube/Cube.mtl",
                     "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
@@ -414,7 +414,7 @@
                     "Guid": "D3161E70-4CDE-BA0E-058C-979DAC44EC6B",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
-                    "bActive": true,
+                    "bActive": false,
                     "Transform": {
                         "Position": [
                             0.0,
@@ -683,12 +683,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.75,
-                        0.5
+                        0.25,
+                        0.25
                     ],
                     "UVMax": [
-                        1.0,
-                        0.75
+                        0.5,
+                        0.5
                     ],
                     "Color": [
                         1.0,
@@ -813,12 +813,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.5,
-                        0.5
+                        0.25,
+                        0.75
                     ],
                     "UVMax": [
-                        0.75,
-                        0.75
+                        0.5,
+                        1.0
                     ],
                     "Color": [
                         1.0,
@@ -878,12 +878,12 @@
                         2.0
                     ],
                     "UVMin": [
-                        0.25,
-                        0.25
+                        0.5,
+                        0.0
                     ],
                     "UVMax": [
-                        0.5,
-                        0.5
+                        0.75,
+                        0.25
                     ],
                     "Color": [
                         1.0,

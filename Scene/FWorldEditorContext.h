@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <d3d11.h>
+#include "Core/Asset/FAssetHandle.h"
 #include "Core/Base/TObjectRef.h"
 #include "Core/Channel/FMessageChannel.h"
 #include "Core/Channel/FStateChannel.h"
@@ -46,6 +47,20 @@ public:
 
     UWorld* GetWorld() const { return World; }
 
+    // 프리뷰 대상을 바꾸면 Viewer 창을 띄워달라는 요청도 같이 세운다.
+    void SetPreviewMesh(const FAssetHandle& Handle) {
+        PreviewMesh = Handle;
+        bPreviewOpenRequested = true;
+    }
+    FAssetHandle GetPreviewMesh() const noexcept { return PreviewMesh; }
+
+    // 요청을 한 번만 처리하도록 읽으면서 내린다.
+    bool ConsumePreviewOpenRequest() noexcept {
+        const bool bRequested = bPreviewOpenRequested;
+        bPreviewOpenRequested = false;
+        return bRequested;
+    }
+
 private:
     UWorld* World = nullptr;
     TObjectRef<AActor> SelectedActor;
@@ -53,4 +68,8 @@ private:
     FStateChannel<FWorldEditorSharedState> SharedState{ std::in_place };
     FMessageChannel EditorToWorld{ 64 };
     FMessageChannel WorldToEditor{ 64 };
+
+private:
+    FAssetHandle PreviewMesh{};
+    bool bPreviewOpenRequested = false;
 };

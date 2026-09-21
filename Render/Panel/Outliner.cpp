@@ -2,6 +2,7 @@
 
 #include "Outliner.h"
 #include "../../Scene/Component/UNameTagComponent.h"
+#include "../../Scene/Component/UMeshComponent.h"
 #include "Scene/FWorldEditorContext.h"
 
 #include <algorithm>
@@ -185,6 +186,8 @@ void FOutlinerPanel::DrawActor(AActor& Actor) {
         }
 
     }
+
+
 
     DrawActorDragSource(Actor);
     AcceptActorChildDrop(Actor);

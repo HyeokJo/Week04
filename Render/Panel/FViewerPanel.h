@@ -6,7 +6,9 @@
 #include "Core/Base/FRenderProbe.h"
 #include "Core/Channel/FMessageChannel.h"
 #include "Core/Asset/FAssetHandle.h"
+#include "Render/EditorView/FLineRenderer.h"
 
+class FWorldEditorContext;
 class FRenderer;
 class FAssetRegistry;
 class FQuat;
@@ -15,11 +17,11 @@ class FQuat;
 // 메인 뷰포트와 무관한 독립 공간에 모델 하나만 그려 보여주는 패널.
 class FViewerPanel final : public FEditorWindow {
 public:
-	explicit FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle, FMessageChannel::FSender InEditorToWorldSender)
+	explicit FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle, FMessageChannel::FSender InEditorToWorldSender, FWorldEditorContext& EditorContext)
 		: FEditorWindow("Viewer", ImGuiWindowFlags_MenuBar)
 		, Registry(&InRegistry)
 		, EditorToWorldSender(InEditorToWorldSender)
-		, WindowHandle(InputWindowHandle) {
+		, WindowHandle(InputWindowHandle) , EditorContext(EditorContext){
 	}
 
 	~FViewerPanel() override = default;
@@ -48,6 +50,9 @@ private:
 	CameraProbe BuildPreviewCamera() const;
 	void ProcessInput();
 
+	// 미리보기 서피스 좌상단에 월드 기저를 표시한다.
+	void RenderOrientationAxis(ID3D11DeviceContext* Context);
+
 	// 카메라의 월드 행렬을 직접 만든다. FTransform 을 거치지 않으므로
 	// 메시 소스 기저 변환에 영향받지 않는다.
 	FMatrix MakeCameraWorldMatrix(const FVector3& Eye) const;
@@ -63,6 +68,10 @@ private:
 	HWND WindowHandle;
 	FSceneRenderSurface Surface;
 	FAssetHandle MeshHandle;
+	FWorldEditorContext& EditorContext;
+
+	std::unique_ptr<ILineRenderer> LineRenderer = std::make_unique<FLineRenderer>();
+	bool bLineRendererInitialized = false;
 
 	uint32 SurfaceWidth = 0;
 	uint32 SurfaceHeight = 0;

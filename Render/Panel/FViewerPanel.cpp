@@ -183,7 +183,7 @@ FRenderProbe FViewerPanel::BuildPreviewProbe()
     }
 
     //지정된게 없으면 기본 큐브로
-    FAssetHandle Mesh = MeshHandle;
+    FAssetHandle Mesh = EditorContext.GetPreviewMesh();
     if (!Mesh)
     {
 		MeshHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.bin" });
@@ -288,14 +288,33 @@ void FViewerPanel::RenderOffscreen(FRenderer& InRenderer, FAssetRegistry& InRegi
         return;
     }
 
+    // 아웃라이너에서 더블클릭한 메시를 넘겨받는다. 핸들만 복사하므로
+    // 액터가 사라져도 뷰어는 영향받지 않는다.
+    if (const FAssetHandle PreviewMesh = EditorContext.GetPreviewMesh())
+    {
+        MeshHandle = PreviewMesh;
+    }
+
+    // 디바이스는 생성자 시점에 없으므로 첫 렌더에서 초기화한다.
+    if (!bLineRendererInitialized)
+    {
+        LineRenderer->Initialize(InRenderer.GetDevice());
+        bLineRendererInitialized = true;
+    }
+
     FRenderProbe PreviewProbe = BuildPreviewProbe();
     FRenderSettings PreviewSettings{};
     PreviewSettings.ClearColor = FVector4{ 0.12f, 0.13f, 0.15f, 1.0f };
     InRenderer.RenderScene(Surface, PreviewProbe, BuildPreviewCamera(), PreviewSettings);
+
+    // RenderScene 이 서피스를 Bind/Clear 하므로 반드시 그 뒤에 그려야 남는다.
+    RenderOrientationAxis(InRenderer.GetDeviceContext());
 }
 
 void FViewerPanel::ReleaseRenderResources() {
     Surface.Reset();
+    LineRenderer->Reset();
+    bLineRendererInitialized = false;
 }
 
 void FViewerPanel::DrawPreview()
@@ -349,4 +368,41 @@ FString FViewerPanel::OpenFileDialog(const FString& FilePath, const OPENFILENAME
     }
 
     return "";
+}
+
+void FViewerPanel::RenderOrientationAxis(ID3D11DeviceContext* Context)
+{
+    if (Context == nullptr || !bLineRendererInitialized)
+    {
+        return;
+    }
+
+    // 카메라의 회전만 남기고 위치는 고정한다. 그래야 축이 화면 구석에 붙박이로 있으면서
+    // 방향만 따라 돈다.
+    FMatrix View = BuildPreviewCamera().View;
+    View.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
+
+    // 직교 투영이라 세 축 길이가 항상 같게 보인다.
+    const FMatrix Projection = FMatrix::CreateOrthographic(2.5f, 2.5f, 0.1f, 10.0f);
+
+    constexpr float AxisSize = 100.0f;
+    const D3D11_VIEWPORT AxisViewport{ 5.0f, 5.0f, AxisSize, AxisSize, 0.0f, 1.0f };
+    Context->RSSetViewports(1, &AxisViewport);
+
+    LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 1.0f, 0.0f, 0.0f }, 1.0f, FVector4{ 1.0f, 0.0f, 0.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
+    LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 0.0f, 1.0f, 0.0f }, 1.0f, FVector4{ 0.0f, 1.0f, 0.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
+    LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 0.0f, 0.0f, 1.0f }, 1.0f, FVector4{ 0.0f, 0.0f, 1.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
+
+    LineRenderer->Render(Context, FLineViewData{
+        .ViewProjection = View * Projection,
+        .ViewportSize = FVector2D{ AxisSize, AxisSize }
+        });
+
+    // 뷰포트를 되돌리지 않으면 이후 메인 렌더링이 이 100x100 안에 그려진다.
+    const D3D11_VIEWPORT FullViewport{
+        0.0f, 0.0f,
+        static_cast<float>(SurfaceWidth), static_cast<float>(SurfaceHeight),
+        0.0f, 1.0f
+    };
+    Context->RSSetViewports(1, &FullViewport);
 }

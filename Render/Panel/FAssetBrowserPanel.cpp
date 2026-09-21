@@ -4,6 +4,8 @@
 
 #include "Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UTexture.h"
+#include "Core/Asset/UMesh.h"
+#include "Scene/FWorldEditorContext.h"
 
 #include <ranges>
 #include <string_view>
@@ -41,9 +43,9 @@ namespace {
 
 }
 
-FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry)
+FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext)
     : FEditorWindow("Content Browser###AssetBrowserPanel")
-    , AssetRegistry(&InAssetRegistry) {
+    , AssetRegistry(&InAssetRegistry) , EditorContext(InEditorContext){
 }
 
 void FAssetBrowserPanel::DrawContents() {
@@ -117,6 +119,8 @@ void FAssetBrowserPanel::DrawContents() {
             ImGui::TextDisabled("No assets in this folder.");
         }
     }
+
+
     ImGui::EndChild();
 }
 
@@ -231,8 +235,18 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
         SelectedAsset = Entry.Handle;
     }
 
-    if (ImGui::IsItemHovered()) {
+    if (ImGui::IsItemHovered()) 
+    {
         ImGui::SetTooltip("%s\n%s", AssetPath.c_str(), GetAssetTypeLabel(Entry.AssetType));
+
+        if(ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            if (Entry.AssetType == EAssetType::Mesh) 
+            {
+                EditorContext.SetPreviewMesh(Entry.Handle);
+            }
+
+        }
     }
 
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ThumbnailSize);

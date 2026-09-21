@@ -12,10 +12,15 @@
 #include "FViewerToolBar.h"
 #include "FViewportHostWindow.h"
 
+
 #include "Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
+// Initialize 에서 Renderer.GetDevice() 를 호출하므로 완전한 정의가 필요하다.
+#include "../Renderer.h"
 
 #include "FEditorInfo.h"
+
+class FRenderer;
 
 class FEditorUIManager {
 public:
@@ -26,18 +31,25 @@ public:
         AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle, StatDisplayChannel.GetWriter()));
         //AddWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddStatWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
-        AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry));
+        AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry, EditorContext));
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
-        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
+        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle);
     }
 
     void InitializeViewer(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext) {
         AddPanel(std::make_unique<FViewerToolBar>(EditorContext));
-        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle, EditorContext);
+        AddViewerWindow(AssetRegistry, EditorContext, WindowHandle);
     }
 
     void Tick() {
         DockSpaceId = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        // 닫혀 있는 Viewer 는 스스로 다시 열 수 없다. DrawPanel 이 호출되지 않기 때문이다.
+        // 아웃라이너의 더블클릭 요청을 여기서 받아 창을 켜고 앞으로 끌어올린다.
+        if (ViewerWindow != nullptr && PreviewContext != nullptr && PreviewContext->ConsumePreviewOpenRequest()) {
+            ViewerWindow->SetVisible(true);
+            ImGui::SetWindowFocus(ViewerWindow->GetWindowName());
+        }
 
         if (ViewportHostWindow != nullptr) {
             ViewportHostWindow->PrepareFrame(DockSpaceId);
@@ -102,8 +114,11 @@ private:
         Elements.emplace_back(std::move(Window));
     }
 
-    void AddViewerWindow(FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FWorldEditorContext& EditorContext2) {
-        AddWindow(std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender()));
+    void AddViewerWindow(FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle) {
+        std::unique_ptr<FViewerPanel> Window = std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender(), EditorContext);
+        ViewerWindow = Window.get();
+        PreviewContext = &EditorContext;
+        AddWindow(std::move(Window));
     }
 
     void AddViewportHostWindow(ID3D11Device* Device, FWorldEditorContext& EditorContext) {
@@ -123,6 +138,8 @@ private:
     std::vector<std::unique_ptr<IEditorPanel>> Elements;
     std::vector<FEditorWindow*> Windows;
     FViewportHostWindow* ViewportHostWindow = nullptr;
+    FViewerPanel* ViewerWindow = nullptr;
+    FWorldEditorContext* PreviewContext = nullptr;
     ImGuiID DockSpaceId = 0;
 
     //Stat 커멘드 용
