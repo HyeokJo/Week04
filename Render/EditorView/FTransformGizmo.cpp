@@ -172,7 +172,14 @@ void FTransformGizmo::Update(const CameraProbe& Camera, const D3D11_VIEWPORT& Vi
 		return;
 	}
 
-	const float WorldUnitsPerPixel = (2.0f * ViewDepth) / (ViewportHeight * ProjectionYScale);
+	const bool bPerspectiveProjection = std::abs(Camera.Projection.m[2][3]) > std::numeric_limits<float>::epsilon();
+	const float WorldUnitsPerPixel = bPerspectiveProjection
+		? (2.0f * ViewDepth) / (ViewportHeight * ProjectionYScale)
+		: 2.0f / (ViewportHeight * ProjectionYScale);
+	if (!std::isfinite(WorldUnitsPerPixel) || WorldUnitsPerPixel <= 0.0f) {
+		bVisible = false;
+		return;
+	}
 	CurrentWorkUnitsPerPixel = WorldUnitsPerPixel;
 
 	switch (CurrentMode) {
@@ -538,24 +545,20 @@ bool FTransformGizmo::BeginDrag(EAxis Axis, const FRay& WorldRay) {
 	}
 	//Translate와 Scale은 기존 축 드래그 평면을 사용한다.
 	else {
-		const FVector3 CameraPosition = LastCamera.View.Invert().Translation();
-		FVector3 ViewDirection = InteractionPivotWorld - CameraPosition;
-
-		if (ViewDirection.LengthSquared() <= std::numeric_limits<float>::epsilon()) 
-		{
+		FVector3 ViewDirection{ WorldRay.direction };
+		if (ViewDirection.LengthSquared() <= std::numeric_limits<float>::epsilon()) {
 			return false;
 		}
-
 		ViewDirection.Normalize();
 
 		// 선택 축을 포함하면서 카메라를 향하는 드래그 평면의 법선을 계산한다.
 		FVector3 PlaneNormal = ViewDirection - AxisWorld * ViewDirection.Dot(AxisWorld);
 
-		// 카메라 방향과 축이 거의 일치해서 평면 법선을 만들 수 없을 때의 대체 방향이다.
-		if (PlaneNormal.LengthSquared() <= 0.000001f) 
-		{
-			const FVector3 Fallback = std::abs(AxisWorld.Dot(FVector3::UnitY)) < 0.95f ? FVector3::UnitY : FVector3::UnitX;
-			PlaneNormal = Fallback - AxisWorld * Fallback.Dot(AxisWorld);
+		// 화면에서 거의 점으로 보이는 축은 안정적인 드래그 평면을 만들 수 없다.
+		// 임의의 대체 평면을 사용하면 레이와 평면이 거의 평행해져 교차점이 폭주한다.
+		constexpr float MinimumViewSeparation = 0.05f;
+		if (PlaneNormal.LengthSquared() <= MinimumViewSeparation * MinimumViewSeparation) {
+			return false;
 		}
 
 		PlaneNormal.Normalize();
@@ -676,6 +679,13 @@ void FTransformGizmo::UpdateDrag(const FRay& WorldRay) {
 		}
 
 		const float Delta = CurrentAxisParameter - Session.PreviousAxisParameter;
+		const float MaximumFrameDelta = std::max(
+			Session.WorkUnitsPerPixel * std::max(LastViewport.Width, LastViewport.Height) * 2.0f,
+			1.0f);
+		if (!std::isfinite(Delta) || std::abs(Delta) > MaximumFrameDelta) {
+			EndDrag();
+			return;
+		}
 		Session.PreviousAxisParameter = CurrentAxisParameter;
 		FTransform DesiredWorldTransform = Target->GetComponentTransform();
 
@@ -765,14 +775,26 @@ void FTransformGizmo::EndDrag() {
 }
 
 bool FTransformGizmo::GetAxisParameterOnDragPlane(const FRay& WorldRay, const FDragSession& Session, float& OutParameter) const {
-	const FPlane DragPlane{ Session.InteractionPivotWorld.ToSimpleMath(), Session.DragPlaneNormal.ToSimpleMath() };
-	float Distance = 0.0f;
-	if (!WorldRay.Intersects(DragPlane, Distance)) {
+	const FVector3 RayOrigin{ WorldRay.position };
+	const FVector3 RayDirection{ WorldRay.direction };
+	const float Denominator = RayDirection.Dot(Session.DragPlaneNormal);
+	constexpr float MinimumRayPlaneAlignment = 0.05f;
+	if (!std::isfinite(Denominator) || std::abs(Denominator) < MinimumRayPlaneAlignment) {
 		return false;
 	}
 
-	const FVector3 HitPosition(WorldRay.position + WorldRay.direction * Distance);
-	OutParameter = (HitPosition - Session.InteractionPivotWorld).Dot(Session.AxisWorld);
+	const float Distance = (Session.InteractionPivotWorld - RayOrigin).Dot(Session.DragPlaneNormal) / Denominator;
+	if (!std::isfinite(Distance) || Distance < 0.0f) {
+		return false;
+	}
+
+	const FVector3 HitPosition = RayOrigin + RayDirection * Distance;
+	const float Parameter = (HitPosition - Session.InteractionPivotWorld).Dot(Session.AxisWorld);
+	if (!std::isfinite(Parameter)) {
+		return false;
+	}
+
+	OutParameter = Parameter;
 	return true;
 }
 

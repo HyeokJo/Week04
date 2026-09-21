@@ -46,12 +46,20 @@ uint32 FViewportHostWindow::GetViewportCount() const {
 }
 
 void FViewportHostWindow::DrawContents() {
-    if (ImGui::Button("Cycle Viewport Layout")) {
-        CycleViewportLayout();
+    ImGui::SetNextItemWidth(260.0f);
+    if (ImGui::BeginCombo("Layout", Layout.GetPresetName())) {
+        for (uint8 Index = 0; Index < static_cast<uint8>(EViewportLayoutPreset::Count); ++Index) {
+            const EViewportLayoutPreset Preset = static_cast<EViewportLayoutPreset>(Index);
+            const bool bSelected = Layout.GetPreset() == Preset;
+            if (ImGui::Selectable(FViewportPresetLayout::GetPresetName(Preset), bSelected)) {
+                SetViewportLayout(Preset);
+            }
+            if (bSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
     }
-
-    ImGui::SameLine();
-    ImGui::TextUnformatted(Layout.GetPresetName());
     ImGui::Separator();
 
     const ImVec2 MainViewportPosition = ImGui::GetMainViewport()->Pos;
@@ -99,9 +107,12 @@ void FViewportHostWindow::PushWindowStyle() {
     }
 }
 
-void FViewportHostWindow::CycleViewportLayout() {
-    const uint8 NextPresetIndex = (static_cast<uint8>(Layout.GetPreset()) + 1) % static_cast<uint8>(EViewportLayoutPreset::Count);
-    Layout.SetPreset(static_cast<EViewportLayoutPreset>(NextPresetIndex));
+void FViewportHostWindow::SetViewportLayout(EViewportLayoutPreset InPreset) {
+    if (Layout.GetPreset() == InPreset) {
+        return;
+    }
+
+    Layout.SetPreset(InPreset);
 
     ActiveViewportId = 0;
     for (const std::unique_ptr<FEditorViewport>& Viewport : Viewports) {

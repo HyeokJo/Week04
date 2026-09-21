@@ -1,0 +1,97 @@
+{
+    "FormatVersion": 2,
+    "Actors": [
+        {
+            "Guid": "7B02A886-4C9A-9688-CCA4-4A910D417FD5",
+            "TypeName": "AActor",
+            "Name": "AActor_1",
+            "Components": [
+                {
+                    "Guid": "7F7C639B-4B86-4CAF-860D-C08550AC930C",
+                    "TypeName": "UStaticMeshComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            -4.541900157928467,
+                            4.60202693939209,
+                            4.471168518066406
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "MeshAssetGuid": "F0112B9B-424E-5509-115C-A092FFF2A0B7",
+                    "MeshAssetPath": "/Game/multi_material_cube/multi_material_cube.obj",
+                    "MaterialAssetGuid": "6A5AD93D-495A-8822-812F-8985CB1FBB63",
+                    "MaterialAssetPath": "/Game/multi_material_cube/multi_material_cube.mtl",
+                    "PipelineAssetGuid": "DC8DBAC2-B368-4D74-81D7-4E09AD0BF8D5",
+                    "PipelineAssetPath": "/Game/Pipeline/Base"
+                },
+                {
+                    "Guid": "63E8B113-4DA0-E7AA-18E1-1897C7454CE6",
+                    "TypeName": "UNameTagComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
+                    "Text": "7B02A886-4C9A-9688-CCA4-4A910D417FD5",
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "CharacterHeight": 1.0,
+                    "LetterSpacing": 0.0,
+                    "LineSpacing": 0.0,
+                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
+                    "TargetLocalOffset": [
+                        0.0,
+                        1.0,
+                        0.0
+                    ]
+                }
+            ],
+            "GuidRootComponent": "7F7C639B-4B86-4CAF-860D-C08550AC930C"
+        }
+    ]
+}

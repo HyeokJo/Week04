@@ -5,9 +5,24 @@ struct FModelContext
     uint Flags;
 };
 
+struct FMaterial
+{
+    float4 BaseColor;
+    
+    // Paddings
+    float4 Parameters0;
+    float4 Parameters1;
+    float4 Parameters2;
+    float4 Parameters3;
+    float4 Parameters4;
+    float4 Parameters5;
+    float4 Parameters6;
+};
 StructuredBuffer<FModelContext> ModelContexts : register(t0);
 #include "Lighting.hlsli"
+StructuredBuffer<FMaterial> MaterialBuffer : register(t1);
 Texture2D BaseColorTexture : register(t3);
+
 SamplerState LinearWrap : register(s0);
 
 cbuffer RootConstants : register(b0)
@@ -58,11 +73,17 @@ PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
 
 float4 mainPS(PS_INPUT Input) : SV_TARGET
 {
-    float4 Color = BaseColorTexture.Sample(LinearWrap, Input.UV);
-    Color.rgb *= Input.ColorCoefficient;
-    if ((Input.Flags & 2u) == 0)
+    float4 Color = MaterialBuffer[Input.MaterialIndex].BaseColor;
+
+    uint Width;
+    uint Height;
+    BaseColorTexture.GetDimensions(Width, Height);
+
+    if (Width > 0 && Height > 0)
     {
-        Color.rgb *= CalculateDirectLighting(Input.WorldPosition, Input.Normal, LightCount);
+        Color = BaseColorTexture.Sample(LinearWrap, Input.UV);
     }
+
+    Color.rgb *= Input.ColorCoefficient;
     return Color;
 }

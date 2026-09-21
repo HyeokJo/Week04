@@ -19,20 +19,20 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& ObjPat
 
 	std::error_code FileSystemError{};
 	const bool bHasBinarySidecar = std::filesystem::is_regular_file(BinaryPath, FileSystemError);
-	const bool bLoadedFromBinary = bHasBinarySidecar && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);
+	const bool bLoadedFromBinary = /*bHasBinarySidecar && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);*/ false; 
 
 	if (bLoadedFromBinary) {
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Loaded model binary sidecar: %s", BinaryPath.generic_string().c_str());
 	}
 	else {
-		if (bHasBinarySidecar) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary sidecar; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
-		}
-
 		if (!ObjImporter.LoadObjFile(ObjPath.string().c_str(), Geometry)) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", ObjPath.generic_string().c_str());
 			return false;
 		}
+		if (bHasBinarySidecar) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary sidecar; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
+		}
+
 
 		if (!FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to create model binary sidecar: %s", BinaryPath.generic_string().c_str());

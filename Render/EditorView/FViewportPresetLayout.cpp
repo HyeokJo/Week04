@@ -116,7 +116,11 @@ EViewportLayoutPreset FViewportPresetLayout::GetPreset() const {
 }
 
 const char* FViewportPresetLayout::GetPresetName() const {
-    switch (Preset) {
+    return GetPresetName(Preset);
+}
+
+const char* FViewportPresetLayout::GetPresetName(EViewportLayoutPreset InPreset) {
+    switch (InPreset) {
     case EViewportLayoutPreset::Single: return "1: Single";
     case EViewportLayoutPreset::TwoTopBottom: return "2: Top | Bottom";
     case EViewportLayoutPreset::TwoLeftRight: return "2: Left | Right";

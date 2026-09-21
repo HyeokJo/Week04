@@ -29,7 +29,7 @@ public:
 private:
     void DrawContents() override;
     void PushWindowStyle() override;
-    void CycleViewportLayout();
+    void SetViewportLayout(EViewportLayoutPreset InPreset);
     bool DrawSplitterHandle(SSplitter& Splitter);
     FEditorViewport* GetViewport(FViewportId Id) const;
 
