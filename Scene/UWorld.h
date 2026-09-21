@@ -13,7 +13,6 @@
 #include "Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UMesh.h"
 #include "Core/Base/TObjectRef.h"
-#include "Core/Channel/FStateChannel.h"
 
 #include "Common.h"
 #include "Core/Base/UObject.h"
@@ -24,8 +23,6 @@
 #include "FMouseCameraRotateRequestMessage.h"
 #include "FMousePickRequestMessage.h"
 #include "Render/Panel/FEditorInfo.h"
-
-#include "../Render/RenderWindowInfo.h"
 
 #include "../Serialize/FEditorConfigManager.h"
 
@@ -110,9 +107,8 @@ public:
     void HandleMouseCameraMoveRequestMessage(const FMouseCameraMoveRequestMessage& Message);
     void HandleMouseCameraDollyRequestMessage(const FMouseCameraDollyRequestMessage& Message);
 
-	void UpdateEditorCameraState();
+    void UpdateEditorCameraState();
     void SetAssetRegistry(FAssetRegistry* InAssetRegistry);
-	void SetWindowInfoReader(FStateChannel<RenderWindowInfo>::FReader InReader) { WindowInfoReader = InReader; }
 
     FAssetRegistry* GetAssetRegistry() const;
 
@@ -134,8 +130,6 @@ private:
    
     TArray<UStaticMeshComponent*> RenderableComponents;
     TArray<TObjectRef<UCollisionComponent>> CollisionComponents;
-
-	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader;
 
     FWorldEditorContext* EditorContext{ nullptr };
     FAssetRegistry* AssetRegistry{ nullptr };

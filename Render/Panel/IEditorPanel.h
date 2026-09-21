@@ -13,6 +13,7 @@ public:
 
 
     virtual void RenderOffscreen(FRenderer& , FAssetRegistry&) {}
+    virtual void ReleaseRenderResources() {}
 
     bool IsVisible() const 
     {

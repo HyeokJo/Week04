@@ -33,6 +33,12 @@ EKeyState FMouseInput::GetKeyState(EMouseSide Side) const
     return KeyStates[Side];
 }
 
+bool FMouseInput::IsWorldDragActive(EMouseSide Side) const
+{
+    const EKeyState State = KeyStates[Side];
+    return DragOwners[Side] == EDragOwner::World && (State == EKeyState::Pressed || State == EKeyState::Down);
+}
+
 const FMouseInput::DragCapture&
 FMouseInput::GetDragCapture(EMouseSide Side) const
 {
@@ -184,83 +190,60 @@ void FMouseInput::Consume(EMouseSide Side)
     }
 }
 
-void FMouseInput::DispatchPendingWorldCommands(
-    std::uint32_t ViewportWidth,
-    std::uint32_t ViewportHeight,
-    bool bMouseCapturedByUI)
-{
+FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, bool bMouseCapturedByUI) {
+    FViewportMouseNavigationInput NavigationInput{};
+
     // 누르기 시작한 시점에 입력 소유권을 결정한다.
     // 기즈모가 Consume한 버튼은 그대로 유지한다.
-    for (std::size_t Side = 0; Side < MAX; ++Side)
-    {
-        if (KeyStates[Side] == EKeyState::Pressed &&
-            DragOwners[Side] == EDragOwner::None)
-        {
-            DragOwners[Side] = bMouseCapturedByUI
-                ? EDragOwner::UI
-                : EDragOwner::World;
+    for (std::size_t Side = 0; Side < MAX; ++Side) {
+        if (KeyStates[Side] == EKeyState::Pressed && DragOwners[Side] == EDragOwner::None) {
+            DragOwners[Side] = bMouseCapturedByUI ? EDragOwner::UI : EDragOwner::World;
         }
     }
 
-    if (!WorldCommandSender.has_value())
-    {
-        return;
-    }
-
-
-   #ifndef OBJ_VIEWER
-    if (DragOwners[Left] == EDragOwner::World)
-    {
-        if (KeyStates[Left] == EKeyState::Pressed)
-        {
+#ifndef OBJ_VIEWER
+    if (WorldCommandSender.has_value() && DragOwners[Left] == EDragOwner::World && KeyStates[Left] == EKeyState::Pressed) {
             const DragCapture& Capture = ClickCaptures[Left];
 
             WorldCommandSender->TryEmplace<FMousePickRequestMessage>(
                 Capture.start.x,
                 Capture.start.y,
+                ViewportLeft,
+                ViewportTop,
                 ViewportWidth,
-                ViewportHeight);
-        }
+                ViewportHeight,
+                ViewProjection);
     }
 
-    if (DragOwners[Right] == EDragOwner::World &&
-        (PendingDeltaX != 0.0f ||
-            PendingDeltaY != 0.0f))
-    {
-        WorldCommandSender
-            ->TryEmplace<FMouseCameraRotateRequestMessage>(
-                PendingDeltaX,
-                PendingDeltaY);
+    if (DragOwners[Right] == EDragOwner::World && (PendingDeltaX != 0.0f || PendingDeltaY != 0.0f)) {
+        NavigationInput.RotationDeltaX = PendingDeltaX;
+        NavigationInput.RotationDeltaY = PendingDeltaY;
     }
 #endif
 
 #ifdef OBJ_VIEWER
     //TODO : 회전방식 바꿔야함
-    const bool bHasDelta =
-        PendingDeltaX != 0.0f || PendingDeltaY != 0.0f;
+    const bool bHasDelta = PendingDeltaX != 0.0f || PendingDeltaY != 0.0f;
 
-    if (DragOwners[Left] == EDragOwner::World && bHasDelta)
-    {
+    if (WorldCommandSender.has_value() && DragOwners[Left] == EDragOwner::World && bHasDelta) {
         WorldCommandSender->TryEmplace<FMouseCameraRotateRequestMessage>(
             PendingDeltaX, PendingDeltaY);
     }
 
-    if (DragOwners[Right] == EDragOwner::World && bHasDelta)
-    {
+    if (WorldCommandSender.has_value() && DragOwners[Right] == EDragOwner::World && bHasDelta) {
         WorldCommandSender->TryEmplace<FMouseCameraMoveRequestMessage>(
             PendingDeltaX, PendingDeltaY);
     }
 
-    if (!bMouseCapturedByUI && PendingWheelSteps != 0.0f)
-    {
+    if (WorldCommandSender.has_value() && !bMouseCapturedByUI && PendingWheelSteps != 0.0f) {
         WorldCommandSender->TryEmplace<FMouseCameraDollyRequestMessage>(PendingWheelSteps);
     }
-    
 #endif
 
     PendingDeltaX = 0.0f;
     PendingDeltaY = 0.0f;
     PendingWheelSteps = 0.0f;
+    return NavigationInput;
 }
 
 void FMouseInput::EndFrame()

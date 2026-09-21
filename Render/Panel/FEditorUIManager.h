@@ -19,7 +19,7 @@ class FEditorUIManager {
 public:
     void Initialize(UWorld& World, FRenderer& Renderer, FAssetRegistry& AssetRegistry, FWorldEditorContext& EditorContext, HWND WindowHandle, FStateChannel<uint8>::FReadWriter GizmoSender, FStateChannel<uint8>::FReadWriter GizmoCoordinateSpaceSender) {
         AddPanel(std::make_unique<FControlPanel>(EditorContext, WindowHandle, EditorContext.GetEditorToWorldSender()));
-        AddViewportHostWindow(Renderer);
+        AddViewportHostWindow(Renderer.GetDevice(), EditorContext);
         AddWindow(std::make_unique<FPropertyPanel>(EditorContext, std::move(GizmoSender), std::move(GizmoCoordinateSpaceSender)));
         AddWindow(std::make_unique<FConsolePanel>(Console::STDOutHandle));
         AddWindow(std::make_unique<FStatPanel>(World));
@@ -55,6 +55,14 @@ public:
         }
     }
 
+    void ReleaseRenderResources() {
+        for (const std::unique_ptr<IEditorPanel>& Element : Elements) {
+            if (Element != nullptr) {
+                Element->ReleaseRenderResources();
+            }
+        }
+    }
+
     ImGuiID GetDockSpaceId() const {
         return DockSpaceId;
     }
@@ -81,8 +89,8 @@ private:
         AddWindow(std::make_unique<FViewerPanel>(AssetRegistry, WindowHandle, EditorContext.GetEditorToWorldSender()));
     }
 
-    void AddViewportHostWindow(FRenderer& Renderer) {
-        std::unique_ptr<FViewportHostWindow> Window = std::make_unique<FViewportHostWindow>(Renderer);
+    void AddViewportHostWindow(ID3D11Device* Device, FWorldEditorContext& EditorContext) {
+        std::unique_ptr<FViewportHostWindow> Window = std::make_unique<FViewportHostWindow>(Device, EditorContext);
         ViewportHostWindow = Window.get();
         AddWindow(std::move(Window));
     }

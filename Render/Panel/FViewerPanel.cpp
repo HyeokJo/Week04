@@ -11,8 +11,6 @@
 
 namespace
 {
-    constexpr float PreviewClearColor[4]{ 0.12f, 0.13f, 0.15f, 1.0f };
-
     constexpr float MinimumDistance = 0.10f;
     constexpr float MaximumDistance = 500.0f;
 }
@@ -178,24 +176,20 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() const
 
     Probe.LightProbes.push_back(LightProbe);
 
+    return Probe;
+}
 
-    const FMatrix OrbitMatrix =  FMatrix::CreateFromQuaternion(OrbitRotation);
-
-    const FVector3 Offset =OrbitMatrix.TransformDirection(FVector::UnitX);
-
-
+CameraProbe FViewerPanel::BuildPreviewCamera() const {
+    const FMatrix OrbitMatrix = FMatrix::CreateFromQuaternion(OrbitRotation);
+    const FVector3 Offset = OrbitMatrix.TransformDirection(FVector::UnitX);
     const FVector3 Eye = Target + Offset * Distance;
     const float Aspect = static_cast<float>(SurfaceWidth) / static_cast<float>(SurfaceHeight);
 
-    Probe.MainCameraProbe.View = MakeCameraWorldMatrix(Eye).Invert();
-
-
-    Probe.MainCameraProbe.Projection =
-        FMatrix::CreatePerspectiveFieldOfView(FieldOfView, Aspect, 0.1f, 1000.0f);
-    Probe.MainCameraProbe.ViewProjection =
-        Probe.MainCameraProbe.View * Probe.MainCameraProbe.Projection;
-
-    return Probe;
+    CameraProbe Camera{};
+    Camera.View = MakeCameraWorldMatrix(Eye).Invert();
+    Camera.Projection = FMatrix::CreatePerspectiveFieldOfView(FieldOfView, Aspect, 0.1f, 1000.0f);
+    Camera.ViewProjection = Camera.View * Camera.Projection;
+    return Camera;
 }
 
 
@@ -261,15 +255,14 @@ void FViewerPanel::RenderOffscreen(FRenderer& InRenderer, FAssetRegistry& InRegi
         return;
     }
 
-    ID3D11DeviceContext* Context = InRenderer.GetDeviceContext();
-
-    // 렌더 타겟을 프리뷰 서피스로 돌린다. 이후 메인 루프의
-    // BeginSceneRender() 가 다시 메인 서피스를 바인드한다.
-    Surface.Bind(Context);
-    Surface.Clear(Context, PreviewClearColor);
-
     FRenderProbe PreviewProbe = BuildPreviewProbe();
-    InRenderer.RenderScene(PreviewProbe);
+    FRenderSettings PreviewSettings{};
+    PreviewSettings.ClearColor = FVector4{ 0.12f, 0.13f, 0.15f, 1.0f };
+    InRenderer.RenderScene(Surface, PreviewProbe, BuildPreviewCamera(), PreviewSettings);
+}
+
+void FViewerPanel::ReleaseRenderResources() {
+    Surface.Reset();
 }
 
 void FViewerPanel::DrawPreview()

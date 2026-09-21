@@ -2,7 +2,6 @@
 #include "doctest.h"
 
 #include "../Core/Base/UObjectSystem.h"
-#include "../Render/RenderWindowInfo.h"
 #include "../Scene/AActor.h"
 #include "../Scene/Component/UActorComponent.h"
 #include "../Scene/Component/USceneComponent.h"
@@ -199,8 +198,6 @@ TEST_SUITE("World Lifetime")
 
         {
             UWorld World;
-            FStateChannel<RenderWindowInfo> WindowInfoChannel;
-            World.SetWindowInfoReader(WindowInfoChannel.GetReader());
 
             ALifetimeActor* Actor = World.AdoptActor<ALifetimeActor>();
             REQUIRE(Actor != nullptr);

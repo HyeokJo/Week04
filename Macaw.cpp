@@ -58,6 +58,7 @@
 #include "Core/Asset/UTexture.h"
 
 #include "Render/EditorView/EditorViewport.h"
+#include "Render/EditorView/FEditorViewport.h"
 
 #include "Core/Asset/UFont.h"
 #include "Core/Asset/UFreeTypeFont.h"
@@ -258,7 +259,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     
 
     EditorViewport EditorView{};
-    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, Renderer.GetWindowInfoReader(), EditorContext);
+    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, EditorContext);
 
     FEditorUIManager EditorUIManager;
     #ifdef OBJ_VIEWER
@@ -269,7 +270,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
     GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
-	World.SetWindowInfoReader(Renderer.GetWindowInfoReader());
 	World.SetAssetRegistry(&AssetRegistry);
 
     WorldCommandChannel.TryBind<FMousePickRequestMessage>(
@@ -357,18 +357,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             World.Tick(DeltaTime);
 			EditorContext.Dispatch();
 
-			for (FRenderer::FViewportId Id = 0; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
-				if (!ViewportHostWindow->PrepareViewportForRender(Id)) {
+			for (FViewportId Id = 0; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
+				FEditorViewport* Viewport = ViewportHostWindow->PrepareViewportForRender(Id);
+				if (Viewport == nullptr) {
 					continue;
 				}
+
+				CameraProbe Camera{};
+				if (!Viewport->BuildCameraProbe(Camera)) {
+					continue;
+				}
+
 				FRenderProbe& Probe = World.BuildRenderProbe();
-				EditorView.RenderInProbe(Probe);
-				Renderer.BeginSceneRender(Id);
-				Renderer.RenderScene(Probe);
-                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Probe);
-				Renderer.RenderGizmos(Probe);
-				Renderer.RenderText(Probe);
-                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Probe.MainCameraProbe);
+				EditorView.RenderInProbe(Probe, Camera, Viewport->GetRenderViewport());
+				
+                Renderer.RenderScene(Viewport->GetRenderSurface(), Probe, Camera, Viewport->GetRenderSettings());
+               
+                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetRenderViewport());
+				
+                Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
+				Renderer.RenderText(Probe, Camera);
+                
+                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Camera);
 			}
 			#endif
 
@@ -400,6 +410,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		World.SaveScene("test", &AssetRegistry);
     }
 
+    EditorUIManager.ReleaseRenderResources();
     Renderer.Terminate();
     Renderer.ReportLiveObjects(); 
     return (int) msg.wParam;

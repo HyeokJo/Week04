@@ -4,26 +4,26 @@
 
 #include "FEditorWindow.h"
 #include "Render/EditorView/FViewportPresetLayout.h"
-#include "Render/Renderer.h"
 
 class EditorViewport;
 class FEditorViewport;
 class FKeyboardInput;
 class FMouseInput;
+class FWorldEditorContext;
+struct ID3D11Device;
 
 class FViewportHostWindow final : public FEditorWindow {
 public:
     using FViewportId = ::FViewportId;
     static constexpr uint32 MaximumViewportCount = FViewportPresetLayout::MaximumViewportCount;
 
-    static_assert(MaximumViewportCount <= FRenderer::ViewportCount);
-
-    explicit FViewportHostWindow(FRenderer& InRenderer);
+    FViewportHostWindow(ID3D11Device* Device, FWorldEditorContext& EditorContext);
     ~FViewportHostWindow() override;
 
     void PrepareFrame(ImGuiID InDockSpaceId);
     void ProcessInput(EditorViewport& Viewport, FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, float DeltaTime);
-    bool PrepareViewportForRender(FViewportId Id);
+    void ReleaseRenderResources() override;
+    FEditorViewport* PrepareViewportForRender(FViewportId Id);
     uint32 GetViewportCount() const;
 
 private:

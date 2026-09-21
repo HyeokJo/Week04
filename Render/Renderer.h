@@ -14,9 +14,6 @@
 #include "../Core/Buffer/TGraphicsArray.h"
 #include "../Core/Buffer/TGraphicsRootConstants.h" 
 
-#include "../Core/Channel/FStateChannel.h"
-#include "RenderWindowInfo.h"
-
 #include "FTextRenderer.h"
 #include "FSceneRenderSurface.h"
 
@@ -42,28 +39,20 @@ public:
 	FRenderer& operator=(FRenderer&&) = delete;
 
 public:
-	using FViewportId = uint32;
-	static constexpr uint32 ViewportCount = 4;
-
 	void Create(HWND WindowHandle, UINT width, UINT height);
 
-	void BeginSceneRender(FViewportId Id);
 	void BeginUiRender();
-	void RenderScene(FRenderProbe& Probe);
-	void RenderGizmos(FRenderProbe& Probe);
-	void RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& MainCameraProbe);
-	void RenderText(const FRenderProbe& Probe);
+	void RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera, const FRenderSettings& Settings);
+	void RenderGizmos(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera);
+	void RenderOutline(const TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera);
+	void RenderText(const FRenderProbe& Probe, const CameraProbe& Camera);
 	void RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline = false);
 	void EndFrame();
-	void ResizeSceneSurface(FViewportId Id, uint32 Width, uint32 Height, float Left, float Top);
-	ID3D11ShaderResourceView* GetSceneShaderResourceView(FViewportId Id) const;
 
 	ID3D11Device* GetDevice() const { return Device.Get(); }
 	ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext.Get(); }
 
 	void BindAssetRegistry(FAssetRegistry* InAssetRegistry) { AssetRegistry = InAssetRegistry; }
-
-	FStateChannel<RenderWindowInfo>::FReader GetWindowInfoReader() const { return WindowInfoChannel.GetReader(); }
 
 	void ReSize(uint32 width, uint32 height);
 	
@@ -86,15 +75,9 @@ private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain> SwapChain;
 	
 	std::unique_ptr<IRenderSurface> BackBufferSurface{};
-	std::array<std::unique_ptr<IRenderSurface>, ViewportCount> SceneSurfaces{};
-	FViewportId ActiveViewportId{ 0 };
 
 	// s0: LinearWrap, s1: LinearClamp, s2: PointClamp, s3: PointWrap, s4: AnisotropicWrap, s5: ShadowCompare.
 	std::array<Microsoft::WRL::ComPtr<ID3D11SamplerState>, 6> SamplerStates{};
-
-	FStateChannel<RenderWindowInfo> WindowInfoChannel{};
-	FStateChannel<RenderWindowInfo>::FWriter WindowInfoWriter{ WindowInfoChannel.GetWriter() };
-	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader{ WindowInfoChannel.GetReader() };
 
 	FAssetRegistry* AssetRegistry{ nullptr };
 
@@ -106,10 +89,10 @@ private:
 	FTextRenderer TextRenderer{};
 	FBillboardRenderer BillboardRenderer{};
 
-	const float ClearColor[4] = { 0.2f, 0.2f, 0.7f, 1.0f };
-
-	//FWorldEditorContext* EditorContext = ;
+	const float UiClearColor[4] = { 0.2f, 0.2f, 0.7f, 1.0f };
 
 	size_t RenderIndex = 0;
 	uint32 FrameLightCount = 0;
+	uint32 BackBufferWidth = 0;
+	uint32 BackBufferHeight = 0;
 };

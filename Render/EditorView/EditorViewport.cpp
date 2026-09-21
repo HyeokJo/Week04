@@ -13,34 +13,23 @@
 
 #include "../../Scene/UWorld.h"
 
-void EditorViewport::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FStateChannel<RenderWindowInfo>::FReader windowReader, FWorldEditorContext& InEditorContext) {
+void EditorViewport::Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext) {
 	LineRenderer->Initialize(Device);
-	TransformGizmo.Initialize(Device, AssetRegistry, windowReader, InEditorContext);
-	WindowInfoReader = windowReader;
+	TransformGizmo.Initialize(Device, AssetRegistry, InEditorContext);
 	EditorContext = &InEditorContext;
+}
+
+void EditorViewport::PrepareInput(const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport) {
+	TransformGizmo.Update(Camera, Viewport);
 }
 
 void EditorViewport::ProcessInput(FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, bool bMouseCapturedByUI) {
 	TransformGizmo.ProcessInput(KeyboardInput, MouseInput, bMouseCapturedByUI);
 }
 
-void EditorViewport::RenderInProbe(FRenderProbe& Probe) {
-	TransformGizmo.Update(Probe.MainCameraProbe);
+void EditorViewport::RenderInProbe(FRenderProbe& Probe, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport) {
+	TransformGizmo.Update(Camera, Viewport);
 	TransformGizmo.Render(Probe);
-}
-
-void EditorViewport::Render(ID3D11DeviceContext* Context, FRenderProbe& Probe) {
-	ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
-
-	RenderGrid(DepthMode);
-	RenderAxis(DepthMode);
-
-	LineRenderer->Render(Context, FLineViewData{
-		.ViewProjection = Probe.MainCameraProbe.ViewProjection,
-		.ViewportSize = FVector2D{ WindowInfoReader.Read().Viewport.Width, WindowInfoReader.Read().Viewport.Height }
-	});
-
-	RenderOrientationAxis(Context, Probe.MainCameraProbe);
 }
 
 void EditorViewport::RenderGrid(ELineDepthMode DepthMode) {
@@ -191,7 +180,7 @@ void EditorViewport::RenderBounds(ELineDepthMode DepthMode) {
 	}
 }
 
-void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, CameraProbe& Probe) {
+void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe) {
 	FMatrix view = Probe.View;
 	view.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
 
@@ -209,17 +198,17 @@ void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, CameraP
 	});
 }
 
-void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context,FRenderProbe& Probe)
+void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport)
 {
 	const ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
 
 	RenderGrid(DepthMode);
 	RenderAxis(DepthMode);
 	RenderBounds(DepthMode);
-	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Probe.MainCameraProbe.ViewProjection,
+	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Camera.ViewProjection,
 			.ViewportSize = FVector2D{
-				WindowInfoReader.Read().Viewport.Width,
-				WindowInfoReader.Read().Viewport.Height
+				Viewport.Width,
+				Viewport.Height
 			}
 		}
 	);

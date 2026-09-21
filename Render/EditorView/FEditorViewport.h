@@ -2,16 +2,20 @@
 
 #include "FEditorViewportTypes.h"
 #include "FViewportGeometry.h"
+#include "Core/Base/FRenderProbe.h"
+#include "Render/FSceneRenderSurface.h"
 
 class EditorViewport;
 class FKeyboardInput;
 class FMouseInput;
-class FRenderer;
+class FWorldEditorContext;
+struct FViewportKeyboardNavigationInput;
+struct FViewportMouseNavigationInput;
 struct ImVec2;
 
 class FEditorViewport {
 public:
-    FEditorViewport(FViewportId InViewportId, FRenderer& InRenderer);
+    FEditorViewport(FViewportId InViewportId, ID3D11Device* InDevice, FWorldEditorContext& InEditorContext);
 
     FEditorViewport(const FEditorViewport&) = delete;
     FEditorViewport& operator=(const FEditorViewport&) = delete;
@@ -24,12 +28,36 @@ public:
     void SetFocused(bool bInFocused);
     void ProcessInput(EditorViewport& SharedEditorViewport, FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, float DeltaTime, bool bInputBlocked);
     bool PrepareForRender();
+    bool BuildCameraProbe(CameraProbe& OutCamera);
+    FSceneRenderSurface& GetRenderSurface();
+    const D3D11_VIEWPORT& GetRenderViewport() const;
+    const FRenderSettings& GetRenderSettings() const;
+    void ReleaseRenderResources();
 
 private:
-    void ResizeRenderSurface();
+    enum class EProjectionType : uint8 {
+        Perspective,
+        Orthographic
+    };
 
-    FRenderer* Renderer = nullptr;
+    void ResizeRenderSurface();
+    bool InitializeCameraFromWorldState();
+    void ApplyMouseNavigation(const FViewportMouseNavigationInput& NavigationInput);
+    void ApplyKeyboardNavigation(const FViewportKeyboardNavigationInput& NavigationInput);
+    D3D11_VIEWPORT BuildInputViewport() const;
+
+    ID3D11Device* Device = nullptr;
+    FWorldEditorContext* EditorContext = nullptr;
+    FSceneRenderSurface RenderSurface;
+    FRenderSettings RenderSettings;
     FViewportId ViewportId = 0;
+    EProjectionType ProjectionType = EProjectionType::Perspective;
+    FVector3 CameraPosition{};
+    FQuat CameraRotation{};
+    float FieldOfView = 1.0472f;
+    float OrthographicWidth = 50.0f;
+    float NearPlane = 0.1f;
+    float FarPlane = 1000.0f;
     FRect DisplayRect{};
     uint32 Width = 0;
     uint32 Height = 0;
@@ -38,4 +66,5 @@ private:
     bool bVisible = false;
     bool bHovered = false;
     bool bFocused = false;
+    bool bCameraInitialized = false;
 };

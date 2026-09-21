@@ -236,20 +236,6 @@ FRenderProbe& UWorld::BuildRenderProbe() {
 	RenderSubsystem->BuildRenderProbes(AssetRegistry, Probe);
 	LightSubsystem->BuildLightProbes(Probe);
 	TextSubsystem->BuildTextProbes(Probe);
-	
-    if (CameraSubsystem->GetMainCamera() != nullptr)
-    {
-		auto Camera = CameraSubsystem->GetMainCamera();
-
-        Probe.MainCameraProbe.View =
-            Camera->GetViewMatrix();
-
-        Probe.MainCameraProbe.Projection =
-            Camera->GetProjectionMatrix();
-
-		Probe.MainCameraProbe.ViewProjection =
-			Camera->GetViewProjectionMatrix();
-	}
 
 	BillboardSubsystem->BuildRenderProbes(AssetRegistry, Probe);
 	return Probe;
@@ -268,17 +254,11 @@ FWorldEditorContext* UWorld::GetEditorContext() const noexcept {
 }
 
 void UWorld::Tick(float DeltaTime) {
-	if (UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera(); Camera != nullptr && WindowInfoReader.HasChanged()) {
-		Camera->SetAspectRatio(static_cast<float>(WindowInfoReader.Read().ScreenWidth) / static_cast<float>(WindowInfoReader.Read().ScreenHeight));
-	}
-
-	if (EditorContext != nullptr && EditorContext->GetCameraState() == nullptr) {
-		PublishEditorCameraState();
-	}
-
 	for (const std::unique_ptr<AActor>& Actor : Actors) {
 		Actor->Tick(DeltaTime);
 	}
+
+	PublishEditorCameraState();
 
     FlushPendingDestroyActors();
 }
@@ -464,15 +444,12 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 }
 
 void UWorld::HandleMousePickRequest(const FMousePickRequestMessage& Message) {
-	UCameraComponent* Camera = GetCameraSubsystem().GetMainCamera();
-
-	const RenderWindowInfo& WindowInfo = WindowInfoReader.Read();
-	if (Camera != nullptr && Message.ViewportWidth != 0 && Message.ViewportHeight != 0 && WindowInfo.Viewport.Width != 0.0f && WindowInfo.Viewport.Height != 0.0f) {
-		const float NdcX = (2.0f * (static_cast<float>(Message.ScreenX) - WindowInfo.Viewport.TopLeftX) / static_cast<float>(Message.ViewportWidth)) - 1.0f;
-		const float NdcY = 1.0f - (2.0f * (static_cast<float>(Message.ScreenY) - WindowInfo.Viewport.TopLeftY) / static_cast<float>(Message.ViewportHeight));
+	if (Message.ViewportWidth != 0 && Message.ViewportHeight != 0) {
+		const float NdcX = (2.0f * (static_cast<float>(Message.ScreenX) - static_cast<float>(Message.ViewportLeft)) / static_cast<float>(Message.ViewportWidth)) - 1.0f;
+		const float NdcY = 1.0f - (2.0f * (static_cast<float>(Message.ScreenY) - static_cast<float>(Message.ViewportTop)) / static_cast<float>(Message.ViewportHeight));
 
 		FMatrix InverseViewProjection;
-		if (!Camera->GetViewProjectionMatrix().TryInverse(InverseViewProjection)) return;
+		if (!Message.ViewProjection.TryInverse(InverseViewProjection)) return;
 		FVector3 RayOrigin, RayEnd;
 		if (!InverseViewProjection.TransformCoord({NdcX, NdcY, 0.0f}, RayOrigin) || !InverseViewProjection.TransformCoord({NdcX, NdcY, 1.0f}, RayEnd)) return;
 		FVector3 RayDirection = RayEnd - RayOrigin;
@@ -843,13 +820,16 @@ void UWorld::PublishEditorCameraState()
 		return;
 	}
 
-	const FTransform& CameraTransform =
-		Camera->GetRelativeTransform();
-
+	const FTransform CameraTransform = Camera->GetComponentTransform();
 	const FCameraSnapshot CameraState{
 		CameraTransform.GetPosition(),
 		CameraTransform.GetRotation(),
-		Camera->GetFOV()
+		CameraTransform.GetRotationQuaternion(),
+		Camera->GetFOV(),
+		Camera->GetNearPlane(),
+		Camera->GetFarPlane(),
+		Settings.MoveSensitivity,
+		Settings.RotationSensitivity
 	};
 
 	EditorContext->PublishCameraState(CameraState);

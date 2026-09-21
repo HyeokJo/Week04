@@ -31,6 +31,7 @@ public:
 
 public:
 	void RenderOffscreen(FRenderer& InRenderer, FAssetRegistry& InRegistry) override;
+	void ReleaseRenderResources() override;
 
 	// 보여줄 메시를 바꾼다. 무효 핸들이면 CubeMesh 로 대체된다.
 	void SetMesh(const FAssetHandle& InMeshHandle) { MeshHandle = InMeshHandle; }
@@ -43,6 +44,7 @@ private:
 
 	void ResizeSurfaceIfNeeded(ID3D11Device* Device, uint32 Width, uint32 Height);
 	FRenderProbe BuildPreviewProbe() const;
+	CameraProbe BuildPreviewCamera() const;
 	void ProcessInput();
 
 	// 카메라의 월드 행렬을 직접 만든다. FTransform 을 거치지 않으므로

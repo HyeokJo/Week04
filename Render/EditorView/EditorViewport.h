@@ -7,7 +7,6 @@
 #include "../../Core/Channel/FStateChannel.h"
 #include "../../Scene/FWorldEditorContext.h"
 #include "../../FMouseInput.h"
-#include "../RenderWindowInfo.h"
 
 #include "ILineRenderer.h"
 #include "FLineRenderer.h"
@@ -28,14 +27,14 @@ public:
 	EditorViewport& operator=(EditorViewport&&) noexcept = default;
 
 public:
-	void Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FStateChannel<RenderWindowInfo>::FReader WindowReader, FWorldEditorContext& InEditorContext);
+	void Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext);
 
+	void PrepareInput(const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport);
 	void ProcessInput(FKeyboardInput& KeyboardInput, FMouseInput& MouseInput, bool bMouseCapturedByUI);
-	void RenderInProbe(FRenderProbe& Probe);
-	void Render(ID3D11DeviceContext* Context, FRenderProbe& Probe);
+	void RenderInProbe(FRenderProbe& Probe, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport);
 
-	void RenderSceneGuides(ID3D11DeviceContext* Context, FRenderProbe& Probe);
-	void RenderOrientationAxis(ID3D11DeviceContext* Context, CameraProbe& Probe);
+	void RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport);
+	void RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe);
 
 	FStateChannel<uint8>::FReadWriter GetGizmoMode() { return TransformGizmo.GetGizmoMode(); }
 	FStateChannel<uint8>::FReadWriter GetGizmoCoordinateSpace() { return TransformGizmo.GetGizmoCoordinateSpace(); }
@@ -45,8 +44,6 @@ private:
 	void RenderBounds(ELineDepthMode DepthMode);
 
 private:
-	FStateChannel<RenderWindowInfo>::FReader WindowInfoReader{};
-
 	std::unique_ptr<ILineRenderer> LineRenderer = std::make_unique<FLineRenderer>();
 	FTransformGizmo TransformGizmo{};
 

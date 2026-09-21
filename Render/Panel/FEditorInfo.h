@@ -11,7 +11,12 @@ struct FCameraSnapshot
 {
     FVector3 Position;
     FRotator Rotation;
+    FQuat RotationQuaternion;
     float FOV;
+    float NearPlane;
+    float FarPlane;
+    float MoveSensitivity;
+    float RotationSensitivity;
 };
 
 #define JG_DECLARE_EDITOR_MESSAGE(MessageType) \

@@ -7,11 +7,11 @@
 #include "Render/EditorView/FEditorViewport.h"
 #include "Render/EditorView/EditorViewport.h"
 
-FViewportHostWindow::FViewportHostWindow(FRenderer& InRenderer)
+FViewportHostWindow::FViewportHostWindow(ID3D11Device* Device, FWorldEditorContext& EditorContext)
     : FEditorWindow("Viewports###SplitSceneViewport", ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)
     , Layout(EViewportLayoutPreset::FourGrid) {
     for (FViewportId Id = 0; Id < MaximumViewportCount; ++Id) {
-        Viewports[Id] = std::make_unique<FEditorViewport>(Id, InRenderer);
+        Viewports[Id] = std::make_unique<FEditorViewport>(Id, Device, EditorContext);
     }
 }
 
@@ -30,9 +30,15 @@ void FViewportHostWindow::ProcessInput(EditorViewport& Viewport, FKeyboardInput&
     GetViewport(ActiveViewportId)->ProcessInput(Viewport, KeyboardInput, MouseInput, DeltaTime, bSplitterActive);
 }
 
-bool FViewportHostWindow::PrepareViewportForRender(FViewportId Id) {
+void FViewportHostWindow::ReleaseRenderResources() {
+    for (const std::unique_ptr<FEditorViewport>& Viewport : Viewports) {
+        Viewport->ReleaseRenderResources();
+    }
+}
+
+FEditorViewport* FViewportHostWindow::PrepareViewportForRender(FViewportId Id) {
     FEditorViewport* Viewport = GetViewport(Id);
-    return Viewport != nullptr && Viewport->PrepareForRender();
+    return Viewport != nullptr && Viewport->PrepareForRender() ? Viewport : nullptr;
 }
 
 uint32 FViewportHostWindow::GetViewportCount() const {

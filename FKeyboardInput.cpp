@@ -86,30 +86,21 @@ void FKeyboardInput::ResetKeyStates()
     KeyStates.fill(EKeyState::None);
 }
 
-void FKeyboardInput::DispatchPendingWorldCommands(
-    float DeltaTime,
-    bool bKeyboardCapturedByUI)
-{
-    if (!bKeyboardCapturedByUI &&
-        WorldCommandSender.has_value())
-    {
-        const float ForwardAxis =
-            (IsHeld('W') ? 1.0f : 0.0f) -
-            (IsHeld('S') ? 1.0f : 0.0f);
+FViewportKeyboardNavigationInput FKeyboardInput::ConsumeViewportNavigation(float DeltaTime, bool bKeyboardCapturedByUI) {
+    FViewportKeyboardNavigationInput NavigationInput{};
 
-        const float RightAxis =
-            (IsHeld('D') ? 1.0f : 0.0f) -
-            (IsHeld('A') ? 1.0f : 0.0f);
+    if (!bKeyboardCapturedByUI) {
+        NavigationInput.ForwardAxis = (IsHeld('W') ? 1.0f : 0.0f) - (IsHeld('S') ? 1.0f : 0.0f);
+        NavigationInput.RightAxis = (IsHeld('D') ? 1.0f : 0.0f) - (IsHeld('A') ? 1.0f : 0.0f);
+        NavigationInput.DeltaTime = DeltaTime;
 
-        if (ForwardAxis != 0.0f || RightAxis != 0.0f)
-        {
-            WorldCommandSender->TryEmplace<
-                FKeyboardCameraMoveRequestMessage>(
-                    ForwardAxis,
-                    RightAxis,
-                    DeltaTime);
+#ifdef OBJ_VIEWER
+        if (WorldCommandSender.has_value() && (NavigationInput.ForwardAxis != 0.0f || NavigationInput.RightAxis != 0.0f)) {
+            WorldCommandSender->TryEmplace<FKeyboardCameraMoveRequestMessage>(NavigationInput.ForwardAxis, NavigationInput.RightAxis, NavigationInput.DeltaTime);
         }
+#endif
     }
 
     AdvanceKeyStates();
+    return NavigationInput;
 }
