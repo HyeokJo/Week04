@@ -424,10 +424,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			EditorUIManager.Tick();
 
             for (const FPendingExternalFileDrop& Drop : PendingExternalFileDrops) {
-                EditorUIManager.HandleExternalFileDrop(
-                    Drop.FilePath,
-                    ImVec2(static_cast<float>(Drop.ScreenPosition.x), static_cast<float>(Drop.ScreenPosition.y)));
+                EditorUIManager.HandleExternalFileDrop(Drop.FilePath, ImVec2(static_cast<float>(Drop.ScreenPosition.x), static_cast<float>(Drop.ScreenPosition.y)));
             }
+
             PendingExternalFileDrops.clear();
 
 			#ifndef OBJ_VIEWER

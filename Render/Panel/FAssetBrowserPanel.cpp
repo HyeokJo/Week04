@@ -68,8 +68,7 @@ bool FAssetBrowserPanel::HandleExternalFileDrop(const std::filesystem::path& Fil
     });
 
     if (Extension != ".obj") {
-        Console::AddLog(
-            Console::STDOutHandle,
+        Console::AddLog(Console::STDOutHandle,
             ELogLevel::Warning,
             ELogCategory::Etc,
             "Only OBJ files can be dropped into the Asset Browser: %s",

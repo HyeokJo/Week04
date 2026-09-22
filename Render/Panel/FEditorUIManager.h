@@ -34,8 +34,13 @@ public:
         //AddWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddStatWindow(std::make_unique<FStatPanel>(World, StatDisplayChannel.GetReader()));
         AddWindow(std::make_unique<FAssetBrowserPanel>(AssetRegistry, EditorContext, ThumbnailRenderer));
+		AssetBrowserPanel = dynamic_cast<FAssetBrowserPanel*>(Windows.back());
+        
         AddWindow(std::make_unique<FOutlinerPanel>(World, EditorContext));
         AddViewerWindow(AssetRegistry, EditorContext, WindowHandle);
+
+
+
     }
 
     void InitializeViewer(FAssetRegistry& AssetRegistry, HWND WindowHandle, FWorldEditorContext& EditorContext) {
@@ -106,8 +111,7 @@ public:
     }
 
     bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
-        return AssetBrowserPanel != nullptr && AssetBrowserPanel->IsVisible() &&
-            AssetBrowserPanel->HandleExternalFileDrop(FilePath, ScreenPosition);
+        return AssetBrowserPanel != nullptr && AssetBrowserPanel->IsVisible() && AssetBrowserPanel->HandleExternalFileDrop(FilePath, ScreenPosition);
     }
 
 private:
