@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <d3d11.h>
 #include "Core/Asset/FAssetHandle.h"
@@ -33,6 +33,7 @@ public:
     void SetMoveSensitivity(float Value);
     void SetRotationSensitivity(float Value);
     void SetGridSize(float Value);
+    void SetGridSnapEnabled(bool Enabled);
     void SetGridVisible(bool Visible);
     void SetAxisVisible(bool Visible);
 
@@ -47,22 +48,14 @@ public:
     UActorComponent* GetSelectedComponent() const noexcept;
     USceneComponent* GetSelectedTransformTarget() const noexcept;
 
-    UWorld* GetWorld() const { return World; }
+    UWorld* GetWorld() const;
 
     // 프리뷰 대상을 바꾸면 Viewer 창을 띄워달라는 요청도 같이 세운다.
-    void SetPreviewMesh(const FAssetHandle& Handle) {
-        PreviewMesh = Handle;
-        bPreviewOpenRequested = true;
-    }
-    FAssetHandle GetPreviewMesh() const noexcept { return PreviewMesh; }
-
+    void SetPreviewMesh(const FAssetHandle& Handle);
+    FAssetHandle GetPreviewMesh() const noexcept;
+    FAssetHandle ConsumePreviewMesh() noexcept;
     // 요청을 한 번만 처리하도록 읽으면서 내린다.
-    bool ConsumePreviewOpenRequest() noexcept {
-        const bool bRequested = bPreviewOpenRequested;
-        bPreviewOpenRequested = false;
-        return bRequested;
-    }
-
+    bool ConsumePreviewOpenRequest() noexcept;
 private:
     UWorld* World = nullptr;
     TObjectRef<AActor> SelectedActor;
@@ -71,7 +64,6 @@ private:
     FMessageChannel EditorToWorld{ 64 };
     FMessageChannel WorldToEditor{ 64 };
 
-private:
     FAssetHandle PreviewMesh{};
     bool bPreviewOpenRequested = false;
 };

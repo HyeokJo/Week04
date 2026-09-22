@@ -19,7 +19,7 @@ struct FMaterial
     float4 Parameters6;
 };
 
-StructuredBuffer<FModelContext> ModelContexts : register(t0); // ModelContext[] 
+StructuredBuffer<FModelContext> ModelContexts : register(t0); // ModelContext[]
 StructuredBuffer<FMaterial> MaterialBuffer : register(t1);
 #include "Lighting.hlsli"
 
@@ -87,7 +87,5 @@ float4 mainPS(PS_INPUT Input) : SV_TARGET
     {
         Color.rgb *= Input.ColorCoefficient * CalculateDirectLighting(Input.WorldPosition, Input.Normal, LightCount);
     }
-    return MaterialBuffer[Input.MaterialIndex].BaseColor;
- 
-
+    return Color;
 }

@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FTextRenderer.h"
 
 #include "Render/Pipeline/UPipeline.h"
@@ -111,7 +111,9 @@ void FTextRenderer::Render(ID3D11DeviceContext* Context, const TArray<FTextProbe
 			.World = Probe.World,
 			.ViewwProjection = Camera.ViewProjection,
 			.CameraWorld = CameraWorld,
-			.Color = Probe.Color
+			.Color = Probe.Color,
+			.mScreenBoundsExtent = Probe.mScreenBoundsExtent,
+			.mScreenUpPadding = Probe.mScreenUpPadding
 		};
 		if (!TextConstants.SetGraphicsRoot32BitConstants(Constants, 0))
 		{

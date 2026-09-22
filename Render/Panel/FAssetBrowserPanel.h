@@ -5,15 +5,14 @@
 #include "../EditorView/FAssetThumbnailRenderer.h"
 
 #include "ImGui/imgui.h"
+#include <functional>
 
 class FWorldEditorContext;
 class FAssetRegistry;
 
-// Content Browser와 같이 Asset Registry가 발견한 Content asset을 탐색하는 패널입니다.
-// Registry 초기화가 완료된 뒤 생성되므로, 텍스처는 이미 생성된 GPU SRV를 그대로 썸네일로 사용합니다.
 class FAssetBrowserPanel : public FEditorWindow {
 public:
-    explicit FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer);
+    explicit FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer, std::function<void(FAssetHandle)> InOpenMaterialEditor);
 
     void BeginExternalDropFrame();
     bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition);
@@ -40,4 +39,5 @@ private:
     bool bDropTargetActive{ false };
 
 	FAssetThumbnailRenderer* ThumbnailRenderer{ nullptr };
+	std::function<void(FAssetHandle)> mOpenMaterialEditor{};
 };

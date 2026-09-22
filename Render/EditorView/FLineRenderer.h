@@ -17,9 +17,10 @@ private:
 	struct FLineFrameConstants {
 		FMatrix ViewProjection{};
 		FVector4 Viewport{};
+		FVector4 GridFade{};
 	};
 
-	static_assert(sizeof(FLineFrameConstants) == sizeof(uint32) * 20);
+	static_assert(sizeof(FLineFrameConstants) == sizeof(uint32) * 24);
 
 	struct FLineBatch {
 		TArray<FLineInstance> Instances{};
@@ -42,6 +43,7 @@ public:
 	void Reset();
 
 	void AddLine(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels = 1.0f, ELineDepthMode DepthMode = ELineDepthMode::DepthTested);
+	void AddGridLine(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels, float GridSpacing, ELineDepthMode DepthMode);
 	void AddRay(const FVector3& Origin, const FVector3& Direction, float Length, const FVector4& Color, float WidthPixels = 1.0f, ELineDepthMode DepthMode = ELineDepthMode::DepthTested);
 
 	void Render(ID3D11DeviceContext* Context, const FLineViewData& ViewData);
@@ -51,6 +53,7 @@ public:
 	[[nodiscard]] bool IsEmpty() const;
 
 private:
+	void AddLineInternal(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels, ELineDepthMode DepthMode, float GridSpacing);
 	bool CreateQuadGeometry(ID3D11Device* Device);
 	bool CreateInstanceBuffer(ID3D11Device* Device, FLineBatch& Batch, uint32 Capacity);
 	bool EnsureCapacity(ID3D11Device* Device, FLineBatch& Batch, uint32 RequiredCapacity);
@@ -68,5 +71,5 @@ private:
 	FLineBatch DepthTestedBatch{};
 	FLineBatch OverlayBatch{};
 
-	TGraphicsRootConstants<20> FrameConstants{};
+	TGraphicsRootConstants<24> FrameConstants{};
 };

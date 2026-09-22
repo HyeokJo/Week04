@@ -9,6 +9,22 @@
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/ostreamwrapper.h"
 
+void FEditorSettings::Serialize(FArchive& Ar) {
+	Ar.Serialize("MoveSensitivity", MoveSensitivity);
+	Ar.Serialize("RotationSensitivity", RotationSensitivity);
+	Ar.Serialize("CameraStartPosition", CameraStartPosition);
+	Ar.Serialize("GridSize", GridSize);
+	Ar.Serialize("GridVisible", mGridVisible);
+	Ar.Serialize("GridSnapEnabled", mGridSnapEnabled);
+	Ar.Serialize("AxisVisible", mAxisVisible);
+	Ar.Serialize("LastLoadedScenePath", LastLoadedScenePath);
+	Ar.Serialize("ViewportLayoutPreset", ViewportLayoutPreset);
+	Ar.Serialize("ViewportSplitterCount", ViewportSplitterCount);
+	Ar.Serialize("ViewportSplitterRatio0", ViewportSplitterRatio0);
+	Ar.Serialize("ViewportSplitterRatio1", ViewportSplitterRatio1);
+	Ar.Serialize("ViewportSplitterRatio2", ViewportSplitterRatio2);
+}
+
 bool FEditorConfigManager::Save(FEditorSettings& Settings, FAssetRegistry* AssetRegistry, const std::filesystem::path& ConfigPath)
 {
     std::filesystem::path CurrentPath = std::filesystem::current_path();

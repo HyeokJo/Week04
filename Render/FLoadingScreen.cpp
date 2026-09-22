@@ -139,8 +139,11 @@ bool FLoadingScreen::Run(FRenderer& Renderer, HACCEL AcceleratorTable, const FLo
 	}
 
 	LoadingThread.join();
-	mLogoShaderResourceView.Reset();
 	return !QuitRequested && Succeeded.load(std::memory_order_acquire);
+}
+
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> FLoadingScreen::TakeLogoShaderResourceView() {
+	return std::move(mLogoShaderResourceView);
 }
 
 void FLoadingScreen::Render(FRenderer& Renderer, const FLoadingProgress& Progress) {

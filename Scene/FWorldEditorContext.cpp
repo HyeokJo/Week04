@@ -110,6 +110,12 @@ void FWorldEditorContext::SetGridSize(float Value) {
     });
 }
 
+void FWorldEditorContext::SetGridSnapEnabled(bool Enabled) {
+    SharedState.GetWriter().Modify([Enabled](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.mGridSnapEnabled = Enabled;
+    });
+}
+
 void FWorldEditorContext::SetGridVisible(bool Visible) {
     SharedState.GetWriter().Modify([Visible](FWorldEditorSharedState& Shared) {
         Shared.EditorSettings.mGridVisible = Visible;
@@ -168,4 +174,29 @@ USceneComponent* FWorldEditorContext::GetSelectedTransformTarget() const noexcep
 
     AActor* Actor = SelectedActor.Get();
     return Actor != nullptr ? Actor->GetRootComponent() : nullptr;
+}
+
+UWorld* FWorldEditorContext::GetWorld() const {
+    return World;
+}
+
+void FWorldEditorContext::SetPreviewMesh(const FAssetHandle& Handle) {
+    PreviewMesh = Handle;
+    bPreviewOpenRequested = true;
+}
+
+FAssetHandle FWorldEditorContext::GetPreviewMesh() const noexcept {
+    return PreviewMesh;
+}
+
+FAssetHandle FWorldEditorContext::ConsumePreviewMesh() noexcept {
+    const FAssetHandle Handle{ PreviewMesh };
+    PreviewMesh = {};
+    return Handle;
+}
+
+bool FWorldEditorContext::ConsumePreviewOpenRequest() noexcept {
+    const bool Requested{ bPreviewOpenRequested };
+    bPreviewOpenRequested = false;
+    return Requested;
 }

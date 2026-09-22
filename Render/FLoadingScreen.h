@@ -37,6 +37,7 @@ public:
 
 public:
 	bool Run(FRenderer& Renderer, HACCEL AcceleratorTable, const FLoadingTask& LoadingTask);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> TakeLogoShaderResourceView();
 
 private:
 	bool LoadLogo(ID3D11Device* Device);

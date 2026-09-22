@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 
 #include "FAssetThumbnailRenderer.h"
 #include "../Renderer.h"
@@ -66,7 +66,16 @@ void FAssetThumbnailRenderer::RenderThumbnail(FAssetHandle AssetHandle) {
 	RenderThumbnail(*Entry);
 }
 
-void FAssetThumbnailRenderer::RenderThumbnail(const FAssetEntry& Entry) {
+void FAssetThumbnailRenderer::RenderMaterialPreview(FAssetHandle MaterialHandle, FSceneRenderSurface& Surface) {
+	const FAssetEntry* Entry{ FindAssetEntry(MaterialHandle) };
+	if (Entry == nullptr || Entry->AssetType != EAssetType::Material || !Surface.IsValid()) {
+		return;
+	}
+
+	RenderThumbnail(*Entry, &Surface);
+}
+
+void FAssetThumbnailRenderer::RenderThumbnail(const FAssetEntry& Entry, FSceneRenderSurface* PreviewSurface) {
 	if (Renderer == nullptr || AssetRegistry == nullptr || Entry.Asset == nullptr) {
 		return;
 	}
@@ -108,18 +117,19 @@ void FAssetThumbnailRenderer::RenderThumbnail(const FAssetEntry& Entry) {
 
 	Probe.LightProbes.push_back(LightProbe);
 
-	const uint64 ThumbnailKey = MakeThumbnailKey(Entry.Handle);
-	FThumbnail& Thumbnail = Thumbnails[ThumbnailKey];
-
-	if (Thumbnail.Surface == nullptr) {
-		Thumbnail.Surface = std::make_unique<FSceneRenderSurface>();
-	}
-
-	Thumbnail.Surface->InitializeOffscreen(Renderer->GetDevice(), ThumbnailSize, ThumbnailSize);
-
-	if (!Thumbnail.Surface->IsValid()) {
-		Thumbnail.Surface.reset();
-		return;
+	FSceneRenderSurface* Surface{ PreviewSurface };
+	if (Surface == nullptr) {
+		const uint64 ThumbnailKey{ MakeThumbnailKey(Entry.Handle) };
+		FThumbnail& Thumbnail{ Thumbnails[ThumbnailKey] };
+		if (Thumbnail.Surface == nullptr) {
+			Thumbnail.Surface = std::make_unique<FSceneRenderSurface>();
+		}
+		Thumbnail.Surface->InitializeOffscreen(Renderer->GetDevice(), ThumbnailSize, ThumbnailSize);
+		if (!Thumbnail.Surface->IsValid()) {
+			Thumbnail.Surface.reset();
+			return;
+		}
+		Surface = Thumbnail.Surface.get();
 	}
 
 	FRenderSettings RenderSettings{};
@@ -131,7 +141,7 @@ void FAssetThumbnailRenderer::RenderThumbnail(const FAssetEntry& Entry) {
 	};
 	RenderSettings.bRenderSky = false;
 
-	Renderer->RenderScene( *Thumbnail.Surface, Probe, BuildCamera(), RenderSettings);
+	Renderer->RenderScene(*Surface, Probe, BuildCamera(), RenderSettings);
 }
 
 ID3D11ShaderResourceView* FAssetThumbnailRenderer::GetThumbnail(FAssetHandle AssetHandle) const {

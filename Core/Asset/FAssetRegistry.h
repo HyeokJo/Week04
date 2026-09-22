@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "../Base/UObject.h"
 #include "Common.h"
@@ -127,7 +127,7 @@ private:
     FAssetPath MakeAssetPath(const std::filesystem::path& PhysicalPath) const;
     static EAssetType GetAssetType(const std::filesystem::path& FilePath);
     static std::filesystem::path MakeSidecarPath(const std::filesystem::path& AssetPath);
-    static bool LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid, FAssetEntry& Entry);
+    static bool LoadOrCreateMetadata(const std::filesystem::path& SidecarPath, EAssetType AssetType, FAssetEntry& Entry);
     //static bool LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid);
     static bool IsPipelineFamilyUnit(const std::filesystem::path& FilePath);
     static std::filesystem::path FindFirstPipelineFamilyUnit(const std::filesystem::path& FamilyDirectory);

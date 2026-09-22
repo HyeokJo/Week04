@@ -657,21 +657,23 @@ void FTransformGizmo::UpdateDrag(const FRay& WorldRay) {
 
 		if (Session.ModifyMode == EModifyMode::Translate) 
 		{
-			Session.AccumulatedDelta += Delta;
-			const float GridSize = EditorContext->GetEditorSettings().GridSize;
+			const FEditorSettings Settings{ EditorContext->GetEditorSettings() };
+			const float GridSize{ Settings.GridSize };
 
-			if (GridSize > 0.0f && abs(Session.AccumulatedDelta) >= GridSize) {
+			if (Settings.mGridSnapEnabled && GridSize > 0.0f) {
+				Session.AccumulatedDelta += Delta;
+				if (std::abs(Session.AccumulatedDelta) < GridSize) {
+					return;
+				}
 				const float Steps = truncf(Session.AccumulatedDelta / GridSize);
 				const float StepDelta = Steps * GridSize;
 
 				DesiredWorldTransform.SetPosition(DesiredWorldTransform.GetPosition() + Session.AxisWorld * StepDelta);
 				Session.AccumulatedDelta -= StepDelta;
 			}
-			else if (GridSize <= 0.0f) {
-				DesiredWorldTransform.SetPosition(DesiredWorldTransform.GetPosition() + Session.AxisWorld * Delta);
-			}
 			else {
-				return;
+				DesiredWorldTransform.SetPosition(DesiredWorldTransform.GetPosition() + Session.AxisWorld * Delta);
+				Session.AccumulatedDelta = 0.0f;
 			}
 
 		}

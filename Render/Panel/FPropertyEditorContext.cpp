@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FPropertyEditorContext.h"
 
 #include "ImGui/imgui.h"
@@ -10,7 +10,44 @@
 #include "../../Core/Asset/UMesh.h"
 
 #include <array>
+#include <algorithm>
 #include <cstring>
+#include <vector>
+
+namespace {
+    constexpr char StaticMeshAssetPayloadType[]{ "MACAW_STATIC_MESH_ASSET" };
+    constexpr char MaterialAssetPayloadType[]{ "MACAW_MATERIAL_ASSET" };
+    constexpr char TextureAssetPayloadType[]{ "MACAW_TEXTURE_ASSET" };
+
+    void ApplyAssetBrowserDrop(FAssetRegistry& Registry, const FTypeInfo& AssetType, FAssetHandle CurrentHandle, const std::function<void(FAssetHandle)>& Setter) {
+        const char* PayloadType{};
+        if (AssetType.IsA(UMesh::StaticTypeInfo())) {
+            PayloadType = StaticMeshAssetPayloadType;
+        }
+        else if (AssetType.IsA(UMaterial::StaticTypeInfo())) {
+            PayloadType = MaterialAssetPayloadType;
+        }
+		else if (AssetType.IsA(UTexture::StaticTypeInfo())) {
+			PayloadType = TextureAssetPayloadType;
+		}
+
+        if (PayloadType == nullptr || !ImGui::BeginDragDropTarget()) {
+            return;
+        }
+
+        const ImGuiPayload* Payload{ ImGui::AcceptDragDropPayload(PayloadType) };
+        if (Payload != nullptr && Payload->DataSize == sizeof(FAssetHandle)) {
+            FAssetHandle DroppedHandle{};
+            std::memcpy(&DroppedHandle, Payload->Data, sizeof(DroppedHandle));
+            const UAsset* DroppedAsset{ Registry.ResolveAsset<UAsset>(DroppedHandle) };
+            if (DroppedAsset != nullptr && DroppedAsset->GetTypeInfo()->IsA(&AssetType) && DroppedHandle != CurrentHandle) {
+                Setter(DroppedHandle);
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+}
 
 bool FPropertyEditorContext::BeginCategory(const char* Label, bool bDefaultOpen) const {
     return ImGui::CollapsingHeader(Label, bDefaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : 0);
@@ -126,11 +163,10 @@ void FPropertyEditorContext::DrawAssetPicker(const char* Label, FAssetRegistry& 
             ImGui::Image(ImTextureRef(reinterpret_cast<ImTextureID>(Thumbnail)), ImVec2(48.0f, 48.0f));
         }
         else {
-            ImGui::BeginDisabled();
             ImGui::Button("##AssetThumbnail", ImVec2(48.0f, 48.0f));
-            ImGui::EndDisabled();
         }
 
+        ApplyAssetBrowserDrop(Registry, AssetType, CurrentHandle, Setter);
         ImGui::SameLine();
     }
 
@@ -143,18 +179,35 @@ void FPropertyEditorContext::DrawAssetPicker(const char* Label, FAssetRegistry& 
 
         ImGui::PopID();
 
+        std::vector<const FAssetEntry*> MatchingAssets{};
         for (const FAssetEntry& Entry : Registry.GetAssetEntries()) {
             if (Entry.Asset == nullptr || !Entry.Asset->GetTypeInfo()->IsA(&AssetType)) {
                 continue;
             }
 
-            UAsset* Asset = Entry.Asset.get();
-            ID3D11ShaderResourceView* Thumbnail = GetAssetThumbnail(Registry, Entry.Handle);
+            MatchingAssets.push_back(&Entry);
+        }
 
-            ImGui::PushID(Asset);
+        std::ranges::sort(MatchingAssets, [](const FAssetEntry* Left, const FAssetEntry* Right) {
+            return Left->AssetPath.Path < Right->AssetPath.Path;
+        });
 
-            if (DrawAssetOption(Entry.AssetPath.Path.c_str(), Thumbnail, Asset == Current)) {
-                Setter(Entry.Handle);
+        for (const FAssetEntry* Entry : MatchingAssets) {
+            const FString& AssetPath{ Entry->AssetPath.Path };
+            const size_t NameOffset{ AssetPath.find_last_of('/') + 1 };
+            const char* AssetName{ AssetPath.c_str() + NameOffset };
+            ID3D11ShaderResourceView* Thumbnail{ GetAssetThumbnail(Registry, Entry->Handle) };
+
+            ImGui::PushID(Entry->Asset.get());
+
+            if (DrawAssetOption(AssetName, Thumbnail, Entry->Handle == CurrentHandle) && Entry->Handle != CurrentHandle) {
+                Setter(Entry->Handle);
+            }
+            if (Entry->Handle == CurrentHandle) {
+                ImGui::SetItemDefaultFocus();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s", AssetPath.c_str());
             }
 
             ImGui::PopID();

@@ -24,7 +24,6 @@ public:
 	EditorViewport(EditorViewport&&) noexcept = default;
 	EditorViewport& operator=(EditorViewport&&) noexcept = default;
 
-public:
 	void Initialize(ID3D11Device* Device, FAssetRegistry& AssetRegistry, FWorldEditorContext& InEditorContext);
 
 	void PrepareInput(const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport);
@@ -34,15 +33,15 @@ public:
 	void RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport);
 	void RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe, const D3D11_VIEWPORT& Viewport);
 
-	FStateChannel<uint8>::FReadWriter GetGizmoMode() { return TransformGizmo.GetGizmoMode(); }
-	FStateChannel<uint8>::FReadWriter GetGizmoCoordinateSpace() { return TransformGizmo.GetGizmoCoordinateSpace(); }
+	FStateChannel<uint8>::FReadWriter GetGizmoMode();
+	FStateChannel<uint8>::FReadWriter GetGizmoCoordinateSpace();
 private:
-	void RenderGrid(const FVector3& CameraPosition, ELineDepthMode DepthMode);
+	void RenderGrid(const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport, FVector2D& FadeCenter, ELineDepthMode DepthMode);
 	void RenderAxis(ELineDepthMode DepthMode);
 	void RenderBounds(ELineDepthMode DepthMode);
 
 private:
-	std::unique_ptr<ILineRenderer> LineRenderer = std::make_unique<FLineRenderer>();
+	std::unique_ptr<FLineRenderer> LineRenderer{ std::make_unique<FLineRenderer>() };
 	FTransformGizmo TransformGizmo{};
 
 	FWorldEditorContext* EditorContext = nullptr;

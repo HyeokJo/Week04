@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "USurfaceOpaque.h"
 
 #include <cstring>
@@ -258,6 +258,20 @@ std::optional<uint32> USurfaceOpaque::FindGroupIndex(const FString& Name) const 
 	}
 
 	return std::nullopt;
+}
+
+const TArray<FMaterialGroup>& USurfaceOpaque::GetGroups() const {
+	return Groups;
+}
+
+bool USurfaceOpaque::ModifyGroup(uint32 GroupIndex, const std::function<void(FMaterialGroup&)>& Modifier) {
+	if (GroupIndex >= Groups.size() || !Modifier) {
+		return false;
+	}
+
+	Modifier(Groups[GroupIndex]);
+	MarkGPUDataDirty();
+	return true;
 }
 
 void USurfaceOpaque::Serialize(FArchive& Ar) {

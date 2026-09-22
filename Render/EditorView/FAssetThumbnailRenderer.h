@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <d3d11.h>
 #include <cstddef>
@@ -31,13 +31,14 @@ public:
 	void Create(FRenderer* InRenderer, FAssetRegistry* InAssetRegistry);
 	void Tick(uint32 MaxThumbnailCount = 1);
 	void RenderThumbnail(FAssetHandle AssetHandle);
+	void RenderMaterialPreview(FAssetHandle MaterialHandle, FSceneRenderSurface& Surface);
 
 	ID3D11ShaderResourceView* GetThumbnail(FAssetHandle AssetHandle) const;
 
 	void Terminate();
 
 private:
-	void RenderThumbnail(const FAssetEntry& Entry);
+	void RenderThumbnail(const FAssetEntry& Entry, FSceneRenderSurface* PreviewSurface = nullptr);
 
 	FMatrix BuildMeshTransform(const UMesh& Mesh) const;
 	CameraProbe BuildCamera() const;

@@ -12,6 +12,8 @@
 #include <d3d11.h>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
+#include <functional>
 #include <shellapi.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "shell32.lib")
@@ -45,6 +47,8 @@
 #include "FMouseInput.h"
 #include "Render/Panel/FEditorInfo.h"
 #include "Render/Panel/FEditorUIManager.h"
+#include "Render/Panel/FControlPanel.h"
+#include "Render/Panel/FViewerToolBar.h"
 
 #include "FMousePickRequestMessage.h"
 #ifdef OBJ_VIEWER
@@ -93,11 +97,20 @@ constexpr uint32 DEFAULT_WINDOW_WIDTH = 1920;
 constexpr uint32 DEFAULT_WINDOW_HEIGHT = 1080;
 constexpr uint32 LoadingWindowWidth = 960;
 constexpr uint32 LoadingWindowHeight = 540;
+constexpr int TitleBarHeight{ 26 };
+constexpr int CaptionButtonWidth{ 46 };
+constexpr int ResizeBorderWidth{ 7 };
+constexpr int MenuStartX{ 50 };
+int GMenuHitRight{ 900 };
+bool GCustomFrameEnabled{};
+bool GRenderingFrame{};
+bool GInMoveLoop{};
+std::function<void()> GRenderFrame{};
 
 // 전역 변수:
-HINSTANCE hInst;                                // 현재 인스턴스입니다.
-WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
-WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
+HINSTANCE hInst; // 현재 인스턴스입니다.
+WCHAR szTitle[MAX_LOADSTRING]; // 제목 표시줄 텍스트입니다.
+WCHAR szWindowClass[MAX_LOADSTRING]; // 기본 창 클래스 이름입니다.
 
 HWND hWnd = nullptr;
 
@@ -275,6 +288,7 @@ namespace {
 		std::unique_ptr<FMessageChannel> mWorldCommandChannel{};
 		std::unique_ptr<EditorViewport> mEditorView{};
 		std::unique_ptr<FEditorUIManager> mEditorUIManager{};
+		std::unique_ptr<IEditorPanel> mMenuPanel{};
 		FEditorSettings mEditorSettings{};
 	};
 
@@ -360,8 +374,10 @@ namespace {
 		Application.mEditorView->Initialize(Renderer.GetDevice(), *Application.mAssetRegistry, *Application.mEditorContext);
 
 #ifdef OBJ_VIEWER
-		Application.mEditorUIManager->InitializeViewer(*Application.mAssetRegistry, gHWND, *Application.mEditorContext);
+		Application.mMenuPanel = std::make_unique<FViewerToolBar>(*Application.mEditorContext);
+		Application.mEditorUIManager->InitializeViewer(*Application.mAssetRegistry, gHWND, *Application.mEditorContext, Application.mThumbnailRenderer.get());
 #else
+		Application.mMenuPanel = std::make_unique<FControlPanel>(*Application.mEditorContext, gHWND, Application.mEditorContext->GetEditorToWorldSender());
 		Application.mEditorUIManager->Initialize(*Application.mWorld, Renderer, *Application.mAssetRegistry, *Application.mEditorContext, gHWND, Application.mEditorView->GetGizmoMode(), Application.mEditorView->GetGizmoCoordinateSpace(), Application.mThumbnailRenderer.get());
 #endif
 
@@ -380,21 +396,96 @@ namespace {
 
 	void RestoreGameWindow(HWND WindowHandle) {
 		const DWORD Style{ WINDOWED ? WS_OVERLAPPEDWINDOW : WS_POPUP };
-		const DWORD ExtendedStyle{ WINDOWED ? WS_EX_OVERLAPPEDWINDOW : WS_EX_APPWINDOW };
-		RECT WindowRectangle{ 0, 0, static_cast<LONG>(DEFAULT_WINDOW_WIDTH), static_cast<LONG>(DEFAULT_WINDOW_HEIGHT) };
+		const DWORD ExtendedStyle{ WS_EX_APPWINDOW };
+		MONITORINFO MonitorInformation{ sizeof(MONITORINFO) };
+		GetMonitorInfoW(MonitorFromWindow(WindowHandle, MONITOR_DEFAULTTONEAREST), &MonitorInformation);
+		const RECT WorkArea{ MonitorInformation.rcWork };
+		const int WindowWidth{ std::min(static_cast<int>(DEFAULT_WINDOW_WIDTH), static_cast<int>(WorkArea.right - WorkArea.left)) };
+		const int WindowHeight{ std::min(static_cast<int>(DEFAULT_WINDOW_HEIGHT), static_cast<int>(WorkArea.bottom - WorkArea.top)) };
+		const int PositionX{ WorkArea.left + (WorkArea.right - WorkArea.left - WindowWidth) / 2 };
+		const int PositionY{ WorkArea.top + (WorkArea.bottom - WorkArea.top - WindowHeight) / 2 };
 
-		if (WINDOWED) {
-			AdjustWindowRectEx(&WindowRectangle, Style, FALSE, ExtendedStyle);
-		}
-
-		const int WindowWidth{ WindowRectangle.right - WindowRectangle.left };
-		const int WindowHeight{ WindowRectangle.bottom - WindowRectangle.top };
-		const int PositionX{ (GetSystemMetrics(SM_CXSCREEN) - WindowWidth) / 2 };
-		const int PositionY{ (GetSystemMetrics(SM_CYSCREEN) - WindowHeight) / 2 };
-
+		GCustomFrameEnabled = WINDOWED;
 		SetWindowLongPtrW(WindowHandle, GWL_STYLE, static_cast<LONG_PTR>(Style));
 		SetWindowLongPtrW(WindowHandle, GWL_EXSTYLE, static_cast<LONG_PTR>(ExtendedStyle));
 		SetWindowPos(WindowHandle, nullptr, PositionX, PositionY, WindowWidth, WindowHeight, SWP_FRAMECHANGED | SWP_NOZORDER | SWP_SHOWWINDOW);
+	}
+
+	void DrawCaptionButton(HWND WindowHandle, const char* Identifier, int Index, UINT Command) {
+		const ImVec2 WindowPosition{ ImGui::GetWindowPos() };
+		const float ButtonX{ WindowPosition.x + ImGui::GetWindowWidth() - static_cast<float>((3 - Index) * CaptionButtonWidth) };
+		const ImVec2 ButtonPosition{ ButtonX, WindowPosition.y };
+		const ImVec2 ButtonSize{ static_cast<float>(CaptionButtonWidth), static_cast<float>(TitleBarHeight) };
+		ImGui::SetCursorScreenPos(ButtonPosition);
+		const bool Pressed{ ImGui::InvisibleButton(Identifier, ButtonSize) };
+		const bool Hovered{ ImGui::IsItemHovered() };
+		const bool Held{ ImGui::IsItemActive() };
+		ImDrawList* DrawList{ ImGui::GetWindowDrawList() };
+		const ImU32 BackgroundColor{ Index == 2 ? IM_COL32(192, 55, 55, 255) : IM_COL32(66, 68, 73, 255) };
+		if (Hovered || Held) {
+			DrawList->AddRectFilled(ButtonPosition, ImVec2{ ButtonPosition.x + ButtonSize.x, ButtonPosition.y + ButtonSize.y }, BackgroundColor);
+		}
+
+		const float CenterX{ ButtonPosition.x + ButtonSize.x * 0.5f };
+		const float CenterY{ ButtonPosition.y + ButtonSize.y * 0.5f };
+		const ImU32 IconColor{ IM_COL32(225, 228, 232, 255) };
+		if (Index == 0) {
+			DrawList->AddLine(ImVec2{ CenterX - 6.0f, CenterY + 4.0f }, ImVec2{ CenterX + 6.0f, CenterY + 4.0f }, IconColor, 1.5f);
+		}
+		else if (Index == 1 && IsZoomed(WindowHandle)) {
+			DrawList->AddRect(ImVec2{ CenterX - 4.0f, CenterY - 3.0f }, ImVec2{ CenterX + 6.0f, CenterY + 5.0f }, IconColor, 0.0f, 0, 1.5f);
+			DrawList->AddLine(ImVec2{ CenterX - 6.0f, CenterY + 2.0f }, ImVec2{ CenterX - 6.0f, CenterY - 5.0f }, IconColor, 1.5f);
+			DrawList->AddLine(ImVec2{ CenterX - 6.0f, CenterY - 5.0f }, ImVec2{ CenterX + 3.0f, CenterY - 5.0f }, IconColor, 1.5f);
+		}
+		else if (Index == 1) {
+			DrawList->AddRect(ImVec2{ CenterX - 6.0f, CenterY - 5.0f }, ImVec2{ CenterX + 6.0f, CenterY + 5.0f }, IconColor, 0.0f, 0, 1.5f);
+		}
+		else {
+			DrawList->AddLine(ImVec2{ CenterX - 5.0f, CenterY - 5.0f }, ImVec2{ CenterX + 5.0f, CenterY + 5.0f }, IconColor, 1.5f);
+			DrawList->AddLine(ImVec2{ CenterX + 5.0f, CenterY - 5.0f }, ImVec2{ CenterX - 5.0f, CenterY + 5.0f }, IconColor, 1.5f);
+		}
+
+		if (Pressed) {
+			PostMessageW(WindowHandle, WM_SYSCOMMAND, Command, 0);
+		}
+	}
+
+	void DrawEditorTitleBar(HWND WindowHandle, IEditorPanel* MenuPanel, ID3D11ShaderResourceView* Logo) {
+		const float MenuVerticalPadding{ std::max(0.0f, (static_cast<float>(TitleBarHeight) - ImGui::GetFontSize()) * 0.5f) };
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 6.0f, MenuVerticalPadding });
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(31, 32, 36, 255));
+		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, IM_COL32(31, 32, 36, 255));
+		const ImGuiWindowFlags Flags{ ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus };
+		if (ImGui::BeginViewportSideBar("##EditorTitleBar", ImGui::GetMainViewport(), ImGuiDir_Up, static_cast<float>(TitleBarHeight), Flags)) {
+			ImDrawList* DrawList{ ImGui::GetWindowDrawList() };
+			const ImVec2 Position{ ImGui::GetWindowPos() };
+			const float Width{ ImGui::GetWindowWidth() };
+			const float FpsX{ Position.x + Width - static_cast<float>(3 * CaptionButtonWidth) - 110.0f };
+			DrawList->AddLine(ImVec2{ Position.x, Position.y + static_cast<float>(TitleBarHeight) - 1.0f }, ImVec2{ Position.x + Width, Position.y + static_cast<float>(TitleBarHeight) - 1.0f }, IM_COL32(72, 74, 78, 255));
+			if (ImGui::BeginMenuBar()) {
+				if (Logo != nullptr) {
+					DrawList->AddImage(reinterpret_cast<ImTextureID>(Logo), ImVec2{ Position.x + 11.0f, Position.y + 1.0f }, ImVec2{ Position.x + 27.0f, Position.y + static_cast<float>(TitleBarHeight) - 1.0f }, ImVec2{ 0.23f, 0.11f }, ImVec2{ 0.77f, 0.90f });
+				}
+				ImGui::SetCursorPosX(static_cast<float>(MenuStartX));
+				if (MenuPanel != nullptr) {
+					MenuPanel->DrawPanel();
+				}
+				GMenuHitRight = static_cast<int>(ImGui::GetCursorPosX()) + 10;
+				if (static_cast<float>(GMenuHitRight) + 112.0f < FpsX - Position.x) {
+					char FpsText[32]{};
+					std::snprintf(FpsText, sizeof(FpsText), "FPS: %.1f", ImGui::GetIO().Framerate);
+					DrawList->AddText(ImVec2{ FpsX, Position.y + 7.0f }, IM_COL32(152, 156, 163, 255), FpsText);
+				}
+				DrawCaptionButton(WindowHandle, "##MinimizeWindow", 0, SC_MINIMIZE);
+				DrawCaptionButton(WindowHandle, "##MaximizeWindow", 1, IsZoomed(WindowHandle) ? SC_RESTORE : SC_MAXIMIZE);
+				DrawCaptionButton(WindowHandle, "##CloseWindow", 2, SC_CLOSE);
+				ImGui::EndMenuBar();
+			}
+		}
+		ImGui::End();
+		ImGui::PopStyleColor(2);
+		ImGui::PopStyleVar(2);
 	}
 }
 
@@ -426,12 +517,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	const HACCEL AcceleratorTable{ LoadAccelerators(Instance, MAKEINTRESOURCE(IDC_MACAW)) };
 	FApplicationObjects Application{};
 	FLoadingScreen LoadingScreen{};
+	const bool Loaded{ LoadingScreen.Run(Renderer, AcceleratorTable, [&Application](FLoadingProgress& Progress) { return InitializeApplication(Application, Progress); }) };
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> EditorLogo{ LoadingScreen.TakeLogoShaderResourceView() };
 
-	if (!LoadingScreen.Run(Renderer, AcceleratorTable, [&Application](FLoadingProgress& Progress) { return InitializeApplication(Application, Progress); })) {
+	if (!Loaded) {
 		ImGui_ImplDX11_Shutdown();
 		ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();
 		Renderer.BindAssetRegistry(nullptr);
+		Application.mMenuPanel.reset();
 		Application.mEditorUIManager.reset();
 		Application.mEditorView.reset();
 		Application.mThumbnailRenderer.reset();
@@ -439,6 +533,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 		Application.mWorld.reset();
 		Application.mAssetRegistry.reset();
 		Application.mEditorContext.reset();
+		EditorLogo.Reset();
 		Renderer.Terminate();
 		return FALSE;
 	}
@@ -451,23 +546,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	bool Running{ true };
 	auto LastTickTime{ std::chrono::steady_clock::now() };
 
-	while (Running) {
-		while (PeekMessage(&Message, nullptr, 0, 0, PM_REMOVE)) {
-			if (Message.message == WM_QUIT) {
-				Running = false;
-				break;
-			}
-
-			if (!TranslateAccelerator(Message.hwnd, AcceleratorTable, &Message)) {
-				TranslateMessage(&Message);
-				DispatchMessage(&Message);
-			}
+	GRenderFrame = [&Application, &EditorLogo, &Io, &LastTickTime]() {
+		if (GRenderingFrame) {
+			return;
 		}
-
-		if (!Running) {
-			break;
-		}
-
+		GRenderingFrame = true;
 		const auto CurrentTickTime{ std::chrono::steady_clock::now() };
 		const float DeltaTime{ std::chrono::duration<float>(CurrentTickTime - LastTickTime).count() };
 		LastTickTime = CurrentTickTime;
@@ -478,6 +561,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+		DrawEditorTitleBar(hWnd, Application.mMenuPanel.get(), EditorLogo.Get());
 		Application.mEditorUIManager->Tick();
 
 		for (const FPendingExternalFileDrop& Drop : PendingExternalFileDrops) {
@@ -526,7 +610,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 
 		Renderer.EndFrame();
 		GMouseInput.EndFrame();
+		GRenderingFrame = false;
+	};
+
+	while (Running) {
+		while (PeekMessage(&Message, nullptr, 0, 0, PM_REMOVE)) {
+			if (Message.message == WM_QUIT) {
+				Running = false;
+				break;
+			}
+
+			if (!TranslateAccelerator(Message.hwnd, AcceleratorTable, &Message)) {
+				TranslateMessage(&Message);
+				DispatchMessage(&Message);
+			}
+		}
+
+		if (!Running) {
+			break;
+		}
+
+		GRenderFrame();
 	}
+	GRenderFrame = {};
 
 	Application.mEditorSettings = Application.mEditorContext->GetEditorSettings();
 	if (FViewportHostWindow* Host{ Application.mEditorUIManager->GetViewportHostWindow() }) {
@@ -546,6 +652,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	ImGui::DestroyContext();
 
 	Renderer.BindAssetRegistry(nullptr);
+	Application.mMenuPanel.reset();
 	Application.mEditorUIManager.reset();
 	Application.mEditorView.reset();
 	Application.mThumbnailRenderer.reset();
@@ -553,6 +660,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	Application.mWorld.reset();
 	Application.mAssetRegistry.reset();
 	Application.mEditorContext.reset();
+	EditorLogo.Reset();
 	Renderer.Terminate();
 	Renderer.ReportLiveObjects();
 	return static_cast<int>(Message.wParam);
@@ -617,6 +725,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 	return TRUE;
 }
 
+
 //
 //  함수: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -626,7 +735,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
 //  WM_PAINT    - 주 창을 그립니다.
 //  WM_DESTROY  - 종료 메시지를 게시하고 반환합니다.
 //
-
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -640,8 +748,102 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		GKeyboardInput.ProcessWindowMessage(message, wParam, lParam);
 	}
 
-    switch (message)
-    {
+    switch (message) {
+    case WM_ENTERSIZEMOVE: {
+        GInMoveLoop = true;
+        return 0;
+    }
+    case WM_EXITSIZEMOVE: {
+        GInMoveLoop = false;
+        if (GRenderFrame) {
+            GRenderFrame();
+        }
+        return 0;
+    }
+    case WM_WINDOWPOSCHANGED: {
+        const WINDOWPOS* WindowPosition{ reinterpret_cast<const WINDOWPOS*>(lParam) };
+        const bool SizeChanged{ (WindowPosition->flags & SWP_NOSIZE) == 0 };
+        const LRESULT Result{ DefWindowProcW(hWnd, message, wParam, lParam) };
+        if (GInMoveLoop && SizeChanged && GRenderFrame) {
+            GRenderFrame();
+        }
+        return Result;
+    }
+    case WM_NCCALCSIZE: {
+        if (GCustomFrameEnabled) {
+            if (wParam != 0 && IsZoomed(hWnd)) {
+                NCCALCSIZE_PARAMS* SizeParameters{ reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam) };
+                const HMONITOR Monitor{ MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST) };
+                MONITORINFO MonitorInformation{ sizeof(MONITORINFO) };
+                if (GetMonitorInfoW(Monitor, &MonitorInformation)) {
+                    SizeParameters->rgrc[0] = MonitorInformation.rcWork;
+                }
+            }
+            return 0;
+        }
+        return DefWindowProcW(hWnd, message, wParam, lParam);
+    }
+    case WM_NCHITTEST: {
+        if (!GCustomFrameEnabled) {
+            return DefWindowProcW(hWnd, message, wParam, lParam);
+        }
+
+        RECT WindowRectangle{};
+        GetWindowRect(hWnd, &WindowRectangle);
+        const POINT Cursor{ static_cast<SHORT>(LOWORD(lParam)), static_cast<SHORT>(HIWORD(lParam)) };
+        const int Border{ MulDiv(ResizeBorderWidth, static_cast<int>(GetDpiForWindow(hWnd)), 96) };
+        const bool Left{ Cursor.x < WindowRectangle.left + Border };
+        const bool Right{ Cursor.x >= WindowRectangle.right - Border };
+        const bool Top{ Cursor.y < WindowRectangle.top + Border };
+        const bool Bottom{ Cursor.y >= WindowRectangle.bottom - Border };
+
+        if (!IsZoomed(hWnd)) {
+            if (Top && Left) {
+                return HTTOPLEFT;
+            }
+            if (Top && Right) {
+                return HTTOPRIGHT;
+            }
+            if (Bottom && Left) {
+                return HTBOTTOMLEFT;
+            }
+            if (Bottom && Right) {
+                return HTBOTTOMRIGHT;
+            }
+            if (Left) {
+                return HTLEFT;
+            }
+            if (Right) {
+                return HTRIGHT;
+            }
+            if (Top) {
+                return HTTOP;
+            }
+            if (Bottom) {
+                return HTBOTTOM;
+            }
+        }
+
+        if (Cursor.y < WindowRectangle.top + TitleBarHeight && (Cursor.x < WindowRectangle.left + MenuStartX || Cursor.x >= WindowRectangle.left + GMenuHitRight) && Cursor.x < WindowRectangle.right - 3 * CaptionButtonWidth) {
+            return HTCAPTION;
+        }
+        return HTCLIENT;
+    }
+    case WM_GETMINMAXINFO: {
+        if (!GCustomFrameEnabled) {
+            return DefWindowProcW(hWnd, message, wParam, lParam);
+        }
+
+        const HMONITOR Monitor{ MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST) };
+        MONITORINFO MonitorInformation{ sizeof(MONITORINFO) };
+        if (GetMonitorInfoW(Monitor, &MonitorInformation)) {
+            MINMAXINFO* SizeInformation{ reinterpret_cast<MINMAXINFO*>(lParam) };
+            SizeInformation->ptMaxPosition = POINT{ MonitorInformation.rcWork.left - MonitorInformation.rcMonitor.left, MonitorInformation.rcWork.top - MonitorInformation.rcMonitor.top };
+            SizeInformation->ptMaxSize = POINT{ MonitorInformation.rcWork.right - MonitorInformation.rcWork.left, MonitorInformation.rcWork.bottom - MonitorInformation.rcWork.top };
+            SizeInformation->ptMinTrackSize = POINT{ 520, 360 };
+        }
+        return 0;
+    }
     case WM_DROPFILES:
     {
         const HDROP DropHandle = reinterpret_cast<HDROP>(wParam);

@@ -1,14 +1,12 @@
-﻿#pragma once 
+#pragma once
 #include "../Asset/FAssetHandle.h"
 
 struct FTextVertex
 {
     // 텍스트 원점으로부터 글자의 상대 위치
     FVector2 LocalPosition{};
-
     // 글자 Quad의 월드 크기
     FVector2 Size{};
-
     // Atlas의 문자 UV 범위
     FVector2 UVMin{};
     FVector2 UVMax{};
@@ -18,13 +16,13 @@ struct FTextProbe
 {
     // UBillBoardTextComponent의 렌더링 원점으로 사용할 World Transform
     FMatrix World{};
-
     // 사용할 UFont
     FAssetHandle FontHandle{};
-
     // Text Geometry Shader Pipeline
     FAssetHandle PipelineHandle{};
     FVector4 Color{ 1.0f,1.0f,1.0f,1.0f };
+    FVector3 mScreenBoundsExtent{};
+    float mScreenUpPadding{};
     TArray<FTextVertex> Vertices{};
 };
 

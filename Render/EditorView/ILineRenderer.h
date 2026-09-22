@@ -13,6 +13,7 @@ enum class ELineDepthMode : uint8 {
 struct FLineViewData {
 	FMatrix ViewProjection{};
 	FVector2D ViewportSize{};
+	FVector4 GridFade{};
 };
 class ILineRenderer {
 public:

@@ -4,6 +4,7 @@
 #include <wrl/client.h>
 
 #include <filesystem>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -64,6 +65,7 @@ public:
 
 private:
 	bool InitializeFamily(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory);
+    bool InitializeModes(ID3D11Device* Device, const std::array<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)>& ModePaths);
     bool LoadPipelineDescription(const std::filesystem::path& Path, FPipelineDescription& OutDescription);
 
 	bool Make(ID3D11Device* Device, const FPipelineDescription& Description, PipelineUnit& PipelineUnit);

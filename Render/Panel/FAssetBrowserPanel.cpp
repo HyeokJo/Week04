@@ -18,6 +18,8 @@ namespace {
     constexpr float ThumbnailSize = 96.0f;
     constexpr float TileWidth = ThumbnailSize + 18.0f;
     constexpr char StaticMeshAssetPayloadType[]{ "MACAW_STATIC_MESH_ASSET" };
+    constexpr char MaterialAssetPayloadType[]{ "MACAW_MATERIAL_ASSET" };
+    constexpr char TextureAssetPayloadType[]{ "MACAW_TEXTURE_ASSET" };
 
     FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN)
     {
@@ -47,9 +49,9 @@ namespace {
 
 }
 
-FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer)
+FAssetBrowserPanel::FAssetBrowserPanel(FAssetRegistry& InAssetRegistry, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer, std::function<void(FAssetHandle)> InOpenMaterialEditor)
     : FEditorWindow("Content Browser###AssetBrowserPanel")
-    , AssetRegistry(&InAssetRegistry) , EditorContext(InEditorContext), ThumbnailRenderer(InThumbnailRenderer) {
+    , AssetRegistry(&InAssetRegistry) , EditorContext(InEditorContext), ThumbnailRenderer(InThumbnailRenderer), mOpenMaterialEditor(std::move(InOpenMaterialEditor)) {
 }
 
 void FAssetBrowserPanel::BeginExternalDropFrame() {
@@ -77,8 +79,11 @@ bool FAssetBrowserPanel::HandleExternalFileDrop(const std::filesystem::path& Fil
         return true;
     }
 
-    const FAssetHandle ImportedHandle = AssetRegistry->ImportMesh(FilePath, SelectedFolder);
+    const FAssetHandle ImportedHandle{ AssetRegistry->ImportMesh(FilePath, SelectedFolder) };
     if (ImportedHandle) {
+        if (ThumbnailRenderer != nullptr) {
+            ThumbnailRenderer->RenderThumbnail(ImportedHandle);
+        }
         SelectedAsset = ImportedHandle;
         Console::AddLog(
             Console::STDOutHandle,
@@ -128,7 +133,10 @@ void FAssetBrowserPanel::DrawContents() {
 
         if (!FilePath.empty()) {
             const std::filesystem::path SourcePath{ FilePath };
-            AssetRegistry->ImportMesh(SourcePath, SelectedFolder);
+            const FAssetHandle ImportedHandle{ AssetRegistry->ImportMesh(SourcePath, SelectedFolder) };
+            if (ImportedHandle && ThumbnailRenderer != nullptr) {
+                ThumbnailRenderer->RenderThumbnail(ImportedHandle);
+            }
         }
     }
    
@@ -210,7 +218,6 @@ const char* FAssetBrowserPanel::GetAssetTypeLabel(EAssetType AssetType) {
 }
 
 bool FAssetBrowserPanel::IsInSelectedFolder(const FAssetEntry& Entry) const {
-    // Content 최상위는 Unreal의 All Assets 보기처럼 하위 폴더의 asset까지 모두 표시한다.
     if (SelectedFolder == "/Game") {
         return true;
     }
@@ -274,20 +281,6 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.36f, 0.66f, 1.0f));
     }
 
-    //bool bClicked = false;
-    //if (Entry.AssetType == EAssetType::Texture) {
-    //    if (const UTexture* Texture = AssetRegistry->ResolveAsset<UTexture>(Entry.Handle);
-    //        Texture != nullptr && Texture->GetSRV() != nullptr) {
-    //        const ImTextureID TextureId = reinterpret_cast<ImTextureID>(Texture->GetSRV());
-    //        bClicked = ImGui::ImageButton("##Thumbnail", ImTextureRef(TextureId), ImVec2(ThumbnailSize, ThumbnailSize));
-    //    }
-    //}
-
-    //if (Entry.AssetType != EAssetType::Texture || !Entry.Asset) {
-    //    bClicked = ImGui::Button(GetAssetTypeLabel(Entry.AssetType), ImVec2(ThumbnailSize, ThumbnailSize));
-    //} 
-
-
     ID3D11ShaderResourceView* ThumbnailSRV = nullptr;
 
     if (Entry.AssetType == EAssetType::Texture) {
@@ -330,6 +323,9 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
             {
                 EditorContext.SetPreviewMesh(Entry.Handle);
             }
+			else if (Entry.AssetType == EAssetType::Material && mOpenMaterialEditor) {
+				mOpenMaterialEditor(Entry.Handle);
+			}
 
         }
     }
@@ -341,6 +337,20 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
         ImGui::TextDisabled("Static Mesh");
         ImGui::EndDragDropSource();
     }
+    else if (Entry.AssetType == EAssetType::Material && ImGui::BeginDragDropSource()) {
+        const FAssetHandle MaterialHandle{ Entry.Handle };
+        ImGui::SetDragDropPayload(MaterialAssetPayloadType, &MaterialHandle, sizeof(MaterialHandle));
+        ImGui::TextUnformatted(AssetName);
+        ImGui::TextDisabled("Material");
+        ImGui::EndDragDropSource();
+    }
+	else if (Entry.AssetType == EAssetType::Texture && ImGui::BeginDragDropSource()) {
+		const FAssetHandle TextureHandle{ Entry.Handle };
+		ImGui::SetDragDropPayload(TextureAssetPayloadType, &TextureHandle, sizeof(TextureHandle));
+		ImGui::TextUnformatted(AssetName);
+		ImGui::TextDisabled("Texture");
+		ImGui::EndDragDropSource();
+	}
 
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ThumbnailSize);
     ImGui::TextUnformatted(AssetName);

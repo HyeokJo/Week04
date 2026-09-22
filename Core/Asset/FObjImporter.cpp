@@ -7,7 +7,7 @@
 
 #include "../Console/Console.h"
 
-bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
+bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry, bool FlipUV)
 {
 	std::ifstream File(FilePath.c_str());
 	if (!File.is_open())
@@ -41,22 +41,23 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		{
 			continue;
 		}
-		
+
 		const FString& Tag = Tokens[0];
-			
 
 		if (Tag == "v") // v x y z
 		{
+
 			//color 값이 있다면 v x y z r g b 와 같은 형태로 들어온다.
 			if (Tokens.size() < 4) continue;
 
 			FVector Pos = FVector(std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()), std::stof(Tokens[3].c_str()));
+
 			//각 x,y,z에 좌표계 변환
 			Pos = FVector(Pos.Dot(PositionCoordTrans_X), Pos.Dot(PositionCoordTrans_Y), Pos.Dot(PositionCoordTrans_Z));
 			ObjInfo.Positions.push_back(Pos);
 
 			FColor4 color = FColor4(1.f, 1.f, 1.f, 1.f);
-			
+
 			//컬러 값이 존재한다면
 			if (Tokens.size() > 4)
 			{
@@ -78,29 +79,35 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		else if (Tag == "vt") // vt u v
 		{
 			if (Tokens.size() != 3) continue;
-			FVector2 UV = FVector2(std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()));
-			UV = FVector2(UV.x, 1.f - UV.y);
+			FVector2 UV{ std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()) };
+			if (FlipUV) {
+				UV.y = 1.0f - UV.y;
+			}
 			ObjInfo.UVs.push_back(UV);
 		}
 		else if (Tag == "o") // o Name
 		{
 			if (Tokens.size() != 2) continue;
+
 			//이름 저장
 			ObjInfo.AssetName = Tokens[1];
 		}
 		else if (Tag == "s")
 		{
+
 			//스무딩 그룹이라는데 일단 대기
 		}
 		else if (Tag == "usemtl") // usemtl Name
 		{
 			if (Tokens.size() != 2) continue;
+
 			//머티리얼 이름 넣기
 			ObjInfo.MaterialNames.push_back(Tokens[1]);
 
 			//처음엔 FaceViertices가 없어서 넣으면 안된다.
 			if (ObjInfo.FaceVertices_Polygon.size() != 0)
 			{
+
 				//face들을 순회하다가 새로운 머티리얼을 만난다면 지금까지의 face들의 개수를 SubMesh에 넣어준다.
 				ObjInfo.SubMesh.push_back(TempFaceCount);
 				TempFaceCount = 0;
@@ -108,8 +115,8 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		}
 		else if (Tag == "f")
 		{
-			//v, v/vt, v//vn, v/vt/vn 네가지 형태 있음.
 
+			//v, v/vt, v//vn, v/vt/vn 네가지 형태 있음.
 			if (Tokens.size() == 0) continue;
 
 			// f  v  v  v  : 삼각형이면 개수가 4개
@@ -134,6 +141,7 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 				}
 				else
 				{
+
 					// v는 '/'의 위치까지 잘라낸 값
 					//std.substr(pos, count) : pos부터 count개 문자열 반환. count 기본값은 npos로 끝까지 추출
 					Face.PositionIndex = std::stoi(VertexData.substr(0, FirstIndex).c_str());
@@ -142,17 +150,19 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 					SecondIndex = VertexData.find('/', FirstIndex + 1);
 					if (SecondIndex == FString::npos)
 					{
+
 						//두번째에 '/'가 없다면 vt만 있다. v/vt
 						//처음 찾은 PositionIndex 다음부터 끝까지(기본값 npos) 잘라내면 vt다
 						Face.UVIndex = std::stoi(VertexData.substr(FirstIndex + 1).c_str());
 					}
 					else
 					{
-						// v//vn 아니면 v/vt/vn 이다
 
+						// v//vn 아니면 v/vt/vn 이다
 						// v/vt/n 인 경우만 vt를 계산하도록 한다.
 						if (SecondIndex > FirstIndex + 1)
 						{
+
 							// vt는 PositonIndex 다음부터 SecondIndex - positonindex - 1개를 잘라낸다
 							Face.UVIndex = std::stoi(VertexData.substr(FirstIndex + 1, SecondIndex - FirstIndex - 1).c_str());
 						}
@@ -169,7 +179,7 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 
 			//반대로 뒤집기
 			std::reverse(Vertices.begin(), Vertices.end());
-			
+
 			ObjInfo.FaceVertices_Polygon.push_back(Vertices);
 		}
 		else if (Tag == "mtllib")
@@ -228,7 +238,6 @@ bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	/*const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
 	const int32 UVCount = static_cast<int32>(ObjInfo.UVs.size());
 	const int32 NormalCount = static_cast<int32>(ObjInfo.Normals.size());*/
-
 	//(PositionIndex, UVIndex, NormalIndex) 조합 -> 이미 만들어둔 OutGeometry 상의 정점 인덱스
 	std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash> VertexCache;
 	VertexCache.reserve(ObjInfo.Positions.size());
@@ -242,19 +251,20 @@ bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	//모든 Face Vertex 들
 	for (auto& FaceVertics : ObjInfo.FaceVertices_Polygon)
 	{
+
 		// 1개 면의 모음
 		for (const FFaceVertex& Face : FaceVertics)
 		{
+
 			//기본값(-1)이면 파싱이 깨진 코너이므로 건너뛴다.
 			if (Face.PositionIndex == -1)
 			{
 				continue;
 			}
-						
+
 			AddPNTIArray(Face, ObjInfo, OutGeometry, VertexCache);
 		}
 	}
-
 
 	if (OutGeometry.Positions.empty() || OutGeometry.Indices.empty())
 	{
@@ -267,6 +277,7 @@ bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 
 bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry) const
 {
+
 	//다각형이라면 Ear Clipping 방식을 따라갑니다.
 	//아래 조건을 만족하는 삼각형을 찾아갑니다.
 	//ObjInfo.FaceVertices를 순회하며 순서대로 Prev, Current, Next의 정점 3개로 삼각형을 구성합니다.
@@ -279,14 +290,11 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	// 인덱스 배열에 추가합니다. 있는 버텍스라면 해당 인덱스를 인덱스 버퍼에만 추가합니다.
 	//Current 정점을 제외하고 남은 정점에 대하여 해당 과정을 반복합니다.
 	//남은 정점이 3개만 남는다면 인덱스 버퍼를 채우고 종료합니다.
-
-
 	if (ObjInfo.Positions.empty() || ObjInfo.FaceVertices_Polygon.empty())
 	{
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Obj Load Failed. No geometry data to build.");
 		return false;
 	}
-
 
 	//초기화
 	OutGeometry.Positions.clear();
@@ -349,7 +357,7 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		const size_t FirstGeneratedIndex = OutGeometry.Indices.size();
 		FaceVertexIndex = 0;
 
-		int32 FaceVerticesCount = FaceVertics.size();
+		int32 FaceVerticesCount = static_cast<int32>(FaceVertics.size());
 		int32 LoopCount = 0;
 
 		//평면에 수직인 노멀 구하기
@@ -385,19 +393,18 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 			FVector Normal_Next = FaceNormals[NormalizeIndex(Next.NormalIndex, NormalCount)];
 
 			//FaceNormal = (Normal_Prev + Normal_Current + Normal_Next) / 3.f;
-
 			//Current가 볼록한지 오목한지 검사
 			//Current - Prev 벡터, Next - Current 벡터를 외적하여 노멀 벡터를 구하고, Face의 노멀과 내적하여 방향이 같다면 볼록, 방향이 다르다면 오목
 			FVector Vector_1 = FacePositions[CurrentPositionIndex] - FacePositions[PrevPositionIndex];
 			FVector Vector_2 = FacePositions[NextPositionIndex] - FacePositions[CurrentPositionIndex];
-			
+
 			Vector_1.Normalize();
 			Vector_2.Normalize();
 
 			FVector CrossVector = Vector_1.Cross(Vector_2);
 			CrossVector.Normalize();
-			//Vector_1 = Vector_1.Cross(Vector_2);
 
+			//Vector_1 = Vector_1.Cross(Vector_2);
 			float DotResult = CrossVector.Dot(FaceNormal);
 
 			//내적값이 음수라면 오목
@@ -412,6 +419,7 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 
 			for (int i = 0; i < FaceVertics.size(); i++)
 			{
+
 				//자기 자신은 제외
 				if (PrevIndex == i || CurrentIndex == i || NextIndex == i)
 				{
@@ -445,7 +453,6 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 				}
 			}
 
-			
 			if (OtherVertexCheck)
 			{
 				FaceVertexIndex = (FaceVertexIndex + 1) % FaceVertics.size();
@@ -468,7 +475,7 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		//여기까지 왔는데도 아직 3개보다 많다면 트라이앵글레이션으로 처리한다.
 		if (FaceVertics.size() > 3)
 		{
-			for (size_t i = 1; i + 1 < FaceVertics.size(); i++) 
+			for (size_t i = 1; i + 1 < FaceVertics.size(); i++)
 			{
 				AddPNTIArray(FaceVertics[0], ObjInfo, OutGeometry, VertexCache);
 				AddPNTIArray(FaceVertics[i], ObjInfo, OutGeometry, VertexCache);
@@ -477,13 +484,13 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		}
 		else
 		{
+
 			//남은 삼각형 1개만 남았다. 순서대로 입력
 			for (auto& Face : FaceVertics)
 			{
 				AddPNTIArray(Face, ObjInfo, OutGeometry, VertexCache);
 			}
 		}
-		
 
 		const size_t GeneratedIndexCount = OutGeometry.Indices.size() - FirstGeneratedIndex;
 
@@ -541,6 +548,7 @@ void FObjImporter::AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo&
 	const auto ExistingEntry = CacheMap.find(Key);
 	if (ExistingEntry != CacheMap.end())
 	{
+
 		//이미 같은 조합의 정점이 있다면 새로 만들지 않고 인덱스만 재사용한다.
 		OutGeometry.Indices.push_back(ExistingEntry->second);
 		return;
@@ -598,6 +606,7 @@ int32 FObjImporter::NormalizeIndex(int32 RawIndex, int32 ArraySize) const
 	if (RawIndex > 0){
 		return RawIndex - 1;
 	}
+
 	//RawIndex가 음수라면 뒤에서부터 인덱스를 샌다.
 	return ArraySize + RawIndex;
 }

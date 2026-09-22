@@ -1,13 +1,7 @@
 #include "PCH.h"
 #include "FViewerToolBar.h"
 #include "ImGui/imgui.h"
-void FViewerToolBar::DrawPanel()
-{
-    if (!ImGui::BeginMainMenuBar())
-    {
-        return;
-    }
-
+void FViewerToolBar::DrawPanel() {
     if (ImGui::BeginMenu("Import"))
     {
         if (ImGui::MenuItem("Open Obj..."))
@@ -26,5 +20,4 @@ void FViewerToolBar::DrawPanel()
         EditorContext->SetRenderModeState(static_cast<size_t>(RenderIndex));
     }
 
-    ImGui::EndMainMenuBar();
 }

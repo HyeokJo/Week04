@@ -1,4 +1,4 @@
-﻿#pragma once 
+#pragma once
 
 #include "../Base/UObject.h"
 #include "../../Render/Pipeline/Defines.h"
@@ -63,7 +63,7 @@ public:
 	using FMaterialGroupResolver = std::function<std::optional<uint32>(FAssetHandle MaterialHandle, const FString& GroupName)>;
 
 public:
-	UMesh() = default; 
+	UMesh() = default;
 	~UMesh() = default;
 
 	UMesh(const UMesh&) = delete;
@@ -74,8 +74,8 @@ public:
 
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(UMesh, UAsset);
-	
-	bool Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver);
+
+	bool Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver, bool FlipUV);
 
 	template<CVertexAttributeView... TAttributes>
 	bool Make(ID3D11Device* Device, const std::span<const uint32>& InIndices, const TAttributes&... InAttributes) {

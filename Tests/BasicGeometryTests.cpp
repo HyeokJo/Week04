@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "doctest.h"
 
 #include "../Core/Asset/BasicGeometry/Capsule.h"
@@ -10,6 +10,11 @@
 #include "../Core/Asset/BasicGeometry/Pyramid.h"
 #include "../Core/Asset/BasicGeometry/Sphere.h"
 #include "../Core/Asset/BasicGeometry/Torus.h"
+#include "../Core/Asset/FAssetRegistry.h"
+#include "../Core/Asset/FObjImporter.h"
+
+#include <filesystem>
+#include <fstream>
 
 namespace {
 	template<typename TPositions>
@@ -47,6 +52,78 @@ namespace {
 		});
 		CHECK(MaximumExtent == doctest::Approx(1.0f).epsilon(0.00001));
 	}
+}
+
+TEST_CASE("Asset metadata controls OBJ UV conversion") {
+    const std::filesystem::path TemporaryDirectory{ std::filesystem::temp_directory_path() / FGuid::NewGuid().ToString().c_str() };
+    REQUIRE(std::filesystem::create_directories(TemporaryDirectory));
+
+    const std::filesystem::path MeshPath{ TemporaryDirectory / "Mesh.bin" };
+    const std::filesystem::path MeshMetadataPath{ TemporaryDirectory / "Mesh.bin.meta" };
+    const std::filesystem::path ObjPath{ TemporaryDirectory / "Mesh.obj" };
+    const FString MeshGuid{ FGuid::NewGuid().ToString() };
+
+    {
+        std::ofstream MeshFile{ MeshPath, std::ios::binary };
+        std::ofstream MetadataFile{ MeshMetadataPath };
+        std::ofstream ObjFile{ ObjPath };
+        MetadataFile << "{\"Guid\":\"" << MeshGuid.c_str() << "\",\"FlipUV\":true}";
+        ObjFile << "v 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0.2 0.25\nvt 0.8 0.25\nvt 0.2 0.75\nvn 0 0 1\nf 1/1/1 2/2/1 3/3/1\n";
+    }
+
+    FAssetRegistry Registry{};
+    REQUIRE(Registry.DiscoverAssets(TemporaryDirectory));
+    REQUIRE(Registry.GetAssetEntries().size() == 1);
+    CHECK(Registry.GetAssetEntries().front().mMeshMetadata.mFlipUV);
+
+    {
+        std::ofstream MetadataFile{ MeshMetadataPath, std::ios::trunc };
+        MetadataFile << "{\"Guid\":\"" << MeshGuid.c_str() << "\",\"FlipUV\":false}";
+    }
+
+    FAssetRegistry UnflippedRegistry{};
+    REQUIRE(UnflippedRegistry.DiscoverAssets(TemporaryDirectory));
+    REQUIRE(UnflippedRegistry.GetAssetEntries().size() == 1);
+    CHECK_FALSE(UnflippedRegistry.GetAssetEntries().front().mMeshMetadata.mFlipUV);
+
+    FObjImporter Importer{};
+    FGeometry UnflippedGeometry{};
+    FGeometry FlippedGeometry{};
+    REQUIRE(Importer.LoadObjFile(ObjPath.string().c_str(), UnflippedGeometry, UnflippedRegistry.GetAssetEntries().front().mMeshMetadata.mFlipUV));
+    REQUIRE(Importer.LoadObjFile(ObjPath.string().c_str(), FlippedGeometry, Registry.GetAssetEntries().front().mMeshMetadata.mFlipUV));
+    REQUIRE(UnflippedGeometry.TexCoords.size() == 3);
+    REQUIRE(FlippedGeometry.TexCoords.size() == UnflippedGeometry.TexCoords.size());
+
+    for (size_t Index{ 0 }; Index < UnflippedGeometry.TexCoords.size(); ++Index) {
+        CHECK(FlippedGeometry.TexCoords[Index].x == doctest::Approx(UnflippedGeometry.TexCoords[Index].x));
+        CHECK(FlippedGeometry.TexCoords[Index].y == doctest::Approx(1.0f - UnflippedGeometry.TexCoords[Index].y));
+    }
+
+    const std::filesystem::path SystemMeshDirectory{ TemporaryDirectory / "System" / "Mesh" };
+    REQUIRE(std::filesystem::create_directories(SystemMeshDirectory));
+    {
+        std::ofstream SystemMeshFile{ SystemMeshDirectory / "SkyDome.bin", std::ios::binary };
+        std::ofstream ExternalMeshFile{ TemporaryDirectory / "External.bin", std::ios::binary };
+    }
+
+    FAssetRegistry DefaultRegistry{};
+    REQUIRE(DefaultRegistry.DiscoverAssets(TemporaryDirectory));
+    bool FoundSystemMesh{ false };
+    bool FoundExternalMesh{ false };
+    for (const FAssetEntry& Entry : DefaultRegistry.GetAssetEntries()) {
+        if (Entry.AssetPath.Path == "/Game/System/Mesh/SkyDome.bin") {
+            FoundSystemMesh = true;
+            CHECK_FALSE(Entry.mMeshMetadata.mFlipUV);
+        }
+        else if (Entry.AssetPath.Path == "/Game/External.bin") {
+            FoundExternalMesh = true;
+            CHECK_FALSE(Entry.mMeshMetadata.mFlipUV);
+        }
+    }
+    CHECK(FoundSystemMesh);
+    CHECK(FoundExternalMesh);
+
+    std::filesystem::remove_all(TemporaryDirectory);
 }
 
 TEST_SUITE("Basic Geometry Tests") {

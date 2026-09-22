@@ -18,14 +18,8 @@
 #include "../../TObjectIterator.h"
 
 
-void FControlPanel::DrawPanel()  
-{
+void FControlPanel::DrawPanel() {
     // 전역 메뉴 바는 뷰포트의 상단에 고정되며 도킹 레이아웃의 일부가 아니다.
-    if (!ImGui::BeginMainMenuBar())
-    {
-        return;
-    }
-
     const char* PrimitiveMeshTypes[] =
     {
         "/Game/System/Mesh/Cube.bin", "/Game/System/Mesh/Sphere.bin",
@@ -284,10 +278,16 @@ void FControlPanel::DrawPanel()
 
         if (ImGui::BeginMenu("Grid"))
         {
-            float GridSize{ EditorContext->GetEditorSettings().GridSize };
+            const FEditorSettings Settings{ EditorContext->GetEditorSettings() };
+            float GridSize{ Settings.GridSize };
             if (ImGui::SliderFloat("GridSize", &GridSize, 0.1f, 100.0f))
             {
                 EditorContext->SetGridSize(GridSize);
+            }
+            bool GridSnapEnabled{ Settings.mGridSnapEnabled };
+            if (ImGui::Checkbox("Snap to Grid", &GridSnapEnabled))
+            {
+                EditorContext->SetGridSnapEnabled(GridSnapEnabled);
             }
             ImGui::EndMenu();
         }
@@ -358,18 +358,13 @@ void FControlPanel::DrawPanel()
          
     }
 
-    // 남은 공간의 오른쪽 끝에 성능 정보를 고정한다.
-    const char* FpsText = "FPS: %.1f";
-    const float FpsWidth = ImGui::CalcTextSize("FPS: 000.0").x;
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - FpsWidth - ImGui::GetStyle().WindowPadding.x);
-    ImGui::Text(FpsText, ImGui::GetIO().Framerate);
 
 
 
 
    
 
-    ImGui::EndMainMenuBar();
+    // 남은 공간의 오른쪽 끝에 성능 정보를 고정한다.
 }
 
 

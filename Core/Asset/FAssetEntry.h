@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "FAssetHandle.h"
 #include "FAssetPath.h"
@@ -16,10 +16,13 @@ enum class EAssetType : uint8 {
     END
 };
 
-struct TextureMetaData
-{
-    bool MakeDDS = true;
-    bool GenerateMipMap = true;
+struct FTextureMetadata {
+    bool mMakeDDS{ true };
+    bool mGenerateMipMap{ true };
+};
+
+struct FMeshMetadata {
+    bool mFlipUV{ false };
 };
 
 struct FAssetEntry {
@@ -30,8 +33,6 @@ struct FAssetEntry {
     EAssetType AssetType{ EAssetType::END };
     FAssetHandle Handle{};
     std::unique_ptr<UAsset> Asset{};
-    union
-    {
-        TextureMetaData TextureData;
-    };
+    FTextureMetadata mTextureMetadata{};
+    FMeshMetadata mMeshMetadata{};
 };

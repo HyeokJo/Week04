@@ -4,6 +4,7 @@
 
 #include "../../ErrorHandler.h"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 
@@ -53,6 +54,14 @@ void FLineRenderer::Reset() {
 }
 
 void FLineRenderer::AddLine(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels, ELineDepthMode DepthMode) {
+	AddLineInternal(Start, End, Color, WidthPixels, DepthMode, 0.0f);
+}
+
+void FLineRenderer::AddGridLine(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels, float GridSpacing, ELineDepthMode DepthMode) {
+	AddLineInternal(Start, End, Color, WidthPixels, DepthMode, GridSpacing);
+}
+
+void FLineRenderer::AddLineInternal(const FVector3& Start, const FVector3& End, const FVector4& Color, float WidthPixels, ELineDepthMode DepthMode, float GridSpacing) {
 	if (WidthPixels <= 0.0f || (End - Start).LengthSquared() <= 0.0f) {
 		return;
 	}
@@ -61,7 +70,7 @@ void FLineRenderer::AddLine(const FVector3& Start, const FVector3& End, const FV
 
 	Batch.Instances.emplace_back(FLineInstance{
 		.StartAndWidth = FVector4{ Start.x, Start.y, Start.z, WidthPixels },
-		.EndAndPadding = FVector4{ End.x, End.y, End.z, 0.0f },
+		.EndAndPadding = FVector4{ End.x, End.y, End.z, GridSpacing },
 		.Color = Color
 	});
 }
@@ -90,11 +99,12 @@ void FLineRenderer::Render(ID3D11DeviceContext* Context, const FLineViewData& Vi
 			ViewData.ViewportSize.y,
 			1.0f / ViewData.ViewportSize.x,
 			1.0f / ViewData.ViewportSize.y
-		}
+		},
+		.GridFade = ViewData.GridFade
 	};
 
 	ErrorHandler::Report(not FrameConstants.SetGraphicsRoot32BitConstants(Constants), "[ FLineRenderer ]", "Failed to set frame constants.", ErrorHandler::EErrorLevel::Critical);
-	ErrorHandler::Report(not FrameConstants.Bind(Context, 0, EGraphicsShaderStage::Vertex), "[ FLineRenderer ]", "Failed to bind frame constants.", ErrorHandler::EErrorLevel::Critical);
+	ErrorHandler::Report(not FrameConstants.Bind(Context, 0, EGraphicsShaderStage::Vertex | EGraphicsShaderStage::Pixel), "[ FLineRenderer ]", "Failed to bind frame constants.", ErrorHandler::EErrorLevel::Critical);
 
 	ErrorHandler::Report(not RenderBatch(Device, Context, DepthTestedBatch, DepthTestedPipeline.get()), "[ FLineRenderer ]", "Failed to render depth-tested lines.", ErrorHandler::EErrorLevel::Critical);
 	ErrorHandler::Report(not RenderBatch(Device, Context, OverlayBatch, OverlayPipeline.get()), "[ FLineRenderer ]", "Failed to render overlay lines.", ErrorHandler::EErrorLevel::Critical);
@@ -196,7 +206,7 @@ bool FLineRenderer::RenderBatch(ID3D11Device* InDevice, ID3D11DeviceContext* Con
 	const uint32 InstanceCount = static_cast<uint32>(Batch.Instances.size());
 	const uint32 InstanceByteSize = static_cast<uint32>(InstanceCount * sizeof(FLineInstance));
 
-	if (not EnsureCapacity(InDevice, Batch, InstanceCount) or /* -> */ not Batch.InstanceBuffer.WriteDiscard(Context, Batch.Instances.data(), InstanceByteSize)) {
+	if (not EnsureCapacity(InDevice, Batch, InstanceCount) or not Batch.InstanceBuffer.WriteDiscard(Context, Batch.Instances.data(), InstanceByteSize)) {
 		return false;
 	}
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "FMaterialGroup.h"
 #include "UMaterial.h"
@@ -29,7 +29,8 @@ public:
 	uint32 GetGPUDataCount() const override { return Groups.empty() ? 1 : static_cast<uint32>(Groups.size()); }
 	std::optional<uint32> FindGroupIndex(const FString& Name) const override;
 
-	const TArray<FMaterialGroup>& GetGroups() const { return Groups; }
+	const TArray<FMaterialGroup>& GetGroups() const;
+	bool ModifyGroup(uint32 GroupIndex, const std::function<void(FMaterialGroup&)>& Modifier);
 
 protected:
 	void Serialize(FArchive& Ar) override;

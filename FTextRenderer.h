@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <d3d11.h>
 
@@ -19,9 +19,11 @@ private:
 		FMatrix ViewwProjection{};
 		FMatrix CameraWorld{};
 		FVector4 Color{ 1.0f,1.0f,1.0f,1.0f };
+		FVector3 mScreenBoundsExtent{};
+		float mScreenUpPadding{};
 	};
 
-	static_assert(sizeof(FTextConstants) == sizeof(uint32_t) * 52);
+	static_assert(sizeof(FTextConstants) == sizeof(uint32_t) * 56);
 public:
 	bool Initialize(ID3D11Device* InDevice, uint32_t InitialCapacity = 256);
 	void Render(ID3D11DeviceContext* Context, const TArray<FTextProbe>& TextProbes, const CameraProbe& Camera, FAssetRegistry* AssetRegistry);
@@ -30,5 +32,5 @@ private:
 	ID3D11Device* Device = nullptr;
 	FGraphicsBuffer VertexBuffer{};
 	uint32_t VertexCapacity = 0;
-	TGraphicsRootConstants<52> TextConstants{};
+	TGraphicsRootConstants<56> TextConstants{};
 };

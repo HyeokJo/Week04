@@ -92,6 +92,98 @@
                 }
             ],
             "GuidRootComponent": "05584E92-427A-2633-F527-1884258E8D21"
+        },
+        {
+            "Guid": "F0F23F63-425C-0F06-CF69-51950B55F20C",
+            "TypeName": "AActor",
+            "Name": "AActor_1",
+            "Components": [
+                {
+                    "Guid": "C294277B-4C47-8F4B-0806-13A5B632DADC",
+                    "TypeName": "UStaticMeshComponent",
+                    "Name": "",
+                    "bActive": true,
+                    "Transform": {
+                        "Position": [
+                            -12.850276947021484,
+                            30.538219451904297,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "00000000-0000-0000-0000-000000000000",
+                    "bVisible": true,
+                    "MeshAssetGuid": "95933102-44D6-8DD5-B144-58B4E8D412C9",
+                    "MeshAssetPath": "/Game/Models/Mimikyu/Untitled.bin",
+                    "MaterialAssetGuid": "21AD3FCE-4B41-113E-AFAC-1EA18000D81D",
+                    "MaterialAssetPath": "/Game/Models/Mimikyu/Untitled.mtl",
+                    "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
+                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
+                },
+                {
+                    "Guid": "E4F6E2DA-4681-38E6-E9CE-B7B7109ED39D",
+                    "TypeName": "UNameTagComponent",
+                    "Name": "",
+                    "bActive": false,
+                    "Transform": {
+                        "Position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "bAbsoluteLocation": false,
+                        "bAbsoluteRotation": false,
+                        "bAbsoluteScale": false
+                    },
+                    "Parent": "C294277B-4C47-8F4B-0806-13A5B632DADC",
+                    "bVisible": true,
+                    "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
+                    "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
+                    "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
+                    "PipelineAssetPath": "/Game/Pipeline/Text.json",
+                    "Text": "F0F23F63-425C-0F06-CF69-51950B55F20C",
+                    "Color": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "CharacterHeight": 1.0,
+                    "LetterSpacing": 0.0,
+                    "LineSpacing": 0.0,
+                    "TargetActorGuid": "00000000-0000-0000-0000-000000000000",
+                    "TargetLocalOffset": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            ],
+            "GuidRootComponent": "C294277B-4C47-8F4B-0806-13A5B632DADC"
         }
     ]
 }

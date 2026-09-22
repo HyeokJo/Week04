@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "FAssetRegistry.h"
 
 #include "UFreeTypeFont.h"
@@ -228,16 +228,31 @@ FAssetHandle FAssetRegistry::ImportMesh(const std::filesystem::path& SourceObjPa
         return {};
     }
 
+    const std::filesystem::path TargetSidecarPath{ MakeSidecarPath(TargetBinaryPath) };
+    const bool SidecarExists{ std::filesystem::exists(TargetSidecarPath, ErrorCode) };
+    if (ErrorCode) {
+        return {};
+    }
+    FAssetEntry ImportEntry{};
+    if (!LoadOrCreateMetadata(TargetSidecarPath, EAssetType::Mesh, ImportEntry)) {
+        return {};
+    }
+
     FObjImporter Importer{};
     FGeometry Geometry{};
-    if (!Importer.LoadObjFile(AbsoluteSourcePath.string().c_str(), Geometry) || !FObjSerializer::SaveBinary(Geometry, TargetBinaryPath.string().c_str())) {
+    if (!Importer.LoadObjFile(AbsoluteSourcePath.string().c_str(), Geometry, ImportEntry.mMeshMetadata.mFlipUV) || !FObjSerializer::SaveBinary(Geometry, TargetBinaryPath.string().c_str())) {
         std::filesystem::remove(TargetBinaryPath, ErrorCode);
+        if (!SidecarExists) {
+            std::filesystem::remove(TargetSidecarPath, ErrorCode);
+        }
         return {};
     }
 
     if (!DiscoverAssetFile(TargetBinaryPath)) {
         std::filesystem::remove(TargetBinaryPath, ErrorCode);
-        std::filesystem::remove(MakeSidecarPath(TargetBinaryPath), ErrorCode);
+        if (!SidecarExists) {
+            std::filesystem::remove(TargetSidecarPath, ErrorCode);
+        }
         return {};
     }
 
@@ -248,7 +263,9 @@ FAssetHandle FAssetRegistry::ImportMesh(const std::filesystem::path& SourceObjPa
             RemoveAsset(Handle);
         }
         std::filesystem::remove(TargetBinaryPath, ErrorCode);
-        std::filesystem::remove(MakeSidecarPath(TargetBinaryPath), ErrorCode);
+        if (!SidecarExists) {
+            std::filesystem::remove(TargetSidecarPath, ErrorCode);
+        }
         return {};
     }
 
@@ -370,10 +387,8 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
     }
 
     const std::filesystem::path SidecarPath = MakeSidecarPath(FilePath);
-    FGuid PersistentGuid{};
-
     FAssetEntry Entry{};
-    if (!LoadOrCreatePersistentGuid(SidecarPath, PersistentGuid, Entry)) {
+    if (!LoadOrCreateMetadata(SidecarPath, AssetType, Entry)) {
         return false;
     }
 
@@ -388,16 +403,16 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
 			return true;
 		}
 
-		return RegisterDiscoveredAsset(MakeAssetPath(FamilyDirectory), FamilyDirectory, SidecarPath, PersistentGuid, AssetType, Entry);
+		return RegisterDiscoveredAsset(MakeAssetPath(FamilyDirectory), FamilyDirectory, SidecarPath, Entry.PersistentGuid, AssetType, Entry);
 	}
 
-	return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, SidecarPath, PersistentGuid, AssetType, Entry);
+	return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, SidecarPath, Entry.PersistentGuid, AssetType, Entry);
 }
 
 bool FAssetRegistry::LoadTexture(FAssetEntry& Entry, ID3D11Device* Device) {
-	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>(); 
+	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>();
 	Texture->SetAssetName(Entry.AssetPath.Path);
-	Texture->Initialize(Device, Entry.PhysicalPath, Entry.TextureData.MakeDDS, ETextureFormat::UNORM, Entry.TextureData.GenerateMipMap);
+	Texture->Initialize(Device, Entry.PhysicalPath, Entry.mTextureMetadata.mMakeDDS, ETextureFormat::UNORM, Entry.mTextureMetadata.mGenerateMipMap);
 
 	if (Texture->GetSRV() == nullptr) {
 		return false;
@@ -464,9 +479,9 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 	Mesh->SetAssetName(Entry.AssetPath.Path);
 
 	const bool bBinaryAsset = GetLowercaseExtension(Entry.PhysicalPath) == ".bin";
+
 	//const std::filesystem::path SourceObjPath = bBinaryAsset ? std::filesystem::path{} : Entry.PhysicalPath;
 	//const std::filesystem::path SourceObjPath = Entry.PhysicalPath;
-
     //OBJFiles 폴더에 원본 obj들 찾기
 	std::filesystem::path SourceObjPath = std::filesystem::current_path() / "OBJFiles" / Entry.PhysicalPath.filename();
     SourceObjPath.replace_extension(".obj");
@@ -486,7 +501,7 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 		[this](FAssetHandle MaterialHandle, const FString& GroupName) -> std::optional<uint32> {
 			const UMaterial* Material = ResolveAsset<UMaterial>(MaterialHandle);
 			return Material != nullptr ? Material->FindGroupIndex(GroupName) : std::nullopt;
-		});
+		}, Entry.mMeshMetadata.mFlipUV);
 
 	if (!bInitialized) {
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to load model: %s", Entry.PhysicalPath.generic_string().c_str());
@@ -505,6 +520,7 @@ bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const 
     }
 
     const FAssetHandle Handle = AllocateHandle();
+
     //FAssetEntry Entry{};
     Entry.AssetPath = AssetPath;
     Entry.PhysicalPath = PhysicalPath;
@@ -529,11 +545,14 @@ std::filesystem::path FAssetRegistry::MakeSidecarPath(const std::filesystem::pat
     return std::filesystem::path{ AssetPath.string() + ".meta" };
 }
 
-bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid, FAssetEntry& Entry) {
+bool FAssetRegistry::LoadOrCreateMetadata(const std::filesystem::path& SidecarPath, EAssetType AssetType, FAssetEntry& Entry) {
     if (std::filesystem::exists(SidecarPath)) {
-        std::ifstream Input(SidecarPath);
+        std::ifstream Input{ SidecarPath };
+        if (!Input.is_open()) {
+            return false;
+        }
         rapidjson::Document Document{};
-        rapidjson::IStreamWrapper Stream(Input);
+        rapidjson::IStreamWrapper Stream{ Input };
         Document.ParseStream(Stream);
 
         if (!Input.good() && !Input.eof()) {
@@ -544,38 +563,56 @@ bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& Sid
             return false;
         }
 
-        if (OutGuid.Parse(Document["Guid"].GetString()) && OutGuid.IsValid())
-        {
-            if (Document.HasMember("TextureFormat"))
-            {
-                Entry.TextureData.MakeDDS = Document["TextureFormat"].GetBool();
-            }
-
-            if (Document.HasMember("GenerateMipMap"))
-            {
-                Entry.TextureData.GenerateMipMap = Document["GenerateMipMap"].GetBool();
-            }
+        if (!Entry.PersistentGuid.Parse(Document["Guid"].GetString()) || !Entry.PersistentGuid.IsValid()) {
+            return false;
         }
 
+        if (AssetType == EAssetType::Texture) {
+            if (Document.HasMember("TextureFormat")) {
+                if (!Document["TextureFormat"].IsBool()) {
+                    return false;
+                }
+                Entry.mTextureMetadata.mMakeDDS = Document["TextureFormat"].GetBool();
+            }
+            if (Document.HasMember("GenerateMipMap")) {
+                if (!Document["GenerateMipMap"].IsBool()) {
+                    return false;
+                }
+                Entry.mTextureMetadata.mGenerateMipMap = Document["GenerateMipMap"].GetBool();
+            }
+        }
+        else if (AssetType == EAssetType::Mesh && Document.HasMember("FlipUV")) {
+            if (!Document["FlipUV"].IsBool()) {
+                return false;
+            }
+            Entry.mMeshMetadata.mFlipUV = Document["FlipUV"].GetBool();
+        }
         return true;
     }
 
-    OutGuid = FGuid::NewGuid();
-    if (!OutGuid.IsValid()) {
+    Entry.PersistentGuid = FGuid::NewGuid();
+    if (!Entry.PersistentGuid.IsValid()) {
         return false;
     }
 
     rapidjson::Document Document{};
     Document.SetObject();
     rapidjson::Document::AllocatorType& Allocator = Document.GetAllocator();
-    const FString GuidString = OutGuid.ToString();
+    const FString GuidString = Entry.PersistentGuid.ToString();
     Document.AddMember("Guid", rapidjson::Value(GuidString.c_str(), Allocator), Allocator);
+    if (AssetType == EAssetType::Texture) {
+        Document.AddMember("TextureFormat", Entry.mTextureMetadata.mMakeDDS, Allocator);
+        Document.AddMember("GenerateMipMap", Entry.mTextureMetadata.mGenerateMipMap, Allocator);
+    }
+    else if (AssetType == EAssetType::Mesh) {
+        Document.AddMember("FlipUV", Entry.mMeshMetadata.mFlipUV, Allocator);
+    }
 
     rapidjson::StringBuffer Buffer{};
     rapidjson::PrettyWriter<rapidjson::StringBuffer> Writer(Buffer);
     Document.Accept(Writer);
 
-    std::ofstream Output(SidecarPath, std::ios::binary | std::ios::trunc);
+    std::ofstream Output{ SidecarPath, std::ios::binary | std::ios::trunc };
     if (!Output.is_open()) {
         return false;
     }

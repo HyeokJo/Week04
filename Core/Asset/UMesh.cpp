@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "UMesh.h"
 
 #include "../Console/Console.h"
@@ -6,7 +6,7 @@
 #include "FObjImporter.h"
 #include "../../Serialize/FObjSerializer.h"
 
-bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver) {
+bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver, bool FlipUV) {
 	const std::filesystem::path& AssetPath = SourceObjPath.empty() ? BinaryPath : SourceObjPath;
 	if (!UAsset::Initialize(Device, AssetPath) || BinaryPath.empty()) {
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model load rejected: device or asset path is invalid.");
@@ -27,13 +27,13 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 		if (SourceObjPath.empty()) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to load standalone model binary: %s", BinaryPath.generic_string().c_str());
 			return false;
-		}  
+		}
 
 		if (bHasBinary) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "[UMesh] Failed to load model binary; Maybe Different Version. falling back to OBJ: %s", BinaryPath.generic_string().c_str());
 		}
 
-		if (!ObjImporter.LoadObjFile(SourceObjPath.string().c_str(), Geometry)) {
+		if (!ObjImporter.LoadObjFile(SourceObjPath.string().c_str(), Geometry, FlipUV)) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "[UMesh] Failed to import OBJ geometry: %s", SourceObjPath.generic_string().c_str());
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "[UMesh] Import Failed. Check Obj File Path : %s", SourceObjPath.generic_string().c_str());
 			return false;
@@ -46,7 +46,6 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[UMesh] Created model binary: %s", BinaryPath.generic_string().c_str());
 		}
 	}
-
 
 	if (bLoadedFromBinary && Geometry.SubMeshIndexCounts.empty() && !Geometry.Indices.empty()) {
 		Geometry.SubMeshIndexCounts.push_back(static_cast<uint32>(Geometry.Indices.size()));
@@ -187,7 +186,7 @@ bool UMesh::CreateIndexBuffer(ID3D11Device* Device, const std::span<const uint32
 		return false;
 	}
 
-	const size_t ByteSize = InIndices.size_bytes(); 
+	const size_t ByteSize = InIndices.size_bytes();
 
 	if (ByteSize > std::numeric_limits<UINT>::max()) {
 		return false;
