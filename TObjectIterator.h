@@ -15,6 +15,12 @@
 /// </summary>
 namespace UObjectSystem
 {
+    enum class ETypeMatch
+    {
+        Exact,
+        IncludeDerived
+    };
+
     // UObject에서 파생된 타입만 사용가능
     template<typename TObject> requires std::derived_from<TObject, UObject>
     class TObjectIterator
@@ -37,7 +43,7 @@ namespace UObjectSystem
             UObject* Object = UObjectSystem::Resolve(_Handle);
 
             if (_CurrentIndex == _EndIndex || Object == nullptr ||
-                !Object->GetTypeInfo()->isExactlyA(TObject::StaticTypeInfo()))
+                !Object->GetTypeInfo()->IsA(TObject::StaticTypeInfo()))
             {
                 ErrorHandler::Report("Refer Error!", "Does not refer to a live object", ErrorHandler::EErrorLevel::Critical);
             }
@@ -74,7 +80,7 @@ namespace UObjectSystem
                     UObject* Object = UObjectSystem::Resolve(Handle);
 
                     // 같은 타입인지
-                    if (Object != nullptr && Object->GetTypeInfo()->isExactlyA(TObject::StaticTypeInfo()))
+                    if (Object != nullptr && Object->GetTypeInfo()->IsA(TObject::StaticTypeInfo()))
                     {
                         _CurrentIndex = index;
                         _Handle = Handle;
@@ -129,8 +135,6 @@ namespace UObjectSystem
         }
 
 
-
-
     private:
         bool AdvanceToNextValidObject()
         {
@@ -139,7 +143,7 @@ namespace UObjectSystem
                 UObject* Object = UObjectSystem::Resolve(_Handle);
 
                 // 타입검사(완전히 같은 타입)
-                if (Object != nullptr && Object->GetTypeInfo()->isExactlyA(TObject::StaticTypeInfo()))
+                if (Object != nullptr && Object->GetTypeInfo()->IsA(TObject::StaticTypeInfo()))
                     return true;
 
                 ++_CurrentIndex; // 핵심: 타입이 다르거나 빈 슬롯이면 다음 인덱스로

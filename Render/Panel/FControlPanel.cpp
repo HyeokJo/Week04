@@ -15,6 +15,8 @@
 #include "../Pipeline/UPipeline.h"
 
 #include "../../Core/Console/Console.h"
+#include "../../TObjectIterator.h"
+
 
 void FControlPanel::DrawPanel()  
 {
@@ -167,22 +169,19 @@ void FControlPanel::DrawPanel()
             };
 
             std::map<FString, FComponentTypeState> ComponentsByType;
-            for (const std::unique_ptr<AActor>& Actor : World->GetActors())
+            for (UActorComponent& Component : UObjectSystem::Objects<UActorComponent>())
             {
-                if (Actor == nullptr)
+                AActor* Owner = Component.GetOwner();
+                if (Owner == nullptr || Owner->GetWorld() != World)
                 {
                     continue;
                 }
 
-                for (const std::unique_ptr<UActorComponent>& Component : Actor->GetComponents())
-                {
-                    if (Component != nullptr)
-                    {
-                        FComponentTypeState& TypeState = ComponentsByType[FString(Component->GetTypeInfo()->TypeName.data())];
-                        TypeState.Components.push_back(Component.get());
-                        TypeState.ActiveCount += Component->IsActive() ? 1 : 0;
-                    }
-                }
+                FComponentTypeState& TypeState =
+                    ComponentsByType[FString(Component.GetTypeInfo()->TypeName.data())];
+
+                TypeState.Components.push_back(&Component);
+                TypeState.ActiveCount += Component.IsActive() ? 1 : 0;
             }
 
             ComponentFilter.Draw("Search types##SceneComponents", 240.0f);
