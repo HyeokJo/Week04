@@ -6,14 +6,22 @@
 #include "FKeyboardInput.h"
 #include "FMouseInput.h"
 #include "ImGui/imgui.h"
+#include "Core/Asset/FAssetRegistry.h"
+#include "Core/Asset/UMesh.h"
 #include "Core/Base/FTransform.h"
+#include "Scene/AActor.h"
 #include "Scene/Component/UCameraComponent.h"
 #include "Scene/FWorldEditorContext.h"
+#include "Scene/Subsystem/UPickingSubsystem.h"
+#include "Scene/UWorld.h"
 
 #include "../../Core/Console/Console.h"
 
 namespace {
     constexpr float HalfSqrtTwo = 0.70710678118f;
+    constexpr float DefaultDropDistance = 10.0f;
+    constexpr float DropPlaneEpsilon = 0.000001f;
+    constexpr char StaticMeshAssetPayloadType[]{ "MACAW_STATIC_MESH_ASSET" };
 
     const char* GetOrthographicViewName(EOrthographicView View) {
         switch (View) {
@@ -119,6 +127,15 @@ bool FEditorViewport::Draw(const FRect& Rect, const ImVec2& MainViewportPosition
                 ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(ShaderResourceView), ImagePosition, ImVec2(ImagePosition.x + ImageSize.x, ImagePosition.y + ImageSize.y));
             }
 
+            if (ImGui::BeginDragDropTarget()) {
+                const ImGuiPayload* Payload{ ImGui::AcceptDragDropPayload(StaticMeshAssetPayloadType) };
+                if (Payload != nullptr && Payload->IsDelivery() && Payload->DataSize == sizeof(FAssetHandle)) {
+                    const FAssetHandle MeshHandle{ *static_cast<const FAssetHandle*>(Payload->Data) };
+                    bActivated = SpawnDroppedStaticMesh(MeshHandle, ImGui::GetMousePos()) || bActivated;
+                }
+                ImGui::EndDragDropTarget();
+            }
+
             bHovered = !bInputBlocked && ImGui::IsItemHovered();
             bActivated = bActivated || (bHovered && (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
         }
@@ -174,6 +191,86 @@ bool FEditorViewport::DrawMenuBar() {
 
     ImGui::EndMenuBar();
     return bActivated;
+}
+
+bool FEditorViewport::SpawnDroppedStaticMesh(FAssetHandle MeshHandle, const ImVec2& ScreenPosition) {
+    UWorld* World{ EditorContext != nullptr ? EditorContext->GetWorld() : nullptr };
+    FAssetRegistry* AssetRegistry{ World != nullptr ? World->GetAssetRegistry() : nullptr };
+    if (World == nullptr || AssetRegistry == nullptr || AssetRegistry->ResolveAsset<UMesh>(MeshHandle) == nullptr) {
+        return false;
+    }
+
+    FVector3 DropPosition{};
+    if (!TryCalculateDropPosition(ScreenPosition, DropPosition)) {
+        return false;
+    }
+
+    const FAssetHandle PipelineHandle{ AssetRegistry->EnsureDefaultStaticMeshPipeline() };
+    const FAssetHandle MaterialHandle{ AssetRegistry->EnsureDefaultStaticMeshMaterial() };
+    AActor* Actor{ World->SpawnActor(MeshHandle, PipelineHandle, MaterialHandle, DropPosition) };
+    if (Actor == nullptr) {
+        return false;
+    }
+
+    EditorContext->SetSelectedActor(Actor);
+    return true;
+}
+
+bool FEditorViewport::TryCalculateDropPosition(const ImVec2& ScreenPosition, FVector3& OutPosition) {
+    if (!bVisible || Width == 0 || Height == 0) {
+        return false;
+    }
+
+    CameraProbe Camera{};
+    if (!BuildCameraProbe(Camera)) {
+        return false;
+    }
+
+    const float NdcX{ 2.0f * (ScreenPosition.x - static_cast<float>(DisplayRect.Min.X)) / static_cast<float>(Width) - 1.0f };
+    const float NdcY{ 1.0f - 2.0f * (ScreenPosition.y - static_cast<float>(DisplayRect.Min.Y)) / static_cast<float>(Height) };
+    FMatrix InverseViewProjection{};
+    if (!Camera.ViewProjection.TryInverse(InverseViewProjection)) {
+        return false;
+    }
+
+    FVector3 RayOrigin{};
+    FVector3 RayEnd{};
+    if (!InverseViewProjection.TransformCoord({ NdcX, NdcY, 0.0f }, RayOrigin) || !InverseViewProjection.TransformCoord({ NdcX, NdcY, 1.0f }, RayEnd)) {
+        return false;
+    }
+
+    FVector3 RayDirection{ RayEnd - RayOrigin };
+    if (RayDirection.LengthSquared() <= DropPlaneEpsilon) {
+        return false;
+    }
+    RayDirection.Normalize();
+
+    UWorld* World{ EditorContext != nullptr ? EditorContext->GetWorld() : nullptr };
+    UPrimitiveComponent* HitComponent{};
+    float HitDistance{};
+    if (World != nullptr && World->GetPickingSubsystem().Raycast(FRay{ RayOrigin.ToSimpleMath(), RayDirection.ToSimpleMath() }, HitComponent, HitDistance)) {
+        OutPosition = RayOrigin + RayDirection * HitDistance;
+        return true;
+    }
+
+    if (ProjectionType == EProjectionType::Orthographic) {
+        const float TargetDistance{ (OrthographicTarget - RayOrigin).Dot(RayDirection) };
+        if (TargetDistance >= 0.0f) {
+            OutPosition = RayOrigin + RayDirection * TargetDistance;
+            return true;
+        }
+    }
+
+    if (std::abs(RayDirection.z) > DropPlaneEpsilon) {
+        const float GroundDistance{ -RayOrigin.z / RayDirection.z };
+        if (GroundDistance >= 0.0f && GroundDistance <= FarPlane) {
+            OutPosition = RayOrigin + RayDirection * GroundDistance;
+            return true;
+        }
+    }
+
+    OutPosition = RayOrigin + RayDirection * DefaultDropDistance;
+    return true;
 }
 
 void FEditorViewport::SetFocused(bool bInFocused) {

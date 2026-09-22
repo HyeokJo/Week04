@@ -17,6 +17,7 @@ namespace {
     constexpr float FolderPaneWidth = 190.0f;
     constexpr float ThumbnailSize = 96.0f;
     constexpr float TileWidth = ThumbnailSize + 18.0f;
+    constexpr char StaticMeshAssetPayloadType[]{ "MACAW_STATIC_MESH_ASSET" };
 
     FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN)
     {
@@ -331,6 +332,14 @@ void FAssetBrowserPanel::DrawAssetTile(const FAssetEntry& Entry) {
             }
 
         }
+    }
+
+    if (Entry.AssetType == EAssetType::Mesh && ImGui::BeginDragDropSource()) {
+        const FAssetHandle MeshHandle{ Entry.Handle };
+        ImGui::SetDragDropPayload(StaticMeshAssetPayloadType, &MeshHandle, sizeof(MeshHandle));
+        ImGui::TextUnformatted(AssetName);
+        ImGui::TextDisabled("Static Mesh");
+        ImGui::EndDragDropSource();
     }
 
     ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ThumbnailSize);

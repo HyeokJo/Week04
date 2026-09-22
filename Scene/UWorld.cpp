@@ -62,12 +62,21 @@ UWorld::~UWorld() {
 	DeinitializeSubsystems();
 }
 
-bool UWorld::SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, 
-						const FVector3& Position)
-{
-	auto Actor = UWorld::AdoptActor<AActor>();
+AActor* UWorld::SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& PipelineHandle, const FAssetHandle& MaterialHandle, const FVector3& Position) {
+	if (AssetRegistry == nullptr || AssetRegistry->ResolveAsset<UMesh>(MeshHandle) == nullptr) {
+		return nullptr;
+	}
 
-	UStaticMeshComponent* MeshComponent = Actor->AddComponent<UStaticMeshComponent>();
+	AActor* Actor{ UWorld::AdoptActor<AActor>() };
+	if (Actor == nullptr) {
+		return nullptr;
+	}
+
+	UStaticMeshComponent* MeshComponent{ Actor->AddComponent<UStaticMeshComponent>() };
+	if (MeshComponent == nullptr) {
+		DestroyActor(Actor);
+		return nullptr;
+	}
 	Actor->SetRootComponent(MeshComponent);
 
 	MeshComponent->SetMeshHandle(MeshHandle);
@@ -81,19 +90,18 @@ bool UWorld::SpawnActor(const FAssetHandle& MeshHandle, const FAssetHandle& Pipe
 			Position.z
 		});
 	
-	UNameTagComponent* NameTagComponent = Actor->AddComponent<UNameTagComponent>();
+	UNameTagComponent* NameTagComponent{ Actor->AddComponent<UNameTagComponent>() };
 	NameTagComponent->AttachToComponent(MeshComponent);
 	NameTagComponent->SetTargetActor(nullptr);
 	NameTagComponent->SetTargetLocalOffset(NameTagComponent->GetTargetLocalOffset());
 	NameTagComponent->SetVisible(true);
 	NameTagComponent->SetActive(false);
-	if (AssetRegistry != nullptr)
-	{
+	if (AssetRegistry != nullptr) {
 		NameTagComponent->SetPipelineHandle(AssetRegistry->FindAsset(FAssetPath{ "/Game/Pipeline/Text.json" }));
 		NameTagComponent->SetFontHandle(AssetRegistry->FindAsset(FAssetPath{ "/Game/Font/NotoSansKR-Medium.ttf" }));
 	}
 
-	return true;
+	return Actor;
 }
 
 bool UWorld::DestroyActor(AActor* Actor)

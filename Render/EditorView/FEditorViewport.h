@@ -44,6 +44,8 @@ public:
 
 private:
     bool DrawMenuBar();
+    bool SpawnDroppedStaticMesh(FAssetHandle MeshHandle, const ImVec2& ScreenPosition);
+    bool TryCalculateDropPosition(const ImVec2& ScreenPosition, FVector3& OutPosition);
     void ApplyOrthographicView();
     const char* GetViewModeName() const;
     void ResizeRenderSurface();
