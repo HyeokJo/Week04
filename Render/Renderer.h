@@ -96,4 +96,8 @@ private:
 	uint32 FrameLightCount = 0;
 	uint32 BackBufferWidth = 0;
 	uint32 BackBufferHeight = 0;
+
+	//VAT current time 계산용(임시)
+	float CountTime = 0.f;
+	uint32 CurrentFrame = 0;
 };

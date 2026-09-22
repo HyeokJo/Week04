@@ -397,7 +397,7 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
 bool FAssetRegistry::LoadTexture(FAssetEntry& Entry, ID3D11Device* Device) {
 	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>(); 
 	Texture->SetAssetName(Entry.AssetPath.Path);
-	Texture->Initialize(Device, Entry.PhysicalPath, Entry.TextureData.MakeDDS);
+	Texture->Initialize(Device, Entry.PhysicalPath, Entry.TextureData.MakeDDS, ETextureFormat::UNORM, Entry.TextureData.GenerateMipMap);
 
 	if (Texture->GetSRV() == nullptr) {
 		return false;
@@ -549,6 +549,11 @@ bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& Sid
             if (Document.HasMember("TextureFormat"))
             {
                 Entry.TextureData.MakeDDS = Document["TextureFormat"].GetBool();
+            }
+
+            if (Document.HasMember("GenerateMipMap"))
+            {
+                Entry.TextureData.GenerateMipMap = Document["GenerateMipMap"].GetBool();
             }
         }
 

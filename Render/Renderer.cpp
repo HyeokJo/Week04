@@ -10,6 +10,13 @@
 #include <range/v3/view/chunk_by.hpp>
 
 
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_internal.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
+
+#include "../Core/Console/Console.h"
+
 
 
 FRenderer::~FRenderer() = default;
@@ -39,7 +46,7 @@ bool FRenderer::Initialize() {
 
 void FRenderer::BeginUiRender() {
 	BackBufferSurface->Bind(DeviceContext.Get());
-	BackBufferSurface->Clear(DeviceContext.Get(), UiClearColor);
+	BackBufferSurface->Clear(DeviceContext.Get(), UiClearColor); 
 }
 
 void FRenderer::BindSamplerStates() {
@@ -48,6 +55,7 @@ void FRenderer::BindSamplerStates() {
 		return Sampler.Get();
 		});
 	DeviceContext->PSSetSamplers(0, static_cast<UINT>(RawSamplerStates.size()), RawSamplerStates.data());
+	DeviceContext->VSSetSamplers(0, static_cast<UINT>(RawSamplerStates.size()), RawSamplerStates.data());
 }
 
 void FRenderer::EndFrame() {
@@ -279,6 +287,7 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 
 			
 			DeviceContext->PSSetShaderResources(3, static_cast<UINT>(TextureSRVs.size()), TextureSRVs.data());
+			DeviceContext->VSSetShaderResources(3, static_cast<UINT>(TextureSRVs.size()), TextureSRVs.data());
 
 
 			BoundTextureSet = Signature;
@@ -307,6 +316,23 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 		DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 		RootConstants.SetGraphicsRoot32BitConstant(InstanceCount, 48);
+
+		//current frame 업데이트
+		if (ImGui::GetCurrentContext() != nullptr)
+		{
+			auto& io = ImGui::GetIO();
+			float DT = io.DeltaTime;
+			CountTime += DT;
+			//Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "%f", DT);
+			if (CountTime >= 0.05f)
+			{
+				CurrentFrame = (CurrentFrame + 1) % 250;
+				CountTime = 0.f;
+			}
+		}
+
+		//Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "%d", CurrentFrame);
+		RootConstants.SetGraphicsRoot32BitConstant(CurrentFrame, 50);
 
 		RootConstants.Commit(DeviceContext.Get());
 

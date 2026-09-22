@@ -19,6 +19,7 @@ enum class EAssetType : uint8 {
 struct TextureMetaData
 {
     bool MakeDDS = true;
+    bool GenerateMipMap = true;
 };
 
 struct FAssetEntry {
