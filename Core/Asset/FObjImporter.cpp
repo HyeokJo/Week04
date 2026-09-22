@@ -331,6 +331,8 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	const TArray<FVector2>& FaceUVs = ObjInfo.UVs;
 	const TArray<FVector>& FaceNormals = ObjInfo.Normals;
 
+	constexpr float ConvexityEpsilon = 1e-5f;
+
 	//모든 Face Vertex 들
 	//복사본으로 순회한다.
 	for (auto FaceVertics : ObjInfo.FaceVertices_Polygon)
@@ -356,11 +358,11 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		//다각형 가운데 삼각형이 있다면 size가 3이므로 while문 종료
 		while(FaceVertics.size() > 3 && FaceVertexIndex < FaceVertics.size())
 		{
-			/*LoopCount++;
-			if (LoopCount > FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount)
+			LoopCount++;
+			if (LoopCount > FaceVerticesCount * FaceVerticesCount)
 			{
-				int a = 0;
-			}*/
+				break;
+			}
 
 			//인덱스
 			int32 PrevIndex = FaceVertexIndex% FaceVertics.size();
@@ -388,13 +390,17 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 			FVector Vector_1 = FacePositions[CurrentPositionIndex] - FacePositions[PrevPositionIndex];
 			FVector Vector_2 = FacePositions[NextPositionIndex] - FacePositions[CurrentPositionIndex];
 			
+			Vector_1.Normalize();
+			Vector_2.Normalize();
+
 			FVector CrossVector = Vector_1.Cross(Vector_2);
+			CrossVector.Normalize();
 			//Vector_1 = Vector_1.Cross(Vector_2);
 
 			float DotResult = CrossVector.Dot(FaceNormal);
 
 			//내적값이 음수라면 오목
-			if (DotResult < 0)
+			if (DotResult < -ConvexityEpsilon)
 			{
 				FaceVertexIndex = (FaceVertexIndex + 1) % FaceVertics.size();
 				Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[Load OBJ File] Has Concave Vertex");
@@ -421,10 +427,17 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 				FVector O_CVector = FacePositions[NormalizeIndex(OtherVertex.PositionIndex, PositionCount)] - FacePositions[CurrentPositionIndex];
 				FVector O_NVector = FacePositions[NormalizeIndex(OtherVertex.PositionIndex, PositionCount)] - FacePositions[NextPositionIndex];
 
+				C_PVector.Normalize();
+				N_CVector.Normalize();
+				P_NVector.Normalize();
+				O_PVector.Normalize();
+				O_CVector.Normalize();
+				O_NVector.Normalize();
+
 				//다른 정점들을 순회하다가 내부에 있는 정점이 나온다면 중단
-				if (C_PVector.Cross(O_PVector).Dot(FaceNormal) > 0 &&
-					N_CVector.Cross(O_CVector).Dot(FaceNormal) > 0 &&
-					P_NVector.Cross(O_NVector).Dot(FaceNormal) > 0)
+				if (C_PVector.Cross(O_PVector).Dot(FaceNormal) > ConvexityEpsilon &&
+					N_CVector.Cross(O_CVector).Dot(FaceNormal) > ConvexityEpsilon &&
+					P_NVector.Cross(O_NVector).Dot(FaceNormal) > ConvexityEpsilon)
 				{
 					OtherVertexCheck = true;
 					break;
@@ -449,11 +462,27 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 			FaceVertics.erase(FaceVertics.begin() + (FaceVertexIndex + 1) % FaceVertics.size());
 		}
 
-		//남은 삼각형 1개만 남았다. 순서대로 입력
-		for (auto& Face : FaceVertics)
+		//매우 작은 마이크로 쿼드와 같은 케이스에서는 Ear Clipping을 통과하지 못하고 무한 루프에 걸린다.
+		//일정 수치 반복하면 break로 탈출하여 이쪽으로 오게된다.
+		//여기까지 왔는데도 아직 3개보다 많다면 트라이앵글레이션으로 처리한다.
+		if (FaceVertics.size() > 3)
 		{
-			AddPNTIArray(Face, ObjInfo, OutGeometry, VertexCache);
+			for (size_t i = 1; i + 1 < FaceVertics.size(); i++) 
+			{
+				AddPNTIArray(FaceVertics[0], ObjInfo, OutGeometry, VertexCache);
+				AddPNTIArray(FaceVertics[i], ObjInfo, OutGeometry, VertexCache);
+				AddPNTIArray(FaceVertics[i + 1], ObjInfo, OutGeometry, VertexCache);
+			}
 		}
+		else
+		{
+			//남은 삼각형 1개만 남았다. 순서대로 입력
+			for (auto& Face : FaceVertics)
+			{
+				AddPNTIArray(Face, ObjInfo, OutGeometry, VertexCache);
+			}
+		}
+		
 
 		const size_t GeneratedIndexCount = OutGeometry.Indices.size() - FirstGeneratedIndex;
 

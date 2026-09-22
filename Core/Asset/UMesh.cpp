@@ -27,7 +27,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 		if (SourceObjPath.empty()) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to load standalone model binary: %s", BinaryPath.generic_string().c_str());
 			return false;
-		}
+		}  
 
 		if (bHasBinary) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "[UMesh] Failed to load model binary; Maybe Different Version. falling back to OBJ: %s", BinaryPath.generic_string().c_str());
