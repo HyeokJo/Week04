@@ -25,6 +25,9 @@ void FAssetThumbnailRenderer::Create(FRenderer* InRenderer, FAssetRegistry* InAs
 		return;
 	}
 
+	mPendingAssetHandles.clear();
+	mPendingAssetIndex = 0;
+
 	for (const FAssetEntry& Entry : AssetRegistry->GetAssetEntries()) {
 		if (Entry.Asset == nullptr) {
 			continue;
@@ -34,7 +37,22 @@ void FAssetThumbnailRenderer::Create(FRenderer* InRenderer, FAssetRegistry* InAs
 			continue;
 		}
 
-		RenderThumbnail(Entry);
+		mPendingAssetHandles.push_back(Entry.Handle);
+	}
+}
+
+void FAssetThumbnailRenderer::Tick(uint32 MaxThumbnailCount) {
+	uint32 RenderedThumbnailCount{};
+
+	while (mPendingAssetIndex < mPendingAssetHandles.size() && RenderedThumbnailCount < MaxThumbnailCount) {
+		RenderThumbnail(mPendingAssetHandles[mPendingAssetIndex]);
+		++mPendingAssetIndex;
+		++RenderedThumbnailCount;
+	}
+
+	if (mPendingAssetIndex == mPendingAssetHandles.size()) {
+		mPendingAssetHandles.clear();
+		mPendingAssetIndex = 0;
 	}
 }
 
@@ -134,6 +152,8 @@ void FAssetThumbnailRenderer::Terminate() {
 	}
 
 	Thumbnails.clear();
+	mPendingAssetHandles.clear();
+	mPendingAssetIndex = 0;
 
 	Renderer = nullptr;
 	AssetRegistry = nullptr;

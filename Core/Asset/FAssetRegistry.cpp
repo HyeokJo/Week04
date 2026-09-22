@@ -35,26 +35,34 @@ FString GetLowercaseExtension(const std::filesystem::path& FilePath) {
 }
 }
 
-bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount) {
+bool FAssetRegistry::Initialize(ID3D11Device* Device, uint32 MaxMaterialCount, const FProgressCallback& ProgressCallback) {
     if (Device == nullptr || !MaterialBuffer.Initialize(Device, MaxMaterialCount)) {
         return false;
 	}
 
 	this->Device = Device;
+	if (ProgressCallback) {
+		ProgressCallback(0.0f, "Discovering assets");
+	}
 
 	if (!DiscoverAssets(std::filesystem::current_path() / "Content")) {
 		return false;
 	}
 
-	if (!LoadAssetsOfType(Device, EAssetType::Texture) ||
-		!LoadAssetsOfType(Device, EAssetType::Font) ||
-		!LoadAssetsOfType(Device, EAssetType::Pipeline) ||
-		!LoadAssetsOfType(Device, EAssetType::Material) ||
-		!LoadAssetsOfType(Device, EAssetType::Mesh)) {
-		return false;
+	const size_t TotalAssetCount{ static_cast<size_t>(std::ranges::count_if(Assets, [](const FAssetEntry& Entry) { return Entry.AssetType != EAssetType::END && Entry.Asset == nullptr; })) };
+	size_t LoadedAssetCount{};
+	const std::array AssetTypes{ EAssetType::Texture, EAssetType::Font, EAssetType::Pipeline, EAssetType::Material, EAssetType::Mesh };
+	bool LoadedAllAssets{ true };
+
+	for (const EAssetType AssetType : AssetTypes) {
+		LoadedAllAssets = LoadAssetsOfType(Device, AssetType, LoadedAssetCount, TotalAssetCount, ProgressCallback) && LoadedAllAssets;
 	}
 
-	return EnsureSystemAssets();
+	if (ProgressCallback) {
+		ProgressCallback(1.0f, "Validating system assets");
+	}
+
+	return EnsureSystemAssets() && LoadedAllAssets;
 }
 
 bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
@@ -90,6 +98,11 @@ bool FAssetRegistry::DiscoverAssets(const std::filesystem::path& Directory) {
 }
 
 bool FAssetRegistry::LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType) {
+	size_t LoadedAssetCount{};
+	return LoadAssetsOfType(Device, AssetType, LoadedAssetCount, 0, {});
+}
+
+bool FAssetRegistry::LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType, size_t& LoadedAssetCount, size_t TotalAssetCount, const FProgressCallback& ProgressCallback) {
 	if (Device == nullptr) {
 		return false;
 	}
@@ -99,6 +112,13 @@ bool FAssetRegistry::LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType
 	for (FAssetEntry& Entry : Assets) {
 		if (Entry.AssetType != AssetType || Entry.Asset != nullptr) {
 			continue;
+		}
+
+		std::string Status{ "Loading " };
+		Status += Entry.AssetPath.Path.c_str();
+		if (ProgressCallback) {
+			const float Progress{ TotalAssetCount == 0 ? 0.0f : static_cast<float>(LoadedAssetCount) / static_cast<float>(TotalAssetCount) };
+			ProgressCallback(Progress, Status);
 		}
 
 		bool bLoaded = false;
@@ -120,6 +140,12 @@ bool FAssetRegistry::LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType
 		}
 
 		bLoadedAll = bLoadedAll && bLoaded;
+		++LoadedAssetCount;
+
+		if (ProgressCallback) {
+			const float Progress{ TotalAssetCount == 0 ? 1.0f : static_cast<float>(LoadedAssetCount) / static_cast<float>(TotalAssetCount) };
+			ProgressCallback(Progress, Status);
+		}
 	}
 
 	return bLoadedAll;

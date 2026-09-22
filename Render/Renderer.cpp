@@ -12,31 +12,29 @@
 
 
 
-FRenderer::~FRenderer() {
+FRenderer::~FRenderer() = default;
 
-}
-
-void FRenderer::Create(HWND WindowHandle, UINT width, UINT height) {
-	BackBufferWidth = width;
-	BackBufferHeight = height;
+void FRenderer::Create(HWND WindowHandle, UINT Width, UINT Height) {
+	BackBufferWidth = Width;
+	BackBufferHeight = Height;
 
 	FRenderer::CreateDeviceAndSwapChain(WindowHandle);
-	auto BackBuffer = std::make_unique<FSceneRenderSurface>();
+	auto BackBuffer{ std::make_unique<FSceneRenderSurface>() };
 	BackBuffer->InitializeSwapChain(Device.Get(), SwapChain.Get());
 	BackBufferSurface = std::move(BackBuffer);
-
-	FRenderer::CreateSamplerStates();
-
-	ModelContextArray.Initialize(Device.Get(), DeviceContext.Get(), 128);
-	LightContextArray.Initialize(Device.Get(), DeviceContext.Get(), 16);
-	FrameContexts.reserve(128);
-	RootConstants.Initialize(Device.Get());
-	TextRenderer.Initialize(Device.Get(),256);
-	BillboardRenderer.Initialize(Device.Get(), 64);
 
 #ifdef _DEBUG
 	Device.As(&DebugInterface);
 #endif
+}
+
+bool FRenderer::Initialize() {
+	if (!CreateSamplerStates() || !ModelContextArray.Initialize(Device.Get(), DeviceContext.Get(), 128) || !LightContextArray.Initialize(Device.Get(), DeviceContext.Get(), 16) || !RootConstants.Initialize(Device.Get()) || !TextRenderer.Initialize(Device.Get(), 256) || !BillboardRenderer.Initialize(Device.Get(), 64)) {
+		return false;
+	}
+
+	FrameContexts.reserve(128);
+	return true;
 }
 
 void FRenderer::BeginUiRender() {
@@ -54,6 +52,18 @@ void FRenderer::BindSamplerStates() {
 
 void FRenderer::EndFrame() {
 	SwapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+}
+
+ID3D11Device* FRenderer::GetDevice() const {
+	return Device.Get();
+}
+
+ID3D11DeviceContext* FRenderer::GetDeviceContext() const {
+	return DeviceContext.Get();
+}
+
+void FRenderer::BindAssetRegistry(FAssetRegistry* InAssetRegistry) {
+	AssetRegistry = InAssetRegistry;
 }
 
 void FRenderer::RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera, const FRenderSettings& Settings) {
@@ -306,15 +316,15 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 	}
 }
 
-void FRenderer::ReSize(uint32 width, uint32 height) {
-	if (!SwapChain || width == 0 || height == 0) {
+void FRenderer::ReSize(uint32 Width, uint32 Height) {
+	if (!SwapChain || Width == 0 || Height == 0) {
 		return;
 	}
 
 	DeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
-	BackBufferSurface->Resize(Device.Get(), width, height);
-	BackBufferWidth = width;
-	BackBufferHeight = height;
+	BackBufferSurface->Resize(Device.Get(), Width, Height);
+	BackBufferWidth = Width;
+	BackBufferHeight = Height;
 }
 
 void FRenderer::Terminate() {
@@ -367,16 +377,20 @@ void FRenderer::CreateDeviceAndSwapChain(HWND WindowHandle) {
 
 }
 
-void FRenderer::CreateSamplerStates() {
-	auto CreateSampler = [this](size_t Slot, const D3D11_SAMPLER_DESC& Description, const char* Name) {
+bool FRenderer::CreateSamplerStates() {
+	bool Succeeded{ true };
+
+	auto CreateSampler{ [this](size_t Slot, const D3D11_SAMPLER_DESC& Description, const char* Name) {
+		const HRESULT Result{ Device->CreateSamplerState(&Description, SamplerStates[Slot].ReleaseAndGetAddressOf()) };
 		ErrorHandler::ReportHRESULT(
-			Device->CreateSamplerState(&Description, SamplerStates[Slot].ReleaseAndGetAddressOf()),
+			Result,
 			"[ FRenderer ]",
 			std::string("Failed to create ") + Name + " sampler.",
 			ErrorHandler::EErrorLevel::Critical);
-		};
+		return SUCCEEDED(Result);
+	} };
 
-	auto MakeDescription = [](D3D11_FILTER Filter, D3D11_TEXTURE_ADDRESS_MODE AddressMode) {
+	auto MakeDescription{ [](D3D11_FILTER Filter, D3D11_TEXTURE_ADDRESS_MODE AddressMode) {
 		D3D11_SAMPLER_DESC Description{};
 		Description.Filter = Filter;
 		Description.AddressU = AddressMode;
@@ -388,13 +402,13 @@ void FRenderer::CreateSamplerStates() {
 		Description.MinLOD = 0.0f;
 		Description.MaxLOD = D3D11_FLOAT32_MAX;
 		return Description;
-		};
+	} };
 
-	CreateSampler(0, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP), "LinearWrap");
-	CreateSampler(1, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP), "LinearClamp");
-	CreateSampler(2, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP), "PointClamp");
-	CreateSampler(3, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP), "PointWrap");
-	CreateSampler(4, MakeDescription(D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP), "AnisotropicWrap");
+	Succeeded = CreateSampler(0, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP), "LinearWrap") && Succeeded;
+	Succeeded = CreateSampler(1, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP), "LinearClamp") && Succeeded;
+	Succeeded = CreateSampler(2, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP), "PointClamp") && Succeeded;
+	Succeeded = CreateSampler(3, MakeDescription(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP), "PointWrap") && Succeeded;
+	Succeeded = CreateSampler(4, MakeDescription(D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_WRAP), "AnisotropicWrap") && Succeeded;
 
 	D3D11_SAMPLER_DESC ShadowDescription = MakeDescription(
 		D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
@@ -404,7 +418,8 @@ void FRenderer::CreateSamplerStates() {
 	ShadowDescription.BorderColor[1] = 1.0f;
 	ShadowDescription.BorderColor[2] = 1.0f;
 	ShadowDescription.BorderColor[3] = 1.0f;
-	CreateSampler(5, ShadowDescription, "ShadowCompare");
+	Succeeded = CreateSampler(5, ShadowDescription, "ShadowCompare") && Succeeded;
+	return Succeeded;
 }
 
 void FRenderer::RenderText(const FRenderProbe& Probe, const CameraProbe& Camera)

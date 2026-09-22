@@ -39,7 +39,8 @@ public:
 	FRenderer& operator=(FRenderer&&) = delete;
 
 public:
-	void Create(HWND WindowHandle, UINT width, UINT height);
+	void Create(HWND WindowHandle, UINT Width, UINT Height);
+	bool Initialize();
 
 	void BeginUiRender();
 	void RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const CameraProbe& Camera, const FRenderSettings& Settings);
@@ -49,19 +50,19 @@ public:
 	void RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraProbe& Camera, bool bOutline = false, bool bRenderSky = true);
 	void EndFrame();
 
-	ID3D11Device* GetDevice() const { return Device.Get(); }
-	ID3D11DeviceContext* GetDeviceContext() const { return DeviceContext.Get(); }
+	ID3D11Device* GetDevice() const;
+	ID3D11DeviceContext* GetDeviceContext() const;
 
-	void BindAssetRegistry(FAssetRegistry* InAssetRegistry) { AssetRegistry = InAssetRegistry; }
+	void BindAssetRegistry(FAssetRegistry* InAssetRegistry);
 
-	void ReSize(uint32 width, uint32 height);
+	void ReSize(uint32 Width, uint32 Height);
 	
 	void Terminate(); 
 	void ReportLiveObjects() const;
 private:
 	void CreateDeviceAndSwapChain(HWND WindowHandle);
 	
-	void CreateSamplerStates();
+	bool CreateSamplerStates();
 	void BindSamplerStates();
 	bool UploadLightContext(const FRenderProbe& Probe);
 

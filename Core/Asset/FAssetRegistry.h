@@ -7,14 +7,19 @@
 #include "UMaterial.h"
 
 #include <d3d11.h>
+#include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <memory>
 #include <ranges>
+#include <string>
 #include <type_traits>
 #include <utility>
 
 class FAssetRegistry : public IAssetQuery {
+public:
+	using FProgressCallback = std::function<void(float, const std::string&)>;
+
 public:
     FAssetRegistry() = default;
     ~FAssetRegistry() = default;
@@ -26,7 +31,7 @@ public:
     FAssetRegistry& operator=(FAssetRegistry&&) = delete;
 
 public:
-    bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096);
+    bool Initialize(ID3D11Device* Device, uint32 MaxMaterialCount = 4096, const FProgressCallback& ProgressCallback = {});
 
 	bool DiscoverAssets(const std::filesystem::path& Directory);
 	bool LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType);
@@ -108,6 +113,7 @@ public:
 
 private:
 	std::filesystem::path ResolveContentFolder(const FString& VirtualFolder) const;
+	bool LoadAssetsOfType(ID3D11Device* Device, EAssetType AssetType, size_t& LoadedAssetCount, size_t TotalAssetCount, const FProgressCallback& ProgressCallback);
 	bool EnsureSystemAssets();
 	bool DiscoverAssetFile(const std::filesystem::path& FilePath);
 	bool LoadTexture(FAssetEntry& Entry, ID3D11Device* Device);

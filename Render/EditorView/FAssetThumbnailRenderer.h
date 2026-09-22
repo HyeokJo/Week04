@@ -1,10 +1,11 @@
 ﻿#pragma once
 
 #include <d3d11.h>
+#include <cstddef>
 #include <memory>
 
-#include "../Core/Asset/FAssetRegistry.h"
-#include "../Core/Base/FRenderProbe.h"
+#include "../../Core/Asset/FAssetRegistry.h"
+#include "../../Core/Base/FRenderProbe.h"
 
 #include "../FSceneRenderSurface.h"
 
@@ -28,6 +29,7 @@ public:
 
 public:
 	void Create(FRenderer* InRenderer, FAssetRegistry* InAssetRegistry);
+	void Tick(uint32 MaxThumbnailCount = 1);
 	void RenderThumbnail(FAssetHandle AssetHandle);
 
 	ID3D11ShaderResourceView* GetThumbnail(FAssetHandle AssetHandle) const;
@@ -50,4 +52,6 @@ private:
 	FAssetRegistry* AssetRegistry{ nullptr };
 
 	TMap<uint64, FThumbnail> Thumbnails{};
+	TArray<FAssetHandle> mPendingAssetHandles{};
+	size_t mPendingAssetIndex{};
 };

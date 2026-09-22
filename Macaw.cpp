@@ -7,8 +7,10 @@
 #include "Macaw.h"
 
 #include "Render/Renderer.h"
+#include "Render/FLoadingScreen.h"
 
 #include <d3d11.h>
+#include <atomic>
 #include <chrono>
 #include <shellapi.h>
 #pragma comment(lib, "d3d11.lib")
@@ -89,6 +91,8 @@
 constexpr bool WINDOWED = true;
 constexpr uint32 DEFAULT_WINDOW_WIDTH = 1920;
 constexpr uint32 DEFAULT_WINDOW_HEIGHT = 1080;
+constexpr uint32 LoadingWindowWidth = 960;
+constexpr uint32 LoadingWindowHeight = 540;
 
 // 전역 변수:
 HINSTANCE hInst;                                // 현재 인스턴스입니다.
@@ -99,6 +103,7 @@ HWND hWnd = nullptr;
 
 FMouseInput GMouseInput;
 FKeyboardInput GKeyboardInput;
+std::atomic<bool> GAcceptGameInput{};
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -261,247 +266,296 @@ namespace {
         CreateComponentHierarchyTest(World, MeshHandle, PipelineHandle, MaterialHandle, Mesh);
         CreateActorHierarchyTest(World, MeshHandle, PipelineHandle, MaterialHandle, Mesh);
     }
-}
 
-int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
-{
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+	struct FApplicationObjects {
+		std::unique_ptr<UWorld> mWorld{};
+		std::unique_ptr<FWorldEditorContext> mEditorContext{};
+		std::unique_ptr<FAssetRegistry> mAssetRegistry{};
+		std::unique_ptr<FAssetThumbnailRenderer> mThumbnailRenderer{};
+		std::unique_ptr<FMessageChannel> mWorldCommandChannel{};
+		std::unique_ptr<EditorViewport> mEditorView{};
+		std::unique_ptr<FEditorUIManager> mEditorUIManager{};
+		FEditorSettings mEditorSettings{};
+	};
 
-    // TODO: 여기에 코드를 입력합니다.
-	TypeRegistry::Register(UObject::StaticTypeInfo());
-	TypeRegistry::Register(UAsset::StaticTypeInfo());
-    TypeRegistry::Register(UMesh::StaticTypeInfo());
-    TypeRegistry::Register(UPipeline::StaticTypeInfo());
-	TypeRegistry::Register(UTexture::StaticTypeInfo());
-    TypeRegistry::Register(AActor::StaticTypeInfo());
-    TypeRegistry::Register(UFont::StaticTypeInfo());
-    TypeRegistry::Register(UFreeTypeFont::StaticTypeInfo());
+	void RegisterObjectTypes() {
+		TypeRegistry::Register(UObject::StaticTypeInfo());
+		TypeRegistry::Register(UAsset::StaticTypeInfo());
+		TypeRegistry::Register(UMesh::StaticTypeInfo());
+		TypeRegistry::Register(UPipeline::StaticTypeInfo());
+		TypeRegistry::Register(UTexture::StaticTypeInfo());
+		TypeRegistry::Register(AActor::StaticTypeInfo());
+		TypeRegistry::Register(UFont::StaticTypeInfo());
+		TypeRegistry::Register(UFreeTypeFont::StaticTypeInfo());
+		TypeRegistry::Register(UWorld::StaticTypeInfo());
+		TypeRegistry::Register(UCameraComponent::StaticTypeInfo());
+		TypeRegistry::Register(UStaticMeshComponent::StaticTypeInfo());
+		TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
+		TypeRegistry::Register(UBoxColliderComponent::StaticTypeInfo());
+		TypeRegistry::Register(UDirectionalLightComponent::StaticTypeInfo());
+		TypeRegistry::Register(UPointLightComponent::StaticTypeInfo());
+		TypeRegistry::Register(USpotLightComponent::StaticTypeInfo());
+		TypeRegistry::Register(UActorComponent::StaticTypeInfo());
+		TypeRegistry::Register(USceneComponent::StaticTypeInfo());
+		TypeRegistry::Register(UBillboardTextComponent::StaticTypeInfo());
+		TypeRegistry::Register(UNameTagComponent::StaticTypeInfo());
+		TypeRegistry::Register(UBillboardComponent::StaticTypeInfo());
+		TypeRegistry::Register(USubUVComponent::StaticTypeInfo());
+		TypeRegistry::Register(UScrollUVComponent::StaticTypeInfo());
+	}
 
-	TypeRegistry::Register(UWorld::StaticTypeInfo());
-	TypeRegistry::Register(UCameraComponent::StaticTypeInfo());
-	TypeRegistry::Register(UStaticMeshComponent::StaticTypeInfo());
-    TypeRegistry::Register(UCollisionComponent::StaticTypeInfo());
-    TypeRegistry::Register(UBoxColliderComponent::StaticTypeInfo());
-	TypeRegistry::Register(UDirectionalLightComponent::StaticTypeInfo());
-	TypeRegistry::Register(UPointLightComponent::StaticTypeInfo());
-	TypeRegistry::Register(USpotLightComponent::StaticTypeInfo());
-	TypeRegistry::Register(UActorComponent::StaticTypeInfo());
-	TypeRegistry::Register(USceneComponent::StaticTypeInfo());
-    TypeRegistry::Register(UBillboardTextComponent::StaticTypeInfo());
-    TypeRegistry::Register(UNameTagComponent::StaticTypeInfo());
-	
-    TypeRegistry::Register(UBillboardComponent::StaticTypeInfo());
-    TypeRegistry::Register(USubUVComponent::StaticTypeInfo());
+	bool InitializeApplication(FApplicationObjects& Application, FLoadingProgress& Progress) {
+		Progress.SetProgress(0.02f, "Registering object types");
+		RegisterObjectTypes();
 
-    TypeRegistry::Register(UScrollUVComponent::StaticTypeInfo());
+		Progress.SetProgress(0.06f, "Initializing renderer resources");
+		if (!Renderer.Initialize()) {
+			return false;
+		}
 
-    // 전역 문자열을 초기화합니다.
-    //LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    //LoadStringW(hInstance, IDC_MACAW, szWindowClass, MAX_LOADSTRING);
-    wcscpy_s(szTitle, MAX_LOADSTRING, L"Macaw Engine");
-    wcscpy_s(szWindowClass, MAX_LOADSTRING, L"MacawEngineClass");
-    MyRegisterClass(hInstance);
+		Progress.SetProgress(0.10f, "Creating world services");
+		Application.mWorld = std::make_unique<UWorld>();
+		Application.mEditorContext = std::make_unique<FWorldEditorContext>();
+		Application.mAssetRegistry = std::make_unique<FAssetRegistry>();
+		Application.mThumbnailRenderer = std::make_unique<FAssetThumbnailRenderer>();
+		Application.mWorldCommandChannel = std::make_unique<FMessageChannel>(64);
+		Application.mEditorView = std::make_unique<EditorViewport>();
+		Application.mEditorUIManager = std::make_unique<FEditorUIManager>();
 
-    // 애플리케이션 초기화를 수행합니다:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+		Progress.SetProgress(0.13f, "Loading editor settings");
+		if (!FEditorConfigManager::Load(Application.mEditorSettings)) {
+			FEditorConfigManager::Save(Application.mEditorSettings);
+		}
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MACAW));
+		Application.mEditorContext->SetEditorSettings(Application.mEditorSettings);
+		Application.mWorld->SetEditorContext(Application.mEditorContext.get());
+		Application.mEditorContext->SetWorld(Application.mWorld.get());
 
-    MSG msg;
+		const FAssetRegistry::FProgressCallback AssetProgressCallback{ [&Progress](float AssetProgress, const std::string& Status) {
+			Progress.SetProgress(0.15f + AssetProgress * 0.55f, Status);
+		} };
 
-	Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Macaw Engine Initialized.");
+		const bool AssetsInitialized{ Application.mAssetRegistry->Initialize(Renderer.GetDevice(), 128, AssetProgressCallback) };
+		if (!AssetsInitialized) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Some optional assets failed to load. Initialization will continue.");
+		}
 
-    // test
-    UWorld World{};
-    FWorldEditorContext EditorContext{};
-    FEditorSettings EditorSettings{};
-    if (!FEditorConfigManager::Load(EditorSettings)) {
-        FEditorConfigManager::Save(EditorSettings);
-    }
+		Renderer.BindAssetRegistry(Application.mAssetRegistry.get());
+		Application.mWorld->SetAssetRegistry(Application.mAssetRegistry.get());
 
-    EditorContext.SetEditorSettings(EditorSettings);
-    World.SetEditorContext(&EditorContext);
-	EditorContext.SetWorld(&World);
-
-    Renderer.Create(gHWND, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-
-
-    FAssetRegistry AssetRegistry;
-    AssetRegistry.Initialize(Renderer.GetDevice(), 128);
-    Renderer.BindAssetRegistry(&AssetRegistry);
-
-	FAssetThumbnailRenderer ThumbnailRenderer;
-
-
-    FMessageChannel WorldCommandChannel{ 64 };
-    EditorContext.InitializeChannels(AssetRegistry, Renderer.GetDevice());
-
-    
-
-    EditorViewport EditorView{};
-    EditorView.Initialize(Renderer.GetDevice(), AssetRegistry, EditorContext);
-
-    FEditorUIManager EditorUIManager;
-    #ifdef OBJ_VIEWER
-        EditorUIManager.InitializeViewer(AssetRegistry, gHWND, EditorContext);
-    #else
-        EditorUIManager.Initialize(World, Renderer, AssetRegistry, EditorContext, gHWND, EditorView.GetGizmoMode(), EditorView.GetGizmoCoordinateSpace(), &ThumbnailRenderer);
-    #endif
-
-    GMouseInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
-    GKeyboardInput.InitializeWorldCommandSender(WorldCommandChannel.GetSender());
-	World.SetAssetRegistry(&AssetRegistry);
-
-    WorldCommandChannel.TryBind<FMousePickRequestMessage>(
-        [&World](const FMousePickRequestMessage& Message) { World.HandleMousePickRequest(Message); });
+		Progress.SetProgress(0.73f, "Initializing editor channels");
+		Application.mEditorContext->InitializeChannels(*Application.mAssetRegistry, Renderer.GetDevice());
+		GMouseInput.InitializeWorldCommandSender(Application.mWorldCommandChannel->GetSender());
+		GKeyboardInput.InitializeWorldCommandSender(Application.mWorldCommandChannel->GetSender());
+		Application.mWorldCommandChannel->TryBind<FMousePickRequestMessage>([&Application](const FMousePickRequestMessage& Message) { Application.mWorld->HandleMousePickRequest(Message); });
 
 #ifdef OBJ_VIEWER
-    WorldCommandChannel.TryBind<FMouseCameraRotateRequestMessage>([&World](const FMouseCameraRotateRequestMessage& Message) {
-        World.HandleMouseCameraRotateRequest(Message);
-    });
-    WorldCommandChannel.TryBind<FKeyboardCameraMoveRequestMessage>([&World](const FKeyboardCameraMoveRequestMessage& Message) {
-        World.HandleKeyboardCameraMoveRequest(Message);
-    });
-    WorldCommandChannel.TryBind<FMouseCameraMoveRequestMessage>([&World](const FMouseCameraMoveRequestMessage& Message) {
-        World.HandleMouseCameraMoveRequestMessage(Message);
-    });
-    WorldCommandChannel.TryBind<FMouseCameraDollyRequestMessage>([&World](const FMouseCameraDollyRequestMessage& Message) {
-        World.HandleMouseCameraDollyRequestMessage(Message);
-    });
+		Application.mWorldCommandChannel->TryBind<FMouseCameraRotateRequestMessage>([&Application](const FMouseCameraRotateRequestMessage& Message) { Application.mWorld->HandleMouseCameraRotateRequest(Message); });
+		Application.mWorldCommandChannel->TryBind<FKeyboardCameraMoveRequestMessage>([&Application](const FKeyboardCameraMoveRequestMessage& Message) { Application.mWorld->HandleKeyboardCameraMoveRequest(Message); });
+		Application.mWorldCommandChannel->TryBind<FMouseCameraMoveRequestMessage>([&Application](const FMouseCameraMoveRequestMessage& Message) { Application.mWorld->HandleMouseCameraMoveRequestMessage(Message); });
+		Application.mWorldCommandChannel->TryBind<FMouseCameraDollyRequestMessage>([&Application](const FMouseCameraDollyRequestMessage& Message) { Application.mWorld->HandleMouseCameraDollyRequestMessage(Message); });
 #endif
 
-	World.LoadScene("./scenes/MainScene1.json", Renderer.GetDevice(), &AssetRegistry);
+		Progress.SetProgress(0.78f, "Initializing editor view");
+		Application.mEditorView->Initialize(Renderer.GetDevice(), *Application.mAssetRegistry, *Application.mEditorContext);
 
-    AssetRegistry.Finalize(); 
-	ThumbnailRenderer.Create(&Renderer, &AssetRegistry);
+#ifdef OBJ_VIEWER
+		Application.mEditorUIManager->InitializeViewer(*Application.mAssetRegistry, gHWND, *Application.mEditorContext);
+#else
+		Application.mEditorUIManager->Initialize(*Application.mWorld, Renderer, *Application.mAssetRegistry, *Application.mEditorContext, gHWND, Application.mEditorView->GetGizmoMode(), Application.mEditorView->GetGizmoCoordinateSpace(), Application.mThumbnailRenderer.get());
+#endif
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui_ImplWin32_Init((void*)hWnd);
-    ImGui_ImplDX11_Init(Renderer.GetDevice(), Renderer.GetDeviceContext());
-    
-    ImGui::StyleColorsDark();
-    
-    auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    // 창을 메인 윈도우 밖으로 끌면 ImGui 가 실제 OS 창을 만든다.
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		Progress.SetProgress(0.86f, "Loading scene");
+		const bool SceneLoaded{ Application.mWorld->LoadScene("./scenes/MainScene1.json", Renderer.GetDevice(), Application.mAssetRegistry.get()) };
+		if (!SceneLoaded) {
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "The startup scene failed to load. Initialization will continue with an empty world.");
+		}
 
-    io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, io.Fonts->GetGlyphRangesKorean());
+		Progress.SetProgress(0.96f, "Finalizing assets");
+		Application.mAssetRegistry->Finalize();
+		Application.mThumbnailRenderer->Create(&Renderer, Application.mAssetRegistry.get());
+		Progress.SetProgress(1.0f, "Ready");
+		return true;
+	}
 
-    auto LastTickTime = std::chrono::steady_clock::now();
+	void RestoreGameWindow(HWND WindowHandle) {
+		const DWORD Style{ WINDOWED ? WS_OVERLAPPEDWINDOW : WS_POPUP };
+		const DWORD ExtendedStyle{ WINDOWED ? WS_EX_OVERLAPPEDWINDOW : WS_EX_APPWINDOW };
+		RECT WindowRectangle{ 0, 0, static_cast<LONG>(DEFAULT_WINDOW_WIDTH), static_cast<LONG>(DEFAULT_WINDOW_HEIGHT) };
 
-    while (true) {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            if (msg.message == WM_QUIT) {
-                break;
-            }
-            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-        }
-        else {
-            const auto CurrentTickTime = std::chrono::steady_clock::now();
-            const float DeltaTime = std::chrono::duration<float>(CurrentTickTime - LastTickTime).count();
-            LastTickTime = CurrentTickTime;
+		if (WINDOWED) {
+			AdjustWindowRectEx(&WindowRectangle, Style, FALSE, ExtendedStyle);
+		}
 
-            // 오프스크린 패널은 ImGui 프레임이 시작되기 전에 그린다.
-            // 여기서 서피스가 리사이즈되며 SRV 가 재생성될 수 있는데,
-            // 그 뒤에 기록되는 드로우 명령이 항상 새 SRV 를 가리키게 하기 위함이다.
-            EditorUIManager.RenderOffscreen(Renderer, AssetRegistry);
+		const int WindowWidth{ WindowRectangle.right - WindowRectangle.left };
+		const int WindowHeight{ WindowRectangle.bottom - WindowRectangle.top };
+		const int PositionX{ (GetSystemMetrics(SM_CXSCREEN) - WindowWidth) / 2 };
+		const int PositionY{ (GetSystemMetrics(SM_CYSCREEN) - WindowHeight) / 2 };
 
-			ImGui_ImplDX11_NewFrame();
-			ImGui_ImplWin32_NewFrame();
-			ImGui::NewFrame();
-			EditorUIManager.Tick();
+		SetWindowLongPtrW(WindowHandle, GWL_STYLE, static_cast<LONG_PTR>(Style));
+		SetWindowLongPtrW(WindowHandle, GWL_EXSTYLE, static_cast<LONG_PTR>(ExtendedStyle));
+		SetWindowPos(WindowHandle, nullptr, PositionX, PositionY, WindowWidth, WindowHeight, SWP_FRAMECHANGED | SWP_NOZORDER | SWP_SHOWWINDOW);
+	}
+}
 
-            for (const FPendingExternalFileDrop& Drop : PendingExternalFileDrops) {
-                EditorUIManager.HandleExternalFileDrop(Drop.FilePath, ImVec2(static_cast<float>(Drop.ScreenPosition.x), static_cast<float>(Drop.ScreenPosition.y)));
-            }
+int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstance, _In_ LPWSTR CommandLine, _In_ int ShowCommand) {
+	UNREFERENCED_PARAMETER(PreviousInstance);
+	UNREFERENCED_PARAMETER(CommandLine);
 
-            PendingExternalFileDrops.clear();
+	wcscpy_s(szTitle, MAX_LOADSTRING, L"Macaw Engine");
+	wcscpy_s(szWindowClass, MAX_LOADSTRING, L"MacawEngineClass");
+	MyRegisterClass(Instance);
 
-			#ifndef OBJ_VIEWER
-			FViewportHostWindow* ViewportHostWindow = EditorUIManager.GetViewportHostWindow();
-			ViewportHostWindow->ProcessInput(EditorView, GKeyboardInput, GMouseInput, DeltaTime);
+	if (!InitInstance(Instance, ShowCommand)) {
+		return FALSE;
+	}
 
-            WorldCommandChannel.Dispatch();
-            World.Tick(DeltaTime);
-			EditorContext.Dispatch();
+	Renderer.Create(gHWND, LoadingWindowWidth, LoadingWindowHeight);
 
-			for (FViewportId Id = 0; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
-				FEditorViewport* Viewport = ViewportHostWindow->PrepareViewportForRender(Id);
-				if (Viewport == nullptr) {
-					continue;
-				}
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(static_cast<void*>(hWnd));
+	ImGui_ImplDX11_Init(Renderer.GetDevice(), Renderer.GetDeviceContext());
+	ImGui::StyleColorsDark();
 
-				CameraProbe Camera{};
-				if (!Viewport->BuildCameraProbe(Camera)) {
-					continue;
-				}
+	ImGuiIO& Io{ ImGui::GetIO() };
+	Io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, Io.Fonts->GetGlyphRangesKorean());
 
-				FRenderProbe& Probe = World.BuildRenderProbe();
-				EditorView.RenderInProbe(Probe, Camera, Viewport->GetRenderViewport());
-				
-                Renderer.RenderScene(Viewport->GetRenderSurface(), Probe, Camera, Viewport->GetRenderSettings());
-               
-                EditorView.RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetCameraPosition(), Viewport->GetRenderViewport());
-				
-                Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
-				Renderer.RenderText(Probe, Camera);
-                
-                EditorView.RenderOrientationAxis(Renderer.GetDeviceContext(), Camera);
+	const HACCEL AcceleratorTable{ LoadAccelerators(Instance, MAKEINTRESOURCE(IDC_MACAW)) };
+	FApplicationObjects Application{};
+	FLoadingScreen LoadingScreen{};
+
+	if (!LoadingScreen.Run(Renderer, AcceleratorTable, [&Application](FLoadingProgress& Progress) { return InitializeApplication(Application, Progress); })) {
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+		Renderer.BindAssetRegistry(nullptr);
+		Application.mEditorUIManager.reset();
+		Application.mEditorView.reset();
+		Application.mThumbnailRenderer.reset();
+		Application.mWorldCommandChannel.reset();
+		Application.mWorld.reset();
+		Application.mAssetRegistry.reset();
+		Application.mEditorContext.reset();
+		Renderer.Terminate();
+		return FALSE;
+	}
+
+	RestoreGameWindow(hWnd);
+	Io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	Io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	GAcceptGameInput.store(true, std::memory_order_release);
+	Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Macaw Engine Initialized.");
+
+	MSG Message{};
+	bool Running{ true };
+	auto LastTickTime{ std::chrono::steady_clock::now() };
+
+	while (Running) {
+		while (PeekMessage(&Message, nullptr, 0, 0, PM_REMOVE)) {
+			if (Message.message == WM_QUIT) {
+				Running = false;
+				break;
 			}
-			#endif
 
-			ImGui::Render();
-			Renderer.BeginUiRender();
-			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+			if (!TranslateAccelerator(Message.hwnd, AcceleratorTable, &Message)) {
+				TranslateMessage(&Message);
+				DispatchMessage(&Message);
+			}
+		}
 
-			// 메인 윈도우 밖으로 분리된 창들을 각자의 OS 창에 그린다.
-			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-			{
-				ImGui::UpdatePlatformWindows();
-				EnableExternalDropsForImGuiViewports();
-				ImGui::RenderPlatformWindowsDefault();
+		if (!Running) {
+			break;
+		}
+
+		const auto CurrentTickTime{ std::chrono::steady_clock::now() };
+		const float DeltaTime{ std::chrono::duration<float>(CurrentTickTime - LastTickTime).count() };
+		LastTickTime = CurrentTickTime;
+
+		Application.mThumbnailRenderer->Tick();
+		Application.mEditorUIManager->RenderOffscreen(Renderer, *Application.mAssetRegistry);
+
+		ImGui_ImplDX11_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+		Application.mEditorUIManager->Tick();
+
+		for (const FPendingExternalFileDrop& Drop : PendingExternalFileDrops) {
+			Application.mEditorUIManager->HandleExternalFileDrop(Drop.FilePath, ImVec2{ static_cast<float>(Drop.ScreenPosition.x), static_cast<float>(Drop.ScreenPosition.y) });
+		}
+
+		PendingExternalFileDrops.clear();
+
+#ifndef OBJ_VIEWER
+		FViewportHostWindow* ViewportHostWindow{ Application.mEditorUIManager->GetViewportHostWindow() };
+		ViewportHostWindow->ProcessInput(*Application.mEditorView, GKeyboardInput, GMouseInput, DeltaTime);
+		Application.mWorldCommandChannel->Dispatch();
+		Application.mWorld->Tick(DeltaTime);
+		Application.mEditorContext->Dispatch();
+
+		for (FViewportId Id{}; Id < FViewportHostWindow::MaximumViewportCount; ++Id) {
+			FEditorViewport* Viewport{ ViewportHostWindow->PrepareViewportForRender(Id) };
+			if (Viewport == nullptr) {
+				continue;
 			}
 
-            Renderer.EndFrame();
+			CameraProbe Camera{};
+			if (!Viewport->BuildCameraProbe(Camera)) {
+				continue;
+			}
 
-            GMouseInput.EndFrame();
-        }
-    }
-    
-    EditorSettings = EditorContext.GetEditorSettings();
-    // 마지막에 사용한 viewport 저장
-    if (FViewportHostWindow* Host =
-        EditorUIManager.GetViewportHostWindow()) {
-        Host->CaptureLayoutSettings(EditorSettings);
-    }
-    FEditorConfigManager::Save(EditorSettings);
+			FRenderProbe& Probe{ Application.mWorld->BuildRenderProbe() };
+			Application.mEditorView->RenderInProbe(Probe, Camera, Viewport->GetRenderViewport());
+			Renderer.RenderScene(Viewport->GetRenderSurface(), Probe, Camera, Viewport->GetRenderSettings());
+			Application.mEditorView->RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetCameraPosition(), Viewport->GetRenderViewport());
+			Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
+			Renderer.RenderText(Probe, Camera);
+			Application.mEditorView->RenderOrientationAxis(Renderer.GetDeviceContext(), Camera);
+		}
+#endif
 
-    // ImGui 소멸
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
+		ImGui::Render();
+		Renderer.BeginUiRender();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    if constexpr (bEnableSceneSave) {
-		World.SaveScene("test", &AssetRegistry);
-    }
+		if (Io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			ImGui::UpdatePlatformWindows();
+			EnableExternalDropsForImGuiViewports();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 
-    ThumbnailRenderer.Terminate();
-    EditorUIManager.ReleaseRenderResources();
-    Renderer.Terminate();
-    Renderer.ReportLiveObjects(); 
-    return (int) msg.wParam;
+		Renderer.EndFrame();
+		GMouseInput.EndFrame();
+	}
+
+	Application.mEditorSettings = Application.mEditorContext->GetEditorSettings();
+	if (FViewportHostWindow* Host{ Application.mEditorUIManager->GetViewportHostWindow() }) {
+		Host->CaptureLayoutSettings(Application.mEditorSettings);
+	}
+	FEditorConfigManager::Save(Application.mEditorSettings);
+
+	if constexpr (bEnableSceneSave) {
+		Application.mWorld->SaveScene("test", Application.mAssetRegistry.get());
+	}
+
+	Application.mThumbnailRenderer->Terminate();
+	Application.mEditorUIManager->ReleaseRenderResources();
+	GAcceptGameInput.store(false, std::memory_order_release);
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+
+	Renderer.BindAssetRegistry(nullptr);
+	Application.mEditorUIManager.reset();
+	Application.mEditorView.reset();
+	Application.mThumbnailRenderer.reset();
+	Application.mWorldCommandChannel.reset();
+	Application.mWorld.reset();
+	Application.mAssetRegistry.reset();
+	Application.mEditorContext.reset();
+	Renderer.Terminate();
+	Renderer.ReportLiveObjects();
+	return static_cast<int>(Message.wParam);
 }
 
 
@@ -540,74 +594,27 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //        이 함수를 통해 인스턴스 핸들을 전역 변수에 저장하고
 //        주 프로그램 창을 만든 다음 표시합니다.
 //
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow) {
+	hInst = hInstance;
 
+	const DWORD Style{ WS_POPUP };
+	const DWORD ExtendedStyle{ WS_EX_APPWINDOW };
+	const int PositionX{ (GetSystemMetrics(SM_CXSCREEN) - static_cast<int>(LoadingWindowWidth)) / 2 };
+	const int PositionY{ (GetSystemMetrics(SM_CYSCREEN) - static_cast<int>(LoadingWindowHeight)) / 2 };
 
-    if (WINDOWED) {
-        DWORD style = WS_OVERLAPPEDWINDOW;
-        DWORD exStyle = WS_EX_OVERLAPPEDWINDOW;
+	hWnd = CreateWindowExW(ExtendedStyle, szWindowClass, szTitle, Style, PositionX, PositionY, static_cast<int>(LoadingWindowWidth), static_cast<int>(LoadingWindowHeight), nullptr, nullptr, hInstance, nullptr);
 
-        int posX = (GetSystemMetrics(SM_CXSCREEN) / 2) - (static_cast<int>(DEFAULT_WINDOW_WIDTH) / 2);
-        int posY = (GetSystemMetrics(SM_CYSCREEN) / 2) - (static_cast<int>(DEFAULT_WINDOW_HEIGHT) / 2);
+	if (hWnd == nullptr) {
+		const DWORD ErrorCode{ GetLastError() };
+		OutputDebugStringA(("Window Creation Failed! Error Code: " + std::to_string(ErrorCode) + "\n").c_str());
+		return FALSE;
+	}
 
-        RECT adjustedRect{ 0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT };
-        ::AdjustWindowRectEx(std::addressof(adjustedRect), style, FALSE, exStyle);
-
-        hWnd = CreateWindowEx(
-            exStyle,                                // 확장 스타일
-            szWindowClass,                          // 윈도우 클래스 이름
-            szTitle,                                // 윈도우 타이틀 
-            style,                                  // 윈도우 스타일
-            posX, posY,                             // 위치
-            adjustedRect.right - adjustedRect.left,
-            adjustedRect.bottom - adjustedRect.top, // 크기
-            nullptr,                                // 부모 윈도우
-            nullptr,                                // 메뉴
-            hInstance,                              // 인스턴스 핸들
-            nullptr                                 // 추가 매개변수
-        );
-    }
-    else {
-        DWORD style = WS_POPUP;
-        DWORD exStyle = NULL;
-
-        int posX = (GetSystemMetrics(SM_CXSCREEN) / 2) - (static_cast<int>(DEFAULT_WINDOW_WIDTH) / 2);
-        int posY = (GetSystemMetrics(SM_CYSCREEN) / 2) - (static_cast<int>(DEFAULT_WINDOW_HEIGHT) / 2);
-
-        hWnd = CreateWindowEx(
-            exStyle,                                // 확장 스타일
-            szWindowClass,                          // 윈도우 클래스 이름
-            szTitle,                                // 윈도우 타이틀 
-            style,                                  // 윈도우 스타일
-            posX, posY,                             // 위치 
-            DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, // 크기
-            nullptr,                                // 부모 윈도우
-            nullptr,                                // 메뉴
-            hInstance,                              // 인스턴스 핸들
-            nullptr                                 // 추가 매개변수
-        );
-    }
-
-    if (!hWnd) {
-        // GetLastError()는 실패한 원인의 에러 코드를 반환합니다.
-        DWORD errorCode = GetLastError();
-
-        // errorCode가 1407 이면 -> "클래스를 찾을 수 없습니다" (1번 원인)
-        // errorCode가 1400 이면 -> "잘못된 윈도우 핸들입니다"
-        // errorCode를 구글이나 MS 공식 문서에 검색하면 원인이 바로 나옵니다.
-        OutputDebugStringA(("Window Creation Failed! Error Code: " + std::to_string(errorCode) + "\n").c_str());
-        return FALSE;
-    }
-
-    ShowWindow(hWnd, nCmdShow);
-    UpdateWindow(hWnd);
-    DragAcceptFiles(hWnd, TRUE);
-
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+	DragAcceptFiles(hWnd, TRUE);
 	gHWND = hWnd;
-
-    return TRUE;
+	return TRUE;
 }
 
 //
@@ -628,9 +635,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return result;
     }
 
-    GMouseInput.ProcessWindowMessage(message, wParam, lParam);
-
-    GKeyboardInput.ProcessWindowMessage(message, wParam, lParam);
+	if (GAcceptGameInput.load(std::memory_order_acquire)) {
+		GMouseInput.ProcessWindowMessage(message, wParam, lParam);
+		GKeyboardInput.ProcessWindowMessage(message, wParam, lParam);
+	}
 
     switch (message)
     {
