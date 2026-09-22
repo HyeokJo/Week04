@@ -6,6 +6,8 @@
 #include <string>
 
 #include <Windows.h>
+#include <d3d11.h>
+#include <wrl/client.h>
 
 class FRenderer;
 
@@ -37,5 +39,11 @@ public:
 	bool Run(FRenderer& Renderer, HACCEL AcceleratorTable, const FLoadingTask& LoadingTask);
 
 private:
+	bool LoadLogo(ID3D11Device* Device);
 	void Render(FRenderer& Renderer, const FLoadingProgress& Progress);
+
+private:
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mLogoShaderResourceView{};
+	int mLogoWidth{};
+	int mLogoHeight{};
 };

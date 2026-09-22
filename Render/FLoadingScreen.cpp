@@ -7,6 +7,7 @@
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
+#include "ImGui/stb_image.h"
 
 #include <algorithm>
 #include <chrono>
@@ -42,7 +43,53 @@ FLoadingScreen::FLoadingScreen() = default;
 
 FLoadingScreen::~FLoadingScreen() = default;
 
+bool FLoadingScreen::LoadLogo(ID3D11Device* Device) {
+	if (Device == nullptr) {
+		return false;
+	}
+
+	int Width{};
+	int Height{};
+	int Channels{};
+	stbi_uc* Pixels{ stbi_load("./Content/Macaw.png", &Width, &Height, &Channels, STBI_rgb_alpha) };
+	if (Pixels == nullptr || Width <= 0 || Height <= 0) {
+		stbi_image_free(Pixels);
+		return false;
+	}
+
+	D3D11_TEXTURE2D_DESC TextureDescription{};
+	TextureDescription.Width = static_cast<UINT>(Width);
+	TextureDescription.Height = static_cast<UINT>(Height);
+	TextureDescription.MipLevels = 1;
+	TextureDescription.ArraySize = 1;
+	TextureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	TextureDescription.SampleDesc.Count = 1;
+	TextureDescription.Usage = D3D11_USAGE_IMMUTABLE;
+	TextureDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	D3D11_SUBRESOURCE_DATA TextureData{};
+	TextureData.pSysMem = Pixels;
+	TextureData.SysMemPitch = static_cast<UINT>(Width) * 4;
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> Texture{};
+	const HRESULT TextureResult{ Device->CreateTexture2D(&TextureDescription, &TextureData, Texture.GetAddressOf()) };
+	stbi_image_free(Pixels);
+	if (FAILED(TextureResult)) {
+		return false;
+	}
+
+	if (FAILED(Device->CreateShaderResourceView(Texture.Get(), nullptr, mLogoShaderResourceView.GetAddressOf()))) {
+		return false;
+	}
+
+	mLogoWidth = Width;
+	mLogoHeight = Height;
+	return true;
+}
+
 bool FLoadingScreen::Run(FRenderer& Renderer, HACCEL AcceleratorTable, const FLoadingTask& LoadingTask) {
+	LoadLogo(Renderer.GetDevice());
+
 	FLoadingProgress Progress{};
 	std::atomic<bool> Finished{};
 	std::atomic<bool> Succeeded{};
@@ -92,6 +139,7 @@ bool FLoadingScreen::Run(FRenderer& Renderer, HACCEL AcceleratorTable, const FLo
 	}
 
 	LoadingThread.join();
+	mLogoShaderResourceView.Reset();
 	return !QuitRequested && Succeeded.load(std::memory_order_acquire);
 }
 
@@ -116,12 +164,20 @@ void FLoadingScreen::Render(FRenderer& Renderer, const FLoadingProgress& Progres
 	const ImVec2 TitleSize{ ImGui::CalcTextSize("MACAW ENGINE") };
 	const ImVec2 StatusSize{ ImGui::CalcTextSize(Status.c_str()) };
 	const float CenterY{ DisplaySize.y * 0.5f };
+	const bool HasLogo{ mLogoShaderResourceView != nullptr && mLogoHeight > 0 };
+	const float LogoHeight{ 128.0f };
+	const float LogoWidth{ HasLogo ? LogoHeight * static_cast<float>(mLogoWidth) / static_cast<float>(mLogoHeight) : 0.0f };
 
-	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - TitleSize.x) * 0.5f, CenterY - 72.0f });
+	if (HasLogo) {
+		ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - LogoWidth) * 0.5f, CenterY - 145.0f });
+		ImGui::Image(ImTextureRef{ reinterpret_cast<ImTextureID>(mLogoShaderResourceView.Get()) }, ImVec2{ LogoWidth, LogoHeight });
+	}
+
+	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - TitleSize.x) * 0.5f, HasLogo ? CenterY + 5.0f : CenterY - 72.0f });
 	ImGui::TextUnformatted("MACAW ENGINE");
-	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - StatusSize.x) * 0.5f, CenterY - 24.0f });
+	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - StatusSize.x) * 0.5f, HasLogo ? CenterY + 43.0f : CenterY - 24.0f });
 	ImGui::TextUnformatted(Status.c_str());
-	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - PanelWidth) * 0.5f, CenterY + 12.0f });
+	ImGui::SetCursorPos(ImVec2{ (DisplaySize.x - PanelWidth) * 0.5f, HasLogo ? CenterY + 79.0f : CenterY + 12.0f });
 
 	char Percentage[16]{};
 	sprintf_s(Percentage, "%.0f%%", LoadingValue * 100.0f);
