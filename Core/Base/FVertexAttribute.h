@@ -10,6 +10,7 @@ enum class EVertexAttribute : uint8
 	Position,
 	Normal,
 	UV,
+	Color,
 
 	MAX
 };
@@ -30,6 +31,12 @@ struct TVertexAttributeTraits<EVertexAttribute::Normal> {
 template<>
 struct TVertexAttributeTraits<EVertexAttribute::UV> {
 	using Type = FVector2D;
+};
+
+template<>
+struct TVertexAttributeTraits<EVertexAttribute::Color>
+{
+	using Type = FColor4;
 };
 
 template<EVertexAttribute Attribute>

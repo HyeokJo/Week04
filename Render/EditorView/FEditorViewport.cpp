@@ -10,6 +10,8 @@
 #include "Scene/Component/UCameraComponent.h"
 #include "Scene/FWorldEditorContext.h"
 
+#include "../../Core/Console/Console.h"
+
 namespace {
     constexpr float HalfSqrtTwo = 0.70710678118f;
 
@@ -285,14 +287,18 @@ void FEditorViewport::ApplyMouseNavigation(const FViewportMouseNavigationInput& 
     FQuat YawDelta = FQuat::CreateFromAxisAngle(FVector3::UnitZ, NavigationInput.DragDeltaX * RotationSensitivity);
     YawDelta.Normalize();
 
+    //Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "DeltaX %f", NavigationInput.DragDeltaX);
+
     FQuat YawedRotation = FQuat::Concatenate(YawDelta, CameraRotation);
     YawedRotation.Normalize();
+
 
     FTransform YawedTransform;
     YawedTransform.SetRotation(YawedRotation);
     const FMatrix YawMatrix = YawedTransform.ToMatrixWithScale();
     FVector3 Right = YawMatrix.Right();
     FVector3 Forward = YawMatrix.Forward();
+
     Right.Normalize();
     Forward.Normalize();
 

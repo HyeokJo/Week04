@@ -103,6 +103,9 @@ private:
     void AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo& ObjInfo, FGeometry& OutGeometry, 
                       std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash>& CacheMap) const;
 
+    //정점들의 Normal 평균 구하기
+    FVector ComputeFaceNormal(const TArray<FFaceVertex>& PolygonVertices, const TArray<FVector>& Positions, int32 PositionCount)const;
+
 private:
     FString LastError{};
     FVector PositionCoordTrans_X = FVector(0.f, 0.f, -1.f);

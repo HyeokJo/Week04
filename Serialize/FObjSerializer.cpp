@@ -52,6 +52,10 @@ bool FObjSerializer::SaveBinary(const FGeometry& GeometryData, const FString& Fi
 	Out.write(reinterpret_cast<const char*>(&SubMeshIndexCount), sizeof(SubMeshIndexCount));
 	Out.write(reinterpret_cast<const char*>(GeometryData.SubMeshIndexCounts.data()), SubMeshIndexCount * sizeof(uint32));
 
+	uint32 ColorCount = static_cast<uint32>(GeometryData.Colors.size());
+	Out.write(reinterpret_cast<const char*>(&ColorCount), sizeof(ColorCount));
+	Out.write(reinterpret_cast<const char*>(GeometryData.Colors.data()), ColorCount * sizeof(FColor4));
+
 	return static_cast<bool>(Out);
 }
 
@@ -112,7 +116,12 @@ bool FObjSerializer::LoadBinary(const FString& FilePath, FGeometry& OutGeoData)
 	uint32 SubMeshIndexCount = 0;
 	In.read(reinterpret_cast<char*>(&SubMeshIndexCount), sizeof(SubMeshIndexCount));
 	OutGeoData.SubMeshIndexCounts.resize(SubMeshIndexCount);
-	In.read(reinterpret_cast<char*>(OutGeoData.SubMeshIndexCounts.data()), sizeof(uint32) * SubMeshIndexCount);;
+	In.read(reinterpret_cast<char*>(OutGeoData.SubMeshIndexCounts.data()), sizeof(uint32) * SubMeshIndexCount);
+
+	uint32 ColorCount = 0;
+	In.read(reinterpret_cast<char*>(&ColorCount), sizeof(ColorCount));
+	OutGeoData.Colors.resize(ColorCount);
+	In.read(reinterpret_cast<char*>(OutGeoData.Colors.data()), sizeof(FColor4) * ColorCount);
 
 	return static_cast<bool>(In);
 }

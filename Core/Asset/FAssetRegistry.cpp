@@ -436,7 +436,13 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 	Mesh->SetAssetName(Entry.AssetPath.Path);
 
 	const bool bBinaryAsset = GetLowercaseExtension(Entry.PhysicalPath) == ".bin";
-	const std::filesystem::path SourceObjPath = bBinaryAsset ? std::filesystem::path{} : Entry.PhysicalPath;
+	//const std::filesystem::path SourceObjPath = bBinaryAsset ? std::filesystem::path{} : Entry.PhysicalPath;
+	//const std::filesystem::path SourceObjPath = Entry.PhysicalPath;
+
+    //OBJFiles 폴더에 원본 obj들 찾기
+	std::filesystem::path SourceObjPath = std::filesystem::current_path() / "OBJFiles" / Entry.PhysicalPath.filename();
+    SourceObjPath.replace_extension(".obj");
+
 	std::filesystem::path BinaryPath = Entry.PhysicalPath;
 	if (!bBinaryAsset) {
 		BinaryPath.replace_extension(".bin");

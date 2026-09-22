@@ -30,19 +30,20 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 		}
 
 		if (bHasBinary) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to load model binary; falling back to OBJ: %s", BinaryPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "[UMesh] Failed to load model binary; Maybe Different Version. falling back to OBJ: %s", BinaryPath.generic_string().c_str());
 		}
 
 		if (!ObjImporter.LoadObjFile(SourceObjPath.string().c_str(), Geometry)) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to import OBJ geometry: %s", SourceObjPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "[UMesh] Failed to import OBJ geometry: %s", SourceObjPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "[UMesh] Import Failed. Check Obj File Path : %s", SourceObjPath.generic_string().c_str());
 			return false;
 		}
 
 		if (!FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "Failed to create model binary: %s", BinaryPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "[UMesh] Failed to create model binary: %s", BinaryPath.generic_string().c_str());
 		}
 		else {
-			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Created model binary: %s", BinaryPath.generic_string().c_str());
+			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[UMesh] Created model binary: %s", BinaryPath.generic_string().c_str());
 		}
 	}
 
@@ -112,7 +113,8 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 	if (FirstIndex != Geometry.Indices.size() || !Make(Device, Geometry.Indices,
 		MakeVertexAttribute<EVertexAttribute::Position>(Geometry.Positions),
 		MakeVertexAttribute<EVertexAttribute::Normal>(Geometry.Normals),
-		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords))) {
+		MakeVertexAttribute<EVertexAttribute::UV>(Geometry.TexCoords),
+		MakeVertexAttribute<EVertexAttribute::Color>(Geometry.Colors))) {
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Failed to create GPU buffers for model: %s", AssetPath.generic_string().c_str());
 		return false;
 	}

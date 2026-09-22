@@ -57,6 +57,9 @@ struct FObjInfo
     //MaterialNames와 인덱스 매칭한다.
     //MaterialNames[0]를 쓰는 정점의 개수는 SubMesh[0]개
     TArray<int32> SubMesh;
+
+    //버텍스 컬러
+    TArray<FColor4> Colors;
 };
 
 struct FGeometry
@@ -69,4 +72,6 @@ struct FGeometry
     FString MaterialFileName;
     TArray<FString> MaterialNames;
     TArray<uint32> SubMeshIndexCounts;
+
+    TArray<FColor4> Colors;
 };

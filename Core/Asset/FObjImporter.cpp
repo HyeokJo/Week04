@@ -12,7 +12,7 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 	std::ifstream File(FilePath.c_str());
 	if (!File.is_open())
 	{
-		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Obj Load Failed. Can not Open File");
+		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "[ObjImporter] Obj Load Failed. Can not Open File");
 		return false;
 	}
 
@@ -47,11 +47,26 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 
 		if (Tag == "v") // v x y z
 		{
-			if (Tokens.size() != 4) continue;
+			//color 값이 있다면 v x y z r g b 와 같은 형태로 들어온다.
+			if (Tokens.size() < 4) continue;
+
 			FVector Pos = FVector(std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()), std::stof(Tokens[3].c_str()));
 			//각 x,y,z에 좌표계 변환
 			Pos = FVector(Pos.Dot(PositionCoordTrans_X), Pos.Dot(PositionCoordTrans_Y), Pos.Dot(PositionCoordTrans_Z));
 			ObjInfo.Positions.push_back(Pos);
+
+			FColor4 color = FColor4(1.f, 1.f, 1.f, 1.f);
+			
+			//컬러 값이 존재한다면
+			if (Tokens.size() > 4)
+			{
+				color.x = std::stof(Tokens[4].c_str());
+				color.y = std::stof(Tokens[5].c_str());
+				color.z = std::stof(Tokens[6].c_str());
+				color.w = Tokens.size() > 7? std::stof(Tokens[7].c_str()) : 1.f;
+			}
+
+			ObjInfo.Colors.push_back(color);
 		}
 		else if (Tag == "vn") // vn x y z
 		{
@@ -193,6 +208,7 @@ bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 	OutGeometry.Normals.clear();
 	OutGeometry.TexCoords.clear();
 	OutGeometry.Indices.clear();
+	OutGeometry.Colors.clear();
 	OutGeometry.MaterialFileName = ObjInfo.MaterialFileName;
 	OutGeometry.MaterialNames = ObjInfo.MaterialNames;
 	OutGeometry.SubMeshIndexCounts.clear();
@@ -208,18 +224,19 @@ bool FObjImporter::BuildGeometry(const FObjInfo& ObjInfo, FGeometry& OutGeometry
 		OutGeometry.SubMeshIndexCounts.push_back(static_cast<uint32>(IndexCount));
 	}
 
-	const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
+	/*const int32 PositionCount = static_cast<int32>(ObjInfo.Positions.size());
 	const int32 UVCount = static_cast<int32>(ObjInfo.UVs.size());
-	const int32 NormalCount = static_cast<int32>(ObjInfo.Normals.size());
+	const int32 NormalCount = static_cast<int32>(ObjInfo.Normals.size());*/
 
 	//(PositionIndex, UVIndex, NormalIndex) 조합 -> 이미 만들어둔 OutGeometry 상의 정점 인덱스
 	std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash> VertexCache;
-	VertexCache.reserve(ObjInfo.FaceVertices_Polygon.size());
+	VertexCache.reserve(ObjInfo.Positions.size());
 
-	OutGeometry.Positions.reserve(ObjInfo.FaceVertices_Polygon.size());
-	OutGeometry.Normals.reserve(ObjInfo.FaceVertices_Polygon.size());
-	OutGeometry.TexCoords.reserve(ObjInfo.FaceVertices_Polygon.size());
+	OutGeometry.Positions.reserve(ObjInfo.Positions.size());
+	OutGeometry.Normals.reserve(ObjInfo.Positions.size());
+	OutGeometry.TexCoords.reserve(ObjInfo.Positions.size());
 	OutGeometry.Indices.reserve(ObjInfo.FaceVertices_Polygon.size());
+	OutGeometry.Colors.reserve(ObjInfo.Positions.size());
 
 	//모든 Face Vertex 들
 	for (auto& FaceVertics : ObjInfo.FaceVertices_Polygon)
@@ -275,6 +292,7 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 	OutGeometry.Normals.clear();
 	OutGeometry.TexCoords.clear();
 	OutGeometry.Indices.clear();
+	OutGeometry.Colors.clear();
 	OutGeometry.MaterialFileName = ObjInfo.MaterialFileName;
 	OutGeometry.MaterialNames = ObjInfo.MaterialNames;
 	OutGeometry.SubMeshIndexCounts.assign(ObjInfo.SubMesh.size(), 0);
@@ -290,12 +308,13 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 
 	//(PositionIndex, UVIndex, NormalIndex) 조합 -> 이미 만들어둔 OutGeometry 상의 정점 인덱스
 	std::unordered_map<FFaceVertexKey, uint32, FFaceVertexKeyHash> VertexCache;
-	VertexCache.reserve(ObjInfo.FaceVertices_Polygon.size());
+	VertexCache.reserve(ObjInfo.Positions.size());
 
-	OutGeometry.Positions.reserve(ObjInfo.FaceVertices_Polygon.size());
-	OutGeometry.Normals.reserve(ObjInfo.FaceVertices_Polygon.size());
-	OutGeometry.TexCoords.reserve(ObjInfo.FaceVertices_Polygon.size());
+	OutGeometry.Positions.reserve(ObjInfo.Positions.size());
+	OutGeometry.Normals.reserve(ObjInfo.Positions.size());
+	OutGeometry.TexCoords.reserve(ObjInfo.Positions.size());
 	OutGeometry.Indices.reserve(ObjInfo.FaceVertices_Polygon.size());
+	OutGeometry.Colors.reserve(ObjInfo.Positions.size());
 
 	FFaceVertex Prev;
 	FFaceVertex Current;
@@ -327,46 +346,73 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 		const size_t FirstGeneratedIndex = OutGeometry.Indices.size();
 		FaceVertexIndex = 0;
 
+		int32 FaceVerticesCount = FaceVertics.size();
+		int32 LoopCount = 0;
+
+		//평면에 수직인 노멀 구하기
+		FaceNormal = ComputeFaceNormal(FaceVertics, FacePositions, PositionCount);
+
 		// 1개 면의 모음
+		//다각형 가운데 삼각형이 있다면 size가 3이므로 while문 종료
 		while(FaceVertics.size() > 3 && FaceVertexIndex < FaceVertics.size())
 		{
-			//순서대로 버텍스 할당
-			Prev = FaceVertics[FaceVertexIndex % FaceVertics.size()];
-			Current = FaceVertics[(FaceVertexIndex + 1) % FaceVertics.size()];
-			Next = FaceVertics[(FaceVertexIndex + 2) % FaceVertics.size()];
+			/*LoopCount++;
+			if (LoopCount > FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount * FaceVerticesCount)
+			{
+				int a = 0;
+			}*/
 
+			//인덱스
+			int32 PrevIndex = FaceVertexIndex% FaceVertics.size();
+			int32 CurrentIndex = (FaceVertexIndex + 1) % FaceVertics.size();
+			int32 NextIndex = (FaceVertexIndex + 2) % FaceVertics.size();
+
+			//순서대로 버텍스 할당
+			Prev = FaceVertics[PrevIndex];
+			Current = FaceVertics[CurrentIndex];
+			Next = FaceVertics[NextIndex];
+
+			//포지션 배열 상에서 인덱스
 			int32 PrevPositionIndex = NormalizeIndex(Prev.PositionIndex, PositionCount);
 			int32 CurrentPositionIndex = NormalizeIndex(Current.PositionIndex, PositionCount);
 			int32 NextPositionIndex = NormalizeIndex(Next.PositionIndex, PositionCount);
 
-			FaceNormal = (FaceNormals[NormalizeIndex(Prev.NormalIndex, NormalCount)] +
-						  FaceNormals[NormalizeIndex(Current.NormalIndex, NormalCount)] +
-						  FaceNormals[NormalizeIndex(Next.NormalIndex, NormalCount)]) / 3.f;
-						
+			FVector Normal_Prev = FaceNormals[NormalizeIndex(Prev.NormalIndex, NormalCount)];
+			FVector Normal_Current = FaceNormals[NormalizeIndex(Current.NormalIndex, NormalCount)];
+			FVector Normal_Next = FaceNormals[NormalizeIndex(Next.NormalIndex, NormalCount)];
+
+			//FaceNormal = (Normal_Prev + Normal_Current + Normal_Next) / 3.f;
 
 			//Current가 볼록한지 오목한지 검사
 			//Current - Prev 벡터, Next - Current 벡터를 외적하여 노멀 벡터를 구하고, Face의 노멀과 내적하여 방향이 같다면 볼록, 방향이 다르다면 오목
 			FVector Vector_1 = FacePositions[CurrentPositionIndex] - FacePositions[PrevPositionIndex];
 			FVector Vector_2 = FacePositions[NextPositionIndex] - FacePositions[CurrentPositionIndex];
 			
-			Vector_1 = Vector_1.Cross(Vector_2);
+			FVector CrossVector = Vector_1.Cross(Vector_2);
+			//Vector_1 = Vector_1.Cross(Vector_2);
+
+			float DotResult = CrossVector.Dot(FaceNormal);
 
 			//내적값이 음수라면 오목
-			if (Vector_1.Dot(FaceNormal) < 0)
+			if (DotResult < 0)
 			{
 				FaceVertexIndex = (FaceVertexIndex + 1) % FaceVertics.size();
 				Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[Load OBJ File] Has Concave Vertex");
 				continue;
 			}
 
+			bool OtherVertexCheck = false;
 
-			//다른 모든 정점을 순회하며 검사합니다.
-			//다른 정점 O에 대해 C - P, N - C, P - N 벡터와 O - P, O - C, O - N 벡터와 외적하여 노멀과 내적했을 때 모두가 양수라면 내부에 존재합니다.
-			for (int i = FaceVertexIndex + 3; i < FaceVertics.size(); i++)
+			for (int i = 0; i < FaceVertics.size(); i++)
 			{
-				//다른 버텍스
+				//자기 자신은 제외
+				if (PrevIndex == i || CurrentIndex == i || NextIndex == i)
+				{
+					continue;
+				}
+
 				OtherVertex = FaceVertics[i];
-				
+
 				FVector C_PVector = FacePositions[CurrentPositionIndex] - FacePositions[PrevPositionIndex];
 				FVector N_CVector = FacePositions[NextPositionIndex] - FacePositions[CurrentPositionIndex];
 				FVector P_NVector = FacePositions[PrevPositionIndex] - FacePositions[NextPositionIndex];
@@ -380,17 +426,23 @@ bool FObjImporter::BuildPolygonGeometry(const FObjInfo& ObjInfo, FGeometry& OutG
 					N_CVector.Cross(O_CVector).Dot(FaceNormal) > 0 &&
 					P_NVector.Cross(O_NVector).Dot(FaceNormal) > 0)
 				{
-					FaceVertexIndex = (FaceVertexIndex + 1) % FaceVertics.size();
-					Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[Load OBJ File] Vertex located inside the triangle");
-					continue;
+					OtherVertexCheck = true;
+					break;
 				}
 			}
 
+			
+			if (OtherVertexCheck)
+			{
+				FaceVertexIndex = (FaceVertexIndex + 1) % FaceVertics.size();
+				Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[Load OBJ File] Vertex located inside the triangle");
+				continue;
+			}
 
 			//여기까지 통과했으면 해당 삼각형을 추가하고 Current를 잘라낸다.
 			for (int i = 0; i < 3; i++)
 			{
-				AddPNTIArray(FaceVertics[FaceVertexIndex + i], ObjInfo, OutGeometry, VertexCache);
+				AddPNTIArray(FaceVertics[(FaceVertexIndex + i) % FaceVertics.size()], ObjInfo, OutGeometry, VertexCache);
 			}
 
 			//Current 제거
@@ -472,10 +524,31 @@ void FObjImporter::AddPNTIArray(const FFaceVertex& TargetVertex, const FObjInfo&
 		(NormalizedUV >= 0 && NormalizedUV < UVCount) ? ObjInfo.UVs[NormalizedUV] : FVector2(0.f, 0.f));
 
 	OutGeometry.Normals.push_back(
-		(NormalizedNormal >= 0 && NormalizedNormal < NormalCount) ? ObjInfo.Normals[NormalizedNormal] : FVector(0.f, 0.f, 0.f));
+		(NormalizedNormal >= 0 && NormalizedNormal < NormalCount) ? ObjInfo.Normals[NormalizedNormal] : FVector(0.f, 0.f, 1.f));
+
+	OutGeometry.Colors.push_back(ObjInfo.Colors[NormalizedPosition]);
 
 	CacheMap.emplace(Key, NewIndex);
 	OutGeometry.Indices.push_back(NewIndex);
+}
+
+FVector FObjImporter::ComputeFaceNormal(const TArray<FFaceVertex>& PolygonVertices, const TArray<FVector>& Positions, int32 PositionCount) const
+{
+	FVector Normal{ 0.f, 0.f, 0.f };
+	const size_t VertexCount = PolygonVertices.size();
+
+	for (size_t i = 0; i < VertexCount; i++)
+	{
+		const FVector& Current = Positions[NormalizeIndex(PolygonVertices[i].PositionIndex, PositionCount)];
+		const FVector& Next = Positions[NormalizeIndex(PolygonVertices[(i + 1) % VertexCount].PositionIndex, PositionCount)];
+
+		Normal.x += (Current.y - Next.y) * (Current.z + Next.z);
+		Normal.y += (Current.y - Next.y) * (Current.z + Next.z);
+		Normal.z += (Current.y - Next.y) * (Current.z + Next.z);
+	}
+
+	Normal.Normalize();
+	return Normal;
 }
 
 TArray<FString> FObjImporter::SplitTokens(const FString& Line)

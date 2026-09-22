@@ -38,7 +38,7 @@ FMatrix FTransform::ToMatrixWithScale() const {
     return MakeTransformMatrix(Position, Rotation, Scale);
 }
 
-FMatrix FTransform::ToMatrixNoScale() const {
+FMatrix FTransform::ToMatrixNoScale() const {    
     return MakeTransformMatrix(Position, Rotation, { 1.0f, 1.0f, 1.0f });
 }
 

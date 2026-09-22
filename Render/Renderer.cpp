@@ -278,16 +278,18 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 		ID3D11Buffer* VertexBuffers[] = { 
 			Mesh->GetVertexBuffer(EVertexAttribute::Position),
 			Mesh->GetVertexBuffer(EVertexAttribute::Normal),
-			Mesh->GetVertexBuffer(EVertexAttribute::UV)
+			Mesh->GetVertexBuffer(EVertexAttribute::UV),
+			Mesh->GetVertexBuffer(EVertexAttribute::Color)
 		};
 
 		uint32 Strides[] = { 
 			Mesh->GetVertexStride(EVertexAttribute::Position),
 			Mesh->GetVertexStride(EVertexAttribute::Normal),
-			Mesh->GetVertexStride(EVertexAttribute::UV)
+			Mesh->GetVertexStride(EVertexAttribute::UV),
+			Mesh->GetVertexStride(EVertexAttribute::Color)
 		};
 
-		uint32 Offsets[] = { 0, 0, 0 };
+		uint32 Offsets[] = { 0, 0, 0, 0 };
 
 		ID3D11Buffer* IndexBuffer { Mesh->GetIndexBuffer() };
 
