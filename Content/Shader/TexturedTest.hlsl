@@ -55,6 +55,7 @@ struct PS_INPUT
 
 PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
 {
+    
     PS_INPUT Output;
 
     FModelContext ModelContext = ModelContexts[ModelContextStart + InstanceID];

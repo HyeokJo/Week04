@@ -135,20 +135,18 @@ void FViewerPanel::ResizeSurfaceIfNeeded(ID3D11Device* Device, uint32 Width, uin
 FMatrix FViewerPanel::MakeCameraWorldMatrix(
     const FVector3& Eye) const
 {
-    FMatrix OrbitMatrix =
-        FMatrix::CreateFromQuaternion(OrbitRotation);
+    FMatrix OrbitMatrix = FMatrix::CreateFromQuaternion(OrbitRotation);
 
-    FVector3 Forward =
-        Target - Eye;
+    FVector3 Forward = Target - Eye;
     Forward.Normalize();
 
-    FVector3 Right =
-        OrbitMatrix.TransformDirection(FVector::UnitY);
+    FVector3 WorldUp = { 0.0f,0.0f,1.0f };
+
+    FVector3 Right = WorldUp.Cross(Forward);
 
     Right.Normalize();
 
-    FVector3 Up =
-        Forward.Cross(Right);
+    FVector3 Up = Forward.Cross(Right);
     Up.Normalize();
 
     FMatrix Result = FMatrix::Identity;
@@ -183,7 +181,7 @@ FRenderProbe FViewerPanel::BuildPreviewProbe()
     }
 
     //지정된게 없으면 기본 큐브로
-    FAssetHandle Mesh = EditorContext.GetPreviewMesh();
+    FAssetHandle Mesh = MeshHandle;
     if (!Mesh)
     {
 		MeshHandle = Registry->FindAsset(FAssetPath{ "/Game/System/Mesh/Cube.bin" });
@@ -214,7 +212,7 @@ FRenderProbe FViewerPanel::BuildPreviewProbe()
 
 CameraProbe FViewerPanel::BuildPreviewCamera() const {
     const FMatrix OrbitMatrix = FMatrix::CreateFromQuaternion(OrbitRotation);
-    const FVector3 Offset = OrbitMatrix.TransformDirection(FVector::UnitX);
+    const FVector3 Offset = OrbitMatrix.TransformDirection(-FVector::UnitX);
     const FVector3 Eye = Target + Offset * Distance;
     const float Aspect = static_cast<float>(SurfaceWidth) / static_cast<float>(SurfaceHeight);
 
