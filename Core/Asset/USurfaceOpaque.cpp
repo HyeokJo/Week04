@@ -244,6 +244,7 @@ FMaterialChunkSignature USurfaceOpaque::BuildChunkSignature(uint32 GroupIndex) c
 
 	const FMaterialGroup& Group = Groups[GroupIndex];
 	Builder.AddTexture(Group.DiffuseTexture.Texture);
+	Builder.AddTexture(Group.EmissiveTexture.Texture);
 	Builder.AddTexture(Group.NormalTexture.Texture ? Group.NormalTexture.Texture : Group.BumpTexture.Texture);
 
 	return Builder.Build();

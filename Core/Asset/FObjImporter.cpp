@@ -79,6 +79,7 @@ bool FObjImporter::LoadObjFile(const FString& FilePath, FGeometry& OutGeometry)
 		{
 			if (Tokens.size() != 3) continue;
 			FVector2 UV = FVector2(std::stof(Tokens[1].c_str()), std::stof(Tokens[2].c_str()));
+			UV = FVector2(UV.x, 1.f - UV.y);
 			ObjInfo.UVs.push_back(UV);
 		}
 		else if (Tag == "o") // o Name
