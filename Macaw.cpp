@@ -377,7 +377,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     });
 #endif
 
-	World.LoadScene("./scenes/NewScene.json", Renderer.GetDevice(), &AssetRegistry);
+	World.LoadScene("./scenes/MainScene1.json", Renderer.GetDevice(), &AssetRegistry);
 
     AssetRegistry.Finalize(); 
 	ThumbnailRenderer.Create(&Renderer, &AssetRegistry);
