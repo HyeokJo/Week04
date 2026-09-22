@@ -16,6 +16,11 @@ enum class EAssetType : uint8 {
     END
 };
 
+struct TextureMetaData
+{
+    bool MakeDDS = true;
+};
+
 struct FAssetEntry {
     FAssetPath AssetPath{};
     std::filesystem::path PhysicalPath{};
@@ -24,4 +29,8 @@ struct FAssetEntry {
     EAssetType AssetType{ EAssetType::END };
     FAssetHandle Handle{};
     std::unique_ptr<UAsset> Asset{};
+    union
+    {
+        TextureMetaData TextureData;
+    };
 };

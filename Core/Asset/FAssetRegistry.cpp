@@ -345,7 +345,9 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
 
     const std::filesystem::path SidecarPath = MakeSidecarPath(FilePath);
     FGuid PersistentGuid{};
-    if (!LoadOrCreatePersistentGuid(SidecarPath, PersistentGuid)) {
+
+    FAssetEntry Entry{};
+    if (!LoadOrCreatePersistentGuid(SidecarPath, PersistentGuid, Entry)) {
         return false;
     }
 
@@ -360,16 +362,16 @@ bool FAssetRegistry::DiscoverAssetFile(const std::filesystem::path& FilePath) {
 			return true;
 		}
 
-		return RegisterDiscoveredAsset(MakeAssetPath(FamilyDirectory), FamilyDirectory, SidecarPath, PersistentGuid, AssetType);
+		return RegisterDiscoveredAsset(MakeAssetPath(FamilyDirectory), FamilyDirectory, SidecarPath, PersistentGuid, AssetType, Entry);
 	}
 
-	return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, SidecarPath, PersistentGuid, AssetType);
+	return RegisterDiscoveredAsset(MakeAssetPath(FilePath), FilePath, SidecarPath, PersistentGuid, AssetType, Entry);
 }
 
 bool FAssetRegistry::LoadTexture(FAssetEntry& Entry, ID3D11Device* Device) {
-	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>();
+	std::unique_ptr<UTexture> Texture = std::make_unique<UTexture>(); 
 	Texture->SetAssetName(Entry.AssetPath.Path);
-	Texture->Initialize(Device, Entry.PhysicalPath);
+	Texture->Initialize(Device, Entry.PhysicalPath, Entry.TextureData.MakeDDS);
 
 	if (Texture->GetSRV() == nullptr) {
 		return false;
@@ -471,13 +473,13 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 	return true;
 }
 
-bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType) {
+bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType, FAssetEntry& Entry) {
     if (!AssetPath || !PersistentGuid.IsValid() || AssetType == EAssetType::END || PathToHandle.contains(AssetPath) || GuidToHandle.contains(PersistentGuid)) {
         return false;
     }
 
     const FAssetHandle Handle = AllocateHandle();
-    FAssetEntry Entry{};
+    //FAssetEntry Entry{};
     Entry.AssetPath = AssetPath;
     Entry.PhysicalPath = PhysicalPath;
     Entry.SidecarPath = SidecarPath;
@@ -501,7 +503,7 @@ std::filesystem::path FAssetRegistry::MakeSidecarPath(const std::filesystem::pat
     return std::filesystem::path{ AssetPath.string() + ".meta" };
 }
 
-bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid) {
+bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid, FAssetEntry& Entry) {
     if (std::filesystem::exists(SidecarPath)) {
         std::ifstream Input(SidecarPath);
         rapidjson::Document Document{};
@@ -516,7 +518,15 @@ bool FAssetRegistry::LoadOrCreatePersistentGuid(const std::filesystem::path& Sid
             return false;
         }
 
-        return OutGuid.Parse(Document["Guid"].GetString()) && OutGuid.IsValid();
+        if (OutGuid.Parse(Document["Guid"].GetString()) && OutGuid.IsValid())
+        {
+            if (Document.HasMember("TextureFormat"))
+            {
+                Entry.TextureData.MakeDDS = Document["TextureFormat"].GetBool();
+            }
+        }
+
+        return true;
     }
 
     OutGuid = FGuid::NewGuid();
