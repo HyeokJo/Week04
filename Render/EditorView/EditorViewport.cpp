@@ -2,6 +2,7 @@
 
 #include "EditorViewport.h"
 
+#include <algorithm>
 #include <ranges>
 #include <utility>
 
@@ -178,30 +179,45 @@ void EditorViewport::RenderBounds(ELineDepthMode DepthMode) {
 	}
 }
 
-void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe) {
-	FMatrix view = Probe.View;
-	view.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
+void EditorViewport::RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe, const D3D11_VIEWPORT& Viewport) {
+	constexpr float AxisScale{ 0.15f };
+	constexpr float MaximumAxisSize{ 160.0f };
+	constexpr float AxisMargin{ 5.0f };
+	if (Context == nullptr || Viewport.Width <= AxisMargin * 2.0f || Viewport.Height <= AxisMargin * 2.0f) {
+		return;
+	}
 
-	FMatrix proj = FMatrix::CreateOrthographic(2.5f, 2.5f, 0.1f, 10.f);
+	const float AxisSize{ std::min(std::min(Viewport.Width, Viewport.Height) * AxisScale, MaximumAxisSize) };
+	const D3D11_VIEWPORT AxisViewport{ Viewport.TopLeftX + AxisMargin, Viewport.TopLeftY + AxisMargin, AxisSize, AxisSize, Viewport.MinDepth, Viewport.MaxDepth };
 
-	Context->RSSetViewports(1, &OrientationAxisViewport);
+	FMatrix View{ Probe.View };
+	View.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
+	const FMatrix Projection{ FMatrix::CreateOrthographic(2.5f, 2.5f, 0.1f, 10.f) };
+
+	Context->RSSetViewports(1, &AxisViewport);
 
 	LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 1.0f, 0.0f, 0.0f }, 1.0f, FVector4{ 1.0f, 0.0f, 0.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
 	LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 0.0f, 1.0f, 0.0f }, 1.0f, FVector4{ 0.0f, 1.0f, 0.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
 	LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 0.0f, 0.0f, 1.0f }, 1.0f, FVector4{ 0.0f, 0.0f, 1.0f, 1.0f }, 3.0f, ELineDepthMode::DepthTested);
 
 	LineRenderer->Render(Context, FLineViewData{
-		.ViewProjection = view * proj,
-		.ViewportSize = FVector2D{ OrientationAxisViewport.Width, OrientationAxisViewport.Height }
+		.ViewProjection = View * Projection,
+		.ViewportSize = FVector2D{ AxisViewport.Width, AxisViewport.Height }
 	});
+	Context->RSSetViewports(1, &Viewport);
 }
 
 void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport)
 {
 	const ELineDepthMode DepthMode = ELineDepthMode::DepthTested;
+	const FEditorSettings Settings{ EditorContext != nullptr ? EditorContext->GetEditorSettings() : FEditorSettings{} };
 
-	RenderGrid(CameraPosition, DepthMode);
-	RenderAxis(DepthMode);
+	if (Settings.mGridVisible) {
+		RenderGrid(CameraPosition, DepthMode);
+	}
+	if (Settings.mAxisVisible) {
+		RenderAxis(DepthMode);
+	}
 	RenderBounds(DepthMode);
 	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Camera.ViewProjection,
 			.ViewportSize = FVector2D{

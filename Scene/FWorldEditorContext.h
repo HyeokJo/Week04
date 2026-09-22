@@ -33,6 +33,8 @@ public:
     void SetMoveSensitivity(float Value);
     void SetRotationSensitivity(float Value);
     void SetGridSize(float Value);
+    void SetGridVisible(bool Visible);
+    void SetAxisVisible(bool Visible);
 
     const size_t GetRenderModeState() const noexcept;
     void SetRenderModeState(const size_t State);

@@ -262,32 +262,55 @@ void FControlPanel::DrawPanel()
         ImGui::EndMenu();
     }
 
-    // Camera: Viewport camera navigation settings are editor-owned.
-    if (ImGui::BeginMenu("Camera"))
+    if (ImGui::BeginMenu("EditorSettings"))
     {
-        const FEditorSettings Settings = EditorContext->GetEditorSettings();
-        float MoveSensitivity = Settings.MoveSensitivity;
-        if (ImGui::SliderFloat("MoveSensitivity", &MoveSensitivity, 1.f, 100.0f))
+        if (ImGui::BeginMenu("Camera"))
         {
-            EditorContext->SetMoveSensitivity(MoveSensitivity);
+            const FEditorSettings Settings{ EditorContext->GetEditorSettings() };
+            float MoveSensitivity{ Settings.MoveSensitivity };
+            if (ImGui::SliderFloat("MoveSensitivity", &MoveSensitivity, 1.f, 100.0f))
+            {
+                EditorContext->SetMoveSensitivity(MoveSensitivity);
+            }
+
+            float RotationSensitivity{ Settings.RotationSensitivity };
+            if (ImGui::SliderFloat("RotationSensitivity", &RotationSensitivity, 0.1f, 5.0f))
+            {
+                EditorContext->SetRotationSensitivity(RotationSensitivity);
+            }
+
+            ImGui::EndMenu();
         }
 
-        float RotationSensitivity = Settings.RotationSensitivity;
-        if (ImGui::SliderFloat("RotationSensitivity", &RotationSensitivity, 0.1f, 5.0f))
+        if (ImGui::BeginMenu("Grid"))
         {
-            EditorContext->SetRotationSensitivity(RotationSensitivity);
+            float GridSize{ EditorContext->GetEditorSettings().GridSize };
+            if (ImGui::SliderFloat("GridSize", &GridSize, 0.1f, 100.0f))
+            {
+                EditorContext->SetGridSize(GridSize);
+            }
+            ImGui::EndMenu();
         }
 
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Grid"))
-    {
-        float GridSize = EditorContext->GetEditorSettings().GridSize;
-        if (ImGui::SliderFloat("GridSize", &GridSize, 0.1f, 100.0f))
+        if (ImGui::BeginMenu("ON/OFF"))
         {
-            EditorContext->SetGridSize(GridSize);
+            const FEditorSettings Settings{ EditorContext->GetEditorSettings() };
+            bool GridVisible{ Settings.mGridVisible };
+            bool AxisVisible{ Settings.mAxisVisible };
+
+            if (ImGui::Checkbox("Grid", &GridVisible))
+            {
+                EditorContext->SetGridVisible(GridVisible);
+            }
+
+            if (ImGui::Checkbox("World Axis", &AxisVisible))
+            {
+                EditorContext->SetAxisVisible(AxisVisible);
+            }
+
+            ImGui::EndMenu();
         }
+
         ImGui::EndMenu();
     }
 

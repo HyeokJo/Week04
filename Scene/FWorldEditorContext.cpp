@@ -110,6 +110,18 @@ void FWorldEditorContext::SetGridSize(float Value) {
     });
 }
 
+void FWorldEditorContext::SetGridVisible(bool Visible) {
+    SharedState.GetWriter().Modify([Visible](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.mGridVisible = Visible;
+    });
+}
+
+void FWorldEditorContext::SetAxisVisible(bool Visible) {
+    SharedState.GetWriter().Modify([Visible](FWorldEditorSharedState& Shared) {
+        Shared.EditorSettings.mAxisVisible = Visible;
+    });
+}
+
 const size_t FWorldEditorContext::GetRenderModeState() const noexcept
 {
     return SharedState.GetReader().Peek().ModeIndex;

@@ -8,6 +8,8 @@ struct FEditorSettings {
 	float32 RotationSensitivity = 1.0f;
 	FVector CameraStartPosition = FVector(0.0f, 0.0f, 0.0f);
 	float32 GridSize = 1.f;
+	bool mGridVisible{ true };
+	bool mAxisVisible{ true };
 	FString LastLoadedScenePath = "";
 	uint8 ViewportLayoutPreset = 7U;
 	uint32 ViewportSplitterCount = 3U;
@@ -22,6 +24,8 @@ struct FEditorSettings {
 		Ar.Serialize("RotationSensitivity", RotationSensitivity);
 		Ar.Serialize("CameraStartPosition", CameraStartPosition);
 		Ar.Serialize("GridSize", GridSize);
+		Ar.Serialize("GridVisible", mGridVisible);
+		Ar.Serialize("AxisVisible", mAxisVisible);
 		Ar.Serialize("LastLoadedScenePath", LastLoadedScenePath);
 		Ar.Serialize("ViewportLayoutPreset", ViewportLayoutPreset);
 		Ar.Serialize("ViewportSplitterCount", ViewportSplitterCount);

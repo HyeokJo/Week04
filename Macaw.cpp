@@ -510,7 +510,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 			Application.mEditorView->RenderSceneGuides(Renderer.GetDeviceContext(), Camera, Viewport->GetCameraPosition(), Viewport->GetRenderViewport());
 			Renderer.RenderGizmos(Viewport->GetRenderSurface(), Probe, Camera);
 			Renderer.RenderText(Probe, Camera);
-			Application.mEditorView->RenderOrientationAxis(Renderer.GetDeviceContext(), Camera);
+			Application.mEditorView->RenderOrientationAxis(Renderer.GetDeviceContext(), Camera, Viewport->GetRenderViewport());
 		}
 #endif
 

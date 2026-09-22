@@ -14,8 +14,6 @@
 #include "FTransformGizmo.h"
 
 class EditorViewport {
-	constexpr static float OrientationAxisSize = 200.0f;
-
 public:
 	EditorViewport() = default;
 	~EditorViewport() = default;
@@ -34,7 +32,7 @@ public:
 	void RenderInProbe(FRenderProbe& Probe, const CameraProbe& Camera, const D3D11_VIEWPORT& Viewport);
 
 	void RenderSceneGuides(ID3D11DeviceContext* Context, const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport);
-	void RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe);
+	void RenderOrientationAxis(ID3D11DeviceContext* Context, const CameraProbe& Probe, const D3D11_VIEWPORT& Viewport);
 
 	FStateChannel<uint8>::FReadWriter GetGizmoMode() { return TransformGizmo.GetGizmoMode(); }
 	FStateChannel<uint8>::FReadWriter GetGizmoCoordinateSpace() { return TransformGizmo.GetGizmoCoordinateSpace(); }
@@ -46,8 +44,6 @@ private:
 private:
 	std::unique_ptr<ILineRenderer> LineRenderer = std::make_unique<FLineRenderer>();
 	FTransformGizmo TransformGizmo{};
-
-	D3D11_VIEWPORT OrientationAxisViewport{ 5.0f, 5.0f, OrientationAxisSize, OrientationAxisSize, 0.0f, 1.0f };
 
 	FWorldEditorContext* EditorContext = nullptr;
 };
