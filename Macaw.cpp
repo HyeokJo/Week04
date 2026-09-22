@@ -419,6 +419,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	ImGui::StyleColorsDark();
 
 	ImGuiIO& Io{ ImGui::GetIO() };
+	Io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	Io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	Io.Fonts->AddFontFromFileTTF("./Content/Font/NotoSansKR-Medium.ttf", 16.0f, nullptr, Io.Fonts->GetGlyphRangesKorean());
 
 	const HACCEL AcceleratorTable{ LoadAccelerators(Instance, MAKEINTRESOURCE(IDC_MACAW)) };
@@ -442,8 +444,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE Instance, _In_opt_ HINSTANCE PreviousInstan
 	}
 
 	RestoreGameWindow(hWnd);
-	Io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	Io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	GAcceptGameInput.store(true, std::memory_order_release);
 	Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Macaw Engine Initialized.");
 

@@ -137,4 +137,11 @@ void FLoadingScreen::Render(FRenderer& Renderer, const FLoadingProgress& Progres
 	Renderer.BeginUiRender();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 	Renderer.EndFrame();
+
+	auto& Io = ImGui::GetIO(); 
+	if (Io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
+
 }
