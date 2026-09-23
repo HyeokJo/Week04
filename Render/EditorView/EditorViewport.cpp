@@ -1,4 +1,4 @@
-﻿ #include "PCH.h"
+ #include "PCH.h"
 
 #include "EditorViewport.h"
 
@@ -10,6 +10,7 @@
 #include "../../FMouseInput.h"
 
 #include "../../Scene/Component/UCollisionComponent.h"
+#include "../../Scene/Component/UBillboardComponent.h"
 #include "../../Scene/Component/UMeshComponent.h"
 
 namespace {
@@ -174,7 +175,7 @@ void EditorViewport::RenderAxis(ELineDepthMode DepthMode) {
 	LineRenderer->AddRay(FVector3{ 0.0f, 0.0f, 0.0f }, FVector3{ 0.0f, 0.0f, -1.0f }, 1000.0f, FVector4{ 0.0f, 0.0f, 1.0f, 1.0f }, 3.0f, DepthMode);
 }
 
-void EditorViewport::RenderBounds(ELineDepthMode DepthMode) {
+void EditorViewport::RenderBounds(const CameraProbe& Camera, ELineDepthMode DepthMode) {
 	if (EditorContext == nullptr) return;
 
 	const UActorComponent* SelectedComponent = EditorContext->GetSelectedComponent();
@@ -183,6 +184,32 @@ void EditorViewport::RenderBounds(ELineDepthMode DepthMode) {
 	if (SelectedComponent->GetTypeInfo()->IsA<UCollisionComponent>()) {
 		const auto* CollisionComponent = static_cast<const UCollisionComponent*>(SelectedComponent);
 		CollisionComponent->DrawEditorBounds(*LineRenderer, DepthMode);	
+	}
+	else if (SelectedComponent->GetTypeInfo()->IsA<UBillboardComponent>()) {
+		FMatrix CameraWorld{};
+		if (!Camera.View.TryInverse(CameraWorld)) return;
+		const UBillboardComponent* Billboard{ static_cast<const UBillboardComponent*>(SelectedComponent) };
+		std::array<FVector3, 4> Corners{};
+		if (!Billboard->GetWorldCorners(CameraWorld, Corners)) return;
+
+		const FVector4 LineColor{ 0.0f, 0.0f, 1.0f, 1.0f };
+		LineRenderer->AddLine(Corners[0], Corners[1], LineColor, 1.0f, DepthMode);
+		LineRenderer->AddLine(Corners[1], Corners[3], LineColor, 1.0f, DepthMode);
+		LineRenderer->AddLine(Corners[3], Corners[2], LineColor, 1.0f, DepthMode);
+		LineRenderer->AddLine(Corners[2], Corners[0], LineColor, 1.0f, DepthMode);
+
+		FVector3 Minimum{ Corners[0] };
+		FVector3 Maximum{ Corners[0] };
+		for (const FVector3& Corner : Corners) {
+			Minimum = FVector3::Min(Minimum, Corner);
+			Maximum = FVector3::Max(Maximum, Corner);
+		}
+		const std::array<FVector3, 8> BoxCorners{ FVector3{ Minimum.x, Minimum.y, Minimum.z }, FVector3{ Maximum.x, Minimum.y, Minimum.z }, FVector3{ Maximum.x, Maximum.y, Minimum.z }, FVector3{ Minimum.x, Maximum.y, Minimum.z }, FVector3{ Minimum.x, Minimum.y, Maximum.z }, FVector3{ Maximum.x, Minimum.y, Maximum.z }, FVector3{ Maximum.x, Maximum.y, Maximum.z }, FVector3{ Minimum.x, Maximum.y, Maximum.z } };
+		const FVector4 BoxColor{ 1.0f, 0.0f, 0.0f, 1.0f };
+		constexpr std::array<std::array<size_t, 2>, 12> BoxEdges{ std::array<size_t, 2>{ 0, 1 }, std::array<size_t, 2>{ 1, 2 }, std::array<size_t, 2>{ 2, 3 }, std::array<size_t, 2>{ 3, 0 }, std::array<size_t, 2>{ 4, 5 }, std::array<size_t, 2>{ 5, 6 }, std::array<size_t, 2>{ 6, 7 }, std::array<size_t, 2>{ 7, 4 }, std::array<size_t, 2>{ 0, 4 }, std::array<size_t, 2>{ 1, 5 }, std::array<size_t, 2>{ 2, 6 }, std::array<size_t, 2>{ 3, 7 } };
+		for (const std::array<size_t, 2>& Edge : BoxEdges) {
+			LineRenderer->AddLine(BoxCorners[Edge[0]], BoxCorners[Edge[1]], BoxColor, 1.0f, DepthMode);
+		}
 	}
 	else if (SelectedComponent->GetTypeInfo()->IsA<UMeshComponent>()) {
 		const auto* MeshComponent = static_cast<const UMeshComponent*>(SelectedComponent);
@@ -315,7 +342,7 @@ void EditorViewport::RenderSceneGuides(ID3D11DeviceContext* Context, const Camer
 	if (Settings.mAxisVisible) {
 		RenderAxis(DepthMode);
 	}
-	RenderBounds(DepthMode);
+	RenderBounds(Camera, DepthMode);
 	LineRenderer->Render(Context,FLineViewData{.ViewProjection = Camera.ViewProjection,
 			.ViewportSize = FVector2D{
 				Viewport.Width,

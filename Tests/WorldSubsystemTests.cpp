@@ -1,8 +1,9 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "doctest.h"
 
 #include "../Scene/AActor.h"
 #include "../Scene/Component/UCameraComponent.h"
+#include "../Scene/Component/UBillboardComponent.h"
 #include "../Scene/Component/UBoxColliderComponent.h"
 #include "../Scene/Component/UMeshComponent.h"
 #include "../Scene/Component/UStaticMeshComponent.h"
@@ -19,6 +20,8 @@
 #include "../Core/Asset/BasicGeometry/Plane.h"
 #include "../Render/Pipeline/UPipeline.h"
 
+#include <array>
+#include <cstring>
 #include <fstream>
 
 namespace {
@@ -145,9 +148,12 @@ TEST_SUITE("CH6 World Subsystems") {
             File << "newmtl ComplexSurface\n";
             File << "Ka 0.1 0.2 0.3\n";
             File << "Kd 0.4 0.5 0.6\n";
+            File << "Ks 0.2 0.3 0.4\n";
+            File << "Ke 0.5 0.6 0.7\n";
             File << "Tf 0.7 0.8 0.9\n";
             File << "Ns 200.0\n";
             File << "Ni 1.33\n";
+            File << "sharpness 72.0\n";
             File << "d -halo 0.8\n";
             File << "illum 7\n";
             File << "map_Kd base.png\n";
@@ -158,13 +164,14 @@ TEST_SUITE("CH6 World Subsystems") {
             File << "refl reflection.png\n";
         }
 
-        USurfaceOpaque Surface;
-        const bool bInitialized = Surface.Initialize(Device.Get(), MtlPath, [](const std::filesystem::path&) {
-            return FAssetHandle{ .ID = 1, .Generation = 1 };
-        });
+        USurfaceOpaque Surface{};
+        uint32 NextTextureID{ 1 };
+        const bool Initialized{ Surface.Initialize(Device.Get(), MtlPath, [&NextTextureID](const std::filesystem::path&) {
+            return FAssetHandle{ .ID = NextTextureID++, .Generation = 1 };
+        }) };
         std::error_code ErrorCode{};
         std::filesystem::remove(MtlPath, ErrorCode);
-        REQUIRE(bInitialized);
+        REQUIRE(Initialized);
 
         const TArray<FMaterialGroup>& Groups = Surface.GetGroups();
         REQUIRE_EQ(Groups.size(), 1);
@@ -179,6 +186,68 @@ TEST_SUITE("CH6 World Subsystems") {
         CHECK(Group.NormalTexture.Texture);
         CHECK(Group.DisplacementTexture.Texture);
         CHECK(Group.ReflectionTexture.Texture);
+
+        const FMaterialChunkSignature Signature{ Surface.BuildChunkSignature() };
+        REQUIRE_EQ(Signature.TextureFieldCount, 12);
+        CHECK_FALSE(Signature.GetTextureHandle(0));
+        CHECK(Signature.GetTextureHandle(1) == Group.DiffuseTexture.Texture);
+        CHECK(Signature.GetTextureHandle(2) == Group.SpecularTexture.Texture);
+        CHECK_FALSE(Signature.GetTextureHandle(3));
+        CHECK(Signature.GetTextureHandle(7) == Group.BumpTexture.Texture);
+        CHECK(Signature.GetTextureHandle(8) == Group.NormalTexture.Texture);
+        CHECK(Signature.GetTextureHandle(9) == Group.DisplacementTexture.Texture);
+        CHECK(Signature.GetTextureHandle(11) == Group.ReflectionTexture.Texture);
+
+        FMaterialGPUSlot Slot{};
+        Surface.BuildGPUData(Slot);
+        std::array<float, 20> ScalarData{};
+        std::memcpy(ScalarData.data(), Slot.Data.data(), sizeof(ScalarData));
+        CHECK_EQ(ScalarData[0], doctest::Approx(0.4f));
+        CHECK_EQ(ScalarData[1], doctest::Approx(0.5f));
+        CHECK_EQ(ScalarData[2], doctest::Approx(0.6f));
+        CHECK_EQ(ScalarData[3], doctest::Approx(0.8f));
+        CHECK_EQ(ScalarData[4], doctest::Approx(0.1f));
+        CHECK_EQ(ScalarData[5], doctest::Approx(0.2f));
+        CHECK_EQ(ScalarData[6], doctest::Approx(0.3f));
+        CHECK_EQ(ScalarData[7], doctest::Approx(200.0f));
+        CHECK_EQ(ScalarData[8], doctest::Approx(0.2f));
+        CHECK_EQ(ScalarData[9], doctest::Approx(0.3f));
+        CHECK_EQ(ScalarData[10], doctest::Approx(0.4f));
+        CHECK_EQ(ScalarData[11], doctest::Approx(1.33f));
+        CHECK_EQ(ScalarData[12], doctest::Approx(0.5f));
+        CHECK_EQ(ScalarData[13], doctest::Approx(0.6f));
+        CHECK_EQ(ScalarData[14], doctest::Approx(0.7f));
+        CHECK_EQ(ScalarData[15], doctest::Approx(72.0f));
+        CHECK_EQ(ScalarData[16], doctest::Approx(0.7f));
+        CHECK_EQ(ScalarData[17], doctest::Approx(0.8f));
+        CHECK_EQ(ScalarData[18], doctest::Approx(0.9f));
+        int32 IlluminationModel{};
+        uint32 DissolveHalo{};
+        std::memcpy(&IlluminationModel, Slot.Data.data() + 80, sizeof(IlluminationModel));
+        std::memcpy(&DissolveHalo, Slot.Data.data() + 84, sizeof(DissolveHalo));
+        CHECK_EQ(IlluminationModel, 7);
+        CHECK_EQ(DissolveHalo, 1);
+
+        const bool Modified{ Surface.ModifyGroup(0, [](FMaterialGroup& Target) {
+            Target.AmbientTexture.Texture = FAssetHandle{ .ID = 101, .Generation = 1 };
+            Target.DiffuseTexture.Texture = FAssetHandle{ .ID = 102, .Generation = 1 };
+            Target.SpecularTexture.Texture = FAssetHandle{ .ID = 103, .Generation = 1 };
+            Target.EmissiveTexture.Texture = FAssetHandle{ .ID = 104, .Generation = 1 };
+            Target.TransmissionTexture.Texture = FAssetHandle{ .ID = 105, .Generation = 1 };
+            Target.ShininessTexture.Texture = FAssetHandle{ .ID = 106, .Generation = 1 };
+            Target.OpacityTexture.Texture = FAssetHandle{ .ID = 107, .Generation = 1 };
+            Target.BumpTexture.Texture = FAssetHandle{ .ID = 108, .Generation = 1 };
+            Target.NormalTexture.Texture = FAssetHandle{ .ID = 109, .Generation = 1 };
+            Target.DisplacementTexture.Texture = FAssetHandle{ .ID = 110, .Generation = 1 };
+            Target.DecalTexture.Texture = FAssetHandle{ .ID = 111, .Generation = 1 };
+            Target.ReflectionTexture.Texture = FAssetHandle{ .ID = 112, .Generation = 1 };
+        }) };
+        REQUIRE(Modified);
+        const FMaterialChunkSignature CompleteSignature{ Surface.BuildChunkSignature() };
+        REQUIRE_EQ(CompleteSignature.TextureFieldCount, 12);
+        for (uint8 TextureFieldIndex{}; TextureFieldIndex < CompleteSignature.TextureFieldCount; ++TextureFieldIndex) {
+            CHECK_EQ(CompleteSignature.GetTextureHandle(TextureFieldIndex).ID, 101u + TextureFieldIndex);
+        }
     }
 
     TEST_CASE("Editor context owns selection state and selected render flags") {
@@ -287,6 +356,34 @@ TEST_SUITE("CH6 World Subsystems") {
             PickedComponent,
             Distance));
         CHECK_EQ(PickedComponent, MeshComponent);
+        CHECK(Distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("Billboard picking follows the camera-facing quad") {
+        UWorld World{};
+        AActor* Actor{ World.AdoptActor<AActor>() };
+        REQUIRE(Actor != nullptr);
+        UBillboardComponent* Billboard{ Actor->AddComponent<UBillboardComponent>() };
+        REQUIRE(Billboard != nullptr);
+        Actor->SetRootComponent(Billboard);
+        Billboard->SetTextureHandle(FAssetHandle{ 1, 0 });
+        Billboard->SetPipelineHandle(FAssetHandle{ 2, 0 });
+        Billboard->SetSize(FVector2{ 2.0f, 2.0f });
+
+        FMatrix CameraWorld{};
+        UPrimitiveComponent* PickedComponent{};
+        float Distance{};
+        CHECK(World.GetPickingSubsystem().Raycast(FRay{ FVector3{ 0.5f, 0.5f, -2.0f }.ToSimpleMath(), FVector3{ 0.0f, 0.0f, 1.0f }.ToSimpleMath() }, PickedComponent, Distance, &CameraWorld));
+        CHECK_EQ(PickedComponent, Billboard);
+        CHECK(Distance == doctest::Approx(2.0f));
+        CHECK_FALSE(World.GetPickingSubsystem().Raycast(FRay{ FVector3{ 1.5f, 0.0f, -2.0f }.ToSimpleMath(), FVector3{ 0.0f, 0.0f, 1.0f }.ToSimpleMath() }, PickedComponent, Distance, &CameraWorld));
+
+        CameraWorld.m[0][0] = 0.0f;
+        CameraWorld.m[0][2] = -1.0f;
+        CameraWorld.m[2][0] = 1.0f;
+        CameraWorld.m[2][2] = 0.0f;
+        CHECK(World.GetPickingSubsystem().Raycast(FRay{ FVector3{ -2.0f, 0.5f, -0.5f }.ToSimpleMath(), FVector3{ 1.0f, 0.0f, 0.0f }.ToSimpleMath() }, PickedComponent, Distance, &CameraWorld));
+        CHECK_EQ(PickedComponent, Billboard);
         CHECK(Distance == doctest::Approx(2.0f));
     }
 }

@@ -272,6 +272,75 @@ FAssetHandle FAssetRegistry::ImportMesh(const std::filesystem::path& SourceObjPa
     return Handle;
 }
 
+FAssetHandle FAssetRegistry::LoadViewerAsset(const std::filesystem::path& SourcePath) {
+    std::error_code ErrorCode{};
+    const std::filesystem::path AbsolutePath{ std::filesystem::absolute(SourcePath, ErrorCode).lexically_normal() };
+    if (ErrorCode || Device == nullptr || !std::filesystem::is_regular_file(AbsolutePath, ErrorCode)) {
+        return {};
+    }
+
+    for (const FAssetEntry& ExistingEntry : Assets) {
+        if (ExistingEntry.Asset != nullptr && ExistingEntry.PhysicalPath.lexically_normal() == AbsolutePath) {
+            return ExistingEntry.Handle;
+        }
+    }
+
+    const FString Extension{ GetLowercaseExtension(AbsolutePath) };
+    const EAssetType AssetType{ Extension == ".obj" ? EAssetType::Mesh : GetAssetType(AbsolutePath) };
+    if (AssetType != EAssetType::Mesh && AssetType != EAssetType::Material && AssetType != EAssetType::Texture) {
+        return {};
+    }
+
+    std::unique_ptr<UAsset> Asset{};
+    if (AssetType == EAssetType::Texture) {
+        std::unique_ptr<UTexture> Texture{ std::make_unique<UTexture>() };
+        if (!Texture->Initialize(Device, AbsolutePath, false, ETextureFormat::UNORM, true) || Texture->GetSRV() == nullptr) {
+            return {};
+        }
+        Asset = std::move(Texture);
+    }
+    else if (AssetType == EAssetType::Material) {
+        std::unique_ptr<USurfaceOpaque> Material{ std::make_unique<USurfaceOpaque>() };
+        if (!Material->Initialize(Device, AbsolutePath, [this](const std::filesystem::path& TexturePath) {
+            return LoadViewerAsset(TexturePath);
+        }) || !MaterialBuffer.RegisterMaterial(Material.get())) {
+            return {};
+        }
+        Asset = std::move(Material);
+    }
+    else {
+        std::unique_ptr<UMesh> Mesh{ std::make_unique<UMesh>() };
+        const std::filesystem::path ObjPath{ Extension == ".obj" ? AbsolutePath : std::filesystem::path{} };
+        const std::filesystem::path BinPath{ Extension == ".bin" ? AbsolutePath : std::filesystem::path{} };
+        if (!Mesh->Initialize(Device, ObjPath, BinPath, [this](const std::filesystem::path& MaterialPath) {
+            return LoadViewerAsset(MaterialPath);
+        }, [this](FAssetHandle MaterialHandle, const FString& GroupName) -> std::optional<uint32> {
+            const UMaterial* Material{ ResolveAsset<UMaterial>(MaterialHandle) };
+            return Material != nullptr ? Material->FindGroupIndex(GroupName) : std::nullopt;
+        }, false)) {
+            return {};
+        }
+        Asset = std::move(Mesh);
+    }
+
+    const FAssetHandle Handle{ AllocateHandle() };
+    FAssetEntry Entry{};
+    Entry.AssetPath = FAssetPath{ FString{ "/Viewer/" } + std::to_string(Handle.ID).c_str() + "/" + AbsolutePath.filename().generic_string().c_str() };
+    Entry.PhysicalPath = AbsolutePath;
+    Entry.AssetType = AssetType;
+    Entry.Handle = Handle;
+    Asset->SetAssetName(Entry.AssetPath.Path);
+    Entry.Asset = std::move(Asset);
+    if (Handle.ID < Assets.size()) {
+        Assets[Handle.ID] = std::move(Entry);
+    }
+    else {
+        Assets.emplace_back(std::move(Entry));
+    }
+    PathToHandle[Assets[Handle.ID].AssetPath] = Handle;
+    return Handle;
+}
+
 void FAssetRegistry::Reset() {
     Assets.clear();
     FreeHandles.clear();
@@ -480,9 +549,6 @@ bool FAssetRegistry::LoadMesh(FAssetEntry& Entry, ID3D11Device* Device) {
 
 	const bool bBinaryAsset = GetLowercaseExtension(Entry.PhysicalPath) == ".bin";
 
-	//const std::filesystem::path SourceObjPath = bBinaryAsset ? std::filesystem::path{} : Entry.PhysicalPath;
-	//const std::filesystem::path SourceObjPath = Entry.PhysicalPath;
-    //OBJFiles 폴더에 원본 obj들 찾기
 	std::filesystem::path SourceObjPath = std::filesystem::current_path() / "OBJFiles" / Entry.PhysicalPath.filename();
     SourceObjPath.replace_extension(".obj");
 
@@ -521,7 +587,6 @@ bool FAssetRegistry::RegisterDiscoveredAsset(const FAssetPath& AssetPath, const 
 
     const FAssetHandle Handle = AllocateHandle();
 
-    //FAssetEntry Entry{};
     Entry.AssetPath = AssetPath;
     Entry.PhysicalPath = PhysicalPath;
     Entry.SidecarPath = SidecarPath;

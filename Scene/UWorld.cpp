@@ -19,6 +19,7 @@
 #include "Component/UCollisionComponent.h"
 #include "Component/UBillboardTextComponent.h"
 #include "Component/UBillboardComponent.h"
+#include "Component/ULightComponent.h"
 #include "FMousePickRequestMessage.h"
 #include "FWorldEditorContext.h"
 #ifdef OBJ_VIEWER
@@ -236,7 +237,7 @@ FRenderProbe& UWorld::BuildRenderProbe() {
 	Probe.LightProbes.clear();
 	Probe.bForceUnlit = EditorContext != nullptr &&
 		(EditorContext->GetRenderModeState() == static_cast<size_t>(ERenderMode::Unlit) ||
-		 EditorContext->GetRenderModeState() == static_cast<size_t>(ERenderMode::LitWireframe));
+		 EditorContext->GetRenderModeState() == static_cast<size_t>(ERenderMode::Wireframe));
 
 	RenderSubsystem->BuildRenderProbes(AssetRegistry, Probe);
 	LightSubsystem->BuildLightProbes(Probe);
@@ -386,7 +387,6 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 		return false;
 	};
 
-	// actor and component shells
 	for (rapidjson::Value& ActorJson : LoadDocument["Actors"].GetArray()) {
 		if (!ActorJson.IsObject() ||
 			!ActorJson.HasMember("Guid") || !ActorJson["Guid"].IsString() ||
@@ -423,7 +423,6 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 		Actors.emplace_back(std::move(ActorPtr));
 	}
 
-	// serialized data
 	for (size_t ActorIndex = 0; ActorIndex < Actors.size(); ++ActorIndex) {
 		rapidjson::Value& ActorJson = LoadDocument["Actors"][static_cast<rapidjson::SizeType>(ActorIndex)];
 		FArchiveJson ArchiveLoad(ActorJson);
@@ -431,14 +430,12 @@ bool UWorld::LoadScene(const std::filesystem::path& ScenePath, ID3D11Device* Dev
 		Actors[ActorIndex]->Load(ArchiveLoad);
 	}
 
-	// object references
 	for (const std::unique_ptr<AActor>& Actor : Actors) {
 		if (!Actor->ResolveLoadedReferences()) {
 			return FailLoad();
 		}
 	}
 
-	// component registration
 	for (const std::unique_ptr<AActor>& Actor : Actors) {
 		Actor->SetWorld(this);
 	}
@@ -462,7 +459,9 @@ void UWorld::HandleMousePickRequest(const FMousePickRequestMessage& Message) {
 
 			UPrimitiveComponent* NearestPrimitive = nullptr;
 			float NearestDistance = 0.0f;
-			if (GetPickingSubsystem().Raycast(FRay{ RayOrigin.ToSimpleMath(), RayDirection.ToSimpleMath() }, NearestPrimitive, NearestDistance)) {
+			FMatrix CameraWorld{};
+			if (!Message.View.TryInverse(CameraWorld)) return;
+			if (GetPickingSubsystem().Raycast(FRay{ RayOrigin.ToSimpleMath(), RayDirection.ToSimpleMath() }, NearestPrimitive, NearestDistance, &CameraWorld)) {
 				Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "Raycast hit primitive component %f", NearestDistance);
 			}
 
@@ -595,16 +594,13 @@ AActor* UWorld::AddActor(std::unique_ptr<AActor> InActor)
 
 	AActor* Actor = InActor.get();
 
-	// 아직 등록되지 않은 Actor만 등록
 	if (UObjectSystem::Resolve(Actor->GetHandle()) != Actor)
 	{
 		UObjectSystem::Register(Actor);
 	}
 
-	// 먼저 World가 소유권을 확보
 	Actors.push_back(std::move(InActor));
 
-	// 컴포넌트 OnCreate 호출보다 먼저 World가 소유하고 있어야 함
 	Actor->SetWorld(this);
 
 	return Actor;
@@ -632,11 +628,11 @@ void UWorld::HandleSpawnComponent(
 		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Green.mtl" }),
 		AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Material/Blue.mtl" })
 	};
-	const bool bIsBillboard = ComponentType->IsA(UBillboardComponent::StaticTypeInfo());
-	const FAssetHandle BillboardPipeline = bIsBillboard
-		? AssetRegistry.FindAsset(FAssetPath{ "/Game/Pipeline/Billboard.json" }) : FAssetHandle{};
-	const FAssetHandle BillboardTexture = bIsBillboard
-		? AssetRegistry.FindAsset(FAssetPath{ "/Game/Texture/Fire+Sparks-Sheet.png" }) : FAssetHandle{};
+	const bool IsBillboard{ ComponentType->IsA(UBillboardComponent::StaticTypeInfo()) };
+	const bool IsLight{ ComponentType->IsA(ULightComponent::StaticTypeInfo()) };
+	const FAssetHandle BillboardPipeline{ IsBillboard || IsLight ? AssetRegistry.FindAsset(FAssetPath{ "/Game/Pipeline/Billboard.json" }) : FAssetHandle{} };
+	const FAssetHandle BillboardTexture{ IsBillboard ? AssetRegistry.FindAsset(FAssetPath{ "/Game/Texture/Fire+Sparks-Sheet.png" }) : FAssetHandle{} };
+	const FAssetHandle LightProxyTexture{ IsLight ? AssetRegistry.FindAsset(FAssetPath{ "/Game/System/Light.png" }) : FAssetHandle{} };
 
 	std::uniform_int_distribution<size_t> MaterialIndex(0, std::size(Materials) - 1);
 	const FAssetHandle MaterialHandle = bIsStaticMesh ? Materials[MaterialIndex(RandomEngine)] : FAssetHandle{};
@@ -655,6 +651,17 @@ void UWorld::HandleSpawnComponent(
 			continue;
 		}
 
+		UBillboardComponent* LightProxy{};
+		if (IsLight) {
+			LightProxy = Actor->AddComponent<UBillboardComponent>();
+			if (LightProxy == nullptr || !Actor->SetRootComponent(LightProxy)) {
+				DestroyActor(Actor);
+				continue;
+			}
+			LightProxy->SetPipelineHandle(BillboardPipeline);
+			LightProxy->SetTextureHandle(LightProxyTexture);
+		}
+
 		UActorComponent* Component = Actor->AddComponent(*ComponentType);
 		if (Component == nullptr) {
 			DestroyActor(Actor);
@@ -662,9 +669,18 @@ void UWorld::HandleSpawnComponent(
 		}
 
 		if (ComponentType->IsA(USceneComponent::StaticTypeInfo())) {
-			auto* SceneComponent = static_cast<USceneComponent*>(Component);
-			Actor->SetRootComponent(SceneComponent);
-			SceneComponent->SetRelativeLocation(FVector3{
+			USceneComponent* SceneComponent{ static_cast<USceneComponent*>(Component) };
+			if (IsLight) {
+				if (!SceneComponent->AttachToComponent(LightProxy)) {
+					DestroyActor(Actor);
+					continue;
+				}
+			}
+			else {
+				Actor->SetRootComponent(SceneComponent);
+			}
+			USceneComponent* SpawnRoot{ IsLight ? LightProxy : SceneComponent };
+			SpawnRoot->SetRelativeLocation(FVector3{
 				SpawnCenter.x + RandomX(RandomEngine),
 				SpawnCenter.y + RandomY(RandomEngine),
 				SpawnCenter.z + RandomZ(RandomEngine)
@@ -677,7 +693,7 @@ void UWorld::HandleSpawnComponent(
 			StaticMeshComponent->SetPipelineHandle(PipelineHandle);
 			StaticMeshComponent->SetMaterialHandle(MaterialHandle);
 		}
-		if (bIsBillboard) {
+		if (IsBillboard) {
 			auto* Billboard = static_cast<UBillboardComponent*>(Component);
 			Billboard->SetPipelineHandle(BillboardPipeline);
 			Billboard->SetTextureHandle(BillboardTexture);

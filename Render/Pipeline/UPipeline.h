@@ -58,10 +58,12 @@ public:
 	bool Initialize(ID3D11Device* Device, const std::filesystem::path& PipelinePath);
 
     void Bind(ID3D11DeviceContext* Context) const;
+    void Bind(ID3D11DeviceContext* Context, ERenderMode Mode) const;
     void Reset();
 
-    void SetRenderMode(ERenderMode mode);
-    bool RenderModeSettable(ERenderMode mode);
+    void SetRenderMode(ERenderMode Mode);
+    bool RenderModeSettable(ERenderMode Mode);
+    ERenderMode GetRenderMode() const;
 
 private:
 	bool InitializeFamily(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory);
@@ -69,7 +71,6 @@ private:
     bool LoadPipelineDescription(const std::filesystem::path& Path, FPipelineDescription& OutDescription);
 
 	bool Make(ID3D11Device* Device, const FPipelineDescription& Description, PipelineUnit& PipelineUnit);
-protected:
 	virtual void Serialize(FArchive& Ar) override;
 
 private:

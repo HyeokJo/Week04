@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <d3d11.h>
 
@@ -38,7 +38,7 @@ public:
 private:
 	void RenderGrid(const CameraProbe& Camera, const FVector3& CameraPosition, const D3D11_VIEWPORT& Viewport, FVector2D& FadeCenter, ELineDepthMode DepthMode);
 	void RenderAxis(ELineDepthMode DepthMode);
-	void RenderBounds(ELineDepthMode DepthMode);
+	void RenderBounds(const CameraProbe& Camera, ELineDepthMode DepthMode);
 
 private:
 	std::unique_ptr<FLineRenderer> LineRenderer{ std::make_unique<FLineRenderer>() };

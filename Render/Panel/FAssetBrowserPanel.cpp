@@ -140,6 +140,28 @@ void FAssetBrowserPanel::DrawContents() {
         }
     }
    
+    ImGui::TextUnformatted("Type");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(130.0f);
+    if (ImGui::BeginCombo("##AssetTypeFilter", mSelectedAssetType == EAssetType::END ? "All Types" : GetAssetTypeLabel(mSelectedAssetType))) {
+        if (ImGui::Selectable("All Types", mSelectedAssetType == EAssetType::END)) {
+            mSelectedAssetType = EAssetType::END;
+        }
+        if (ImGui::Selectable("Static Mesh", mSelectedAssetType == EAssetType::Mesh)) {
+            mSelectedAssetType = EAssetType::Mesh;
+        }
+        if (ImGui::Selectable("Texture", mSelectedAssetType == EAssetType::Texture)) {
+            mSelectedAssetType = EAssetType::Texture;
+        }
+        if (ImGui::Selectable("Material", mSelectedAssetType == EAssetType::Material)) {
+            mSelectedAssetType = EAssetType::Material;
+        }
+        if (ImGui::Selectable("Pipeline", mSelectedAssetType == EAssetType::Pipeline)) {
+            mSelectedAssetType = EAssetType::Pipeline;
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::InputTextWithHint("##AssetFilter", "Search assets", AssetFilter.InputBuf, IM_ARRAYSIZE(AssetFilter.InputBuf))) {
@@ -157,7 +179,7 @@ void FAssetBrowserPanel::DrawContents() {
     if (ImGui::BeginChild("AssetTiles", ImVec2(0.0f, ContentHeight), ImGuiChildFlags_Borders)) {
         std::vector<const FAssetEntry*> VisibleAssets{};
         for (const FAssetEntry& Entry : AssetRegistry->GetAssetEntries()) {
-            if (!IsInSelectedFolder(Entry)) {
+            if (!IsInSelectedFolder(Entry) || (mSelectedAssetType != EAssetType::END && Entry.AssetType != mSelectedAssetType)) {
                 continue;
             }
 

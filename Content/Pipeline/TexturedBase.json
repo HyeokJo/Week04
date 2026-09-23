@@ -1,12 +1,12 @@
 {
   "VertexShader": {
-    "Source": "./Content/Shader/TexturedTest.hlsl",
+    "Source": "./Content/Shader/TexturedBase.hlsl",
     "EntryPoint": "mainVS",
     "Profile": "vs_5_0"
   },
 
   "PixelShader": {
-    "Source": "./Content/Shader/TexturedTest.hlsl",
+    "Source": "./Content/Shader/TexturedBase.hlsl",
     "EntryPoint": "mainPS",
     "Profile": "ps_5_0"
   },
@@ -17,15 +17,6 @@
       "SemanticIndex": 0,
       "Format": "Float3",
       "InputSlot": 0,
-      "AlignedByteOffset": 0,
-      "InputClassification": "PerVertex",
-      "InstanceDataStepRate": 0
-    },
-    {
-      "SemanticName": "NORMAL",
-      "SemanticIndex": 0,
-      "Format": "Float3",
-      "InputSlot": 1,
       "AlignedByteOffset": 0,
       "InputClassification": "PerVertex",
       "InstanceDataStepRate": 0

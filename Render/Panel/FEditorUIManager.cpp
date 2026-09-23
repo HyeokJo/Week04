@@ -98,7 +98,11 @@ FViewportHostWindow* FEditorUIManager::GetViewportHostWindow() const {
 }
 
 bool FEditorUIManager::HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
+#ifdef OBJ_VIEWER
+	return mViewerWindow != nullptr && mViewerWindow->HandleExternalFileDrop(FilePath, ScreenPosition);
+#else
 	return mAssetBrowserPanel != nullptr && mAssetBrowserPanel->IsVisible() && mAssetBrowserPanel->HandleExternalFileDrop(FilePath, ScreenPosition);
+#endif
 }
 
 void FEditorUIManager::AddPanel(std::unique_ptr<IEditorPanel> Panel) {

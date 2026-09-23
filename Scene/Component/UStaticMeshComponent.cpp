@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 #include "UStaticMeshComponent.h"
 #include "Render/Panel/FPropertyEditorContext.h"
 
@@ -10,6 +10,11 @@
 #include "../../Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UMaterial.h"
 #include "Render/Pipeline/UPipeline.h"
+
+namespace {
+    constexpr char BasePipelinePath[]{ "/Game/Pipeline/Base" };
+    constexpr char TextureBasePipelinePath[]{ "/Game/Pipeline/TexturedBase.json" };
+}
 
 FAssetHandle UStaticMeshComponent::GetMaterialHandle() const { return MaterialHandle; }
 
@@ -49,8 +54,27 @@ void UStaticMeshComponent::DrawPanels(FPropertyEditorContext& Context)
         Context.DrawDisabledText("Material/Pipeline: Asset registry unavailable");
         return;
     }
-    Context.DrawAssetPicker("Material", *Registry, *UMaterial::StaticTypeInfo(), GetMaterialHandle(), [this](FAssetHandle Handle) {
+    Context.DrawAssetPicker("Material", *Registry, *UMaterial::StaticTypeInfo(), GetMaterialHandle(), [this, Registry](FAssetHandle Handle) {
         SetMaterialHandle(Handle);
+
+        const UMaterial* Material{ Registry->ResolveAsset<UMaterial>(GetMaterialHandle()) };
+        bool HasTexture{};
+        if (Material != nullptr) {
+            for (uint32 GroupIndex{}; GroupIndex < Material->GetGPUDataCount() && !HasTexture; ++GroupIndex) {
+                const FMaterialChunkSignature Signature{ Material->BuildChunkSignature(GroupIndex) };
+                for (uint8 TextureFieldIndex{}; TextureFieldIndex < Signature.TextureFieldCount; ++TextureFieldIndex) {
+                    if (Signature.GetTextureHandle(TextureFieldIndex)) {
+                        HasTexture = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const FAssetHandle DesiredPipelineHandle{ Registry->FindAsset(FAssetPath{ HasTexture ? TextureBasePipelinePath : BasePipelinePath }) };
+        if (DesiredPipelineHandle != GetPipelineHandle() && Registry->ResolveAsset<UPipeline>(DesiredPipelineHandle) != nullptr) {
+            SetPipelineHandle(DesiredPipelineHandle);
+        }
     });
     Context.DrawAssetPicker("Pipeline", *Registry, *UPipeline::StaticTypeInfo(), GetPipelineHandle(), [this](FAssetHandle Handle) {
         SetPipelineHandle(Handle);

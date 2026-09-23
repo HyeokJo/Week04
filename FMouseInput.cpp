@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 
 #include "FMouseInput.h"
 #include "FMousePickRequestMessage.h"
@@ -192,7 +192,7 @@ void FMouseInput::Consume(EMouseSide Side)
     }
 }
 
-FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, bool bMouseCapturedByUI) {
+FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, const FMatrix& View, bool bMouseCapturedByUI) {
     FViewportMouseNavigationInput NavigationInput{};
 
     // 누르기 시작한 시점에 입력 소유권을 결정한다.
@@ -207,14 +207,7 @@ FViewportMouseNavigationInput FMouseInput::DispatchPendingViewportCommands(std::
     if (WorldCommandSender.has_value() && DragOwners[Left] == EDragOwner::World && KeyStates[Left] == EKeyState::Pressed) {
             const DragCapture& Capture = ClickCaptures[Left];
 
-            WorldCommandSender->TryEmplace<FMousePickRequestMessage>(
-                Capture.start.x,
-                Capture.start.y,
-                ViewportLeft,
-                ViewportTop,
-                ViewportWidth,
-                ViewportHeight,
-                ViewProjection);
+            WorldCommandSender->TryEmplace<FMousePickRequestMessage>(Capture.start.x, Capture.start.y, ViewportLeft, ViewportTop, ViewportWidth, ViewportHeight, ViewProjection, View);
     }
 
     if (DragOwners[Right] == EDragOwner::World && (PendingDeltaX != 0.0f || PendingDeltaY != 0.0f)) {

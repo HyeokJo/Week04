@@ -52,6 +52,7 @@ public:
     bool RemoveAsset(FAssetHandle Handle);
 
     FAssetHandle ImportMesh(const std::filesystem::path& SourceObjPath, const FString& TargetVirtualFolder);
+    FAssetHandle LoadViewerAsset(const std::filesystem::path& SourcePath);
 
     template<typename T>
     requires std::is_base_of_v<UAsset, T>
@@ -121,14 +122,12 @@ private:
 	bool LoadPipeline(FAssetEntry& Entry, ID3D11Device* Device);
 	bool LoadMaterial(FAssetEntry& Entry, ID3D11Device* Device);
 	bool LoadMesh(FAssetEntry& Entry, ID3D11Device* Device);
-	//bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType);
 	bool RegisterDiscoveredAsset(const FAssetPath& AssetPath, const std::filesystem::path& PhysicalPath, const std::filesystem::path& SidecarPath, const FGuid& PersistentGuid, EAssetType AssetType, FAssetEntry& Entry);
 
     FAssetPath MakeAssetPath(const std::filesystem::path& PhysicalPath) const;
     static EAssetType GetAssetType(const std::filesystem::path& FilePath);
     static std::filesystem::path MakeSidecarPath(const std::filesystem::path& AssetPath);
     static bool LoadOrCreateMetadata(const std::filesystem::path& SidecarPath, EAssetType AssetType, FAssetEntry& Entry);
-    //static bool LoadOrCreatePersistentGuid(const std::filesystem::path& SidecarPath, FGuid& OutGuid);
     static bool IsPipelineFamilyUnit(const std::filesystem::path& FilePath);
     static std::filesystem::path FindFirstPipelineFamilyUnit(const std::filesystem::path& FamilyDirectory);
 

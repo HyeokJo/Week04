@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "UWorldSubsystem.h"
 
@@ -16,7 +16,7 @@ public:
 
     void RegisterComponent(UPrimitiveComponent* Component);
     void UnregisterComponent(UPrimitiveComponent* Component);
-    bool Raycast(const FRay& Ray, UPrimitiveComponent*& OutComponent, float& OutDistance) const;
+    bool Raycast(const FRay& Ray, UPrimitiveComponent*& OutComponent, float& OutDistance, const FMatrix* CameraWorld = nullptr) const;
 
     bool ContainsComponent(const UPrimitiveComponent* Component) const;
     const TArray<TObjectRef<UPrimitiveComponent>>& GetRegisteredComponents() const;

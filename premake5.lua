@@ -132,6 +132,7 @@ project "MacawTests"
         "SimpleMath/**.cpp",
         "ErrorHandler.cpp",
         "FName.cpp",
+        "FMousePickRequestMessage.cpp",
         "city.cc",
         "Render/Panel/FPropertyEditorContext.cpp",
         "Render/EditorView/FViewportPresetLayout.cpp",

@@ -1,4 +1,4 @@
-﻿#include "PCH.h"
+#include "PCH.h"
 
 #include "FEditorViewport.h"
 
@@ -248,7 +248,8 @@ bool FEditorViewport::TryCalculateDropPosition(const ImVec2& ScreenPosition, FVe
     UWorld* World{ EditorContext != nullptr ? EditorContext->GetWorld() : nullptr };
     UPrimitiveComponent* HitComponent{};
     float HitDistance{};
-    if (World != nullptr && World->GetPickingSubsystem().Raycast(FRay{ RayOrigin.ToSimpleMath(), RayDirection.ToSimpleMath() }, HitComponent, HitDistance)) {
+    FMatrix CameraWorld{};
+    if (World != nullptr && Camera.View.TryInverse(CameraWorld) && World->GetPickingSubsystem().Raycast(FRay{ RayOrigin.ToSimpleMath(), RayDirection.ToSimpleMath() }, HitComponent, HitDistance, &CameraWorld)) {
         OutPosition = RayOrigin + RayDirection * HitDistance;
         return true;
     }
@@ -291,7 +292,7 @@ void FEditorViewport::ProcessInput(EditorViewport& SharedEditorViewport, FKeyboa
     }
 
     SharedEditorViewport.ProcessInput(KeyboardInput, MouseInput, bBlockMouse);
-    const FViewportMouseNavigationInput MouseNavigation = MouseInput.DispatchPendingViewportCommands(static_cast<int32>(RenderLeft), static_cast<int32>(RenderTop), Width, Height, Camera.ViewProjection, bBlockMouse);
+    const FViewportMouseNavigationInput MouseNavigation = MouseInput.DispatchPendingViewportCommands(static_cast<int32>(RenderLeft), static_cast<int32>(RenderTop), Width, Height, Camera.ViewProjection, Camera.View, bBlockMouse);
 
     if (bHasCamera) {
         ApplyMouseNavigation(MouseNavigation);

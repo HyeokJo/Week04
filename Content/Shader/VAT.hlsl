@@ -23,8 +23,8 @@ StructuredBuffer<FModelContext> ModelContexts : register(t0); // ModelContext[]
 StructuredBuffer<FMaterial> MaterialBuffer : register(t1);
 #include "Lighting.hlsli"
 
-Texture2D BaseColorTexture : register(t3);
-Texture2D VATTexture : register(t4);
+Texture2D BaseColorTexture : register(t4);
+Texture2D VATTexture : register(t6);
 
 SamplerState LinearWrap : register(s0);
 SamplerState PointClamp : register(s2);

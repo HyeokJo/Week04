@@ -94,19 +94,19 @@
             "GuidRootComponent": "05584E92-427A-2633-F527-1884258E8D21"
         },
         {
-            "Guid": "F0F23F63-425C-0F06-CF69-51950B55F20C",
+            "Guid": "25CCC428-4E34-D3F4-97BF-728340871C38",
             "TypeName": "AActor",
             "Name": "AActor_1",
             "Components": [
                 {
-                    "Guid": "C294277B-4C47-8F4B-0806-13A5B632DADC",
+                    "Guid": "3EF47993-4F56-372E-B0C0-EFA544D3D702",
                     "TypeName": "UStaticMeshComponent",
                     "Name": "",
                     "bActive": true,
                     "Transform": {
                         "Position": [
-                            -12.850276947021484,
-                            30.538219451904297,
+                            -7.871558666229248,
+                            -2.186033248901367,
                             0.0
                         ],
                         "Rotation": [
@@ -126,15 +126,15 @@
                     },
                     "Parent": "00000000-0000-0000-0000-000000000000",
                     "bVisible": true,
-                    "MeshAssetGuid": "95933102-44D6-8DD5-B144-58B4E8D412C9",
-                    "MeshAssetPath": "/Game/Models/Mimikyu/Untitled.bin",
-                    "MaterialAssetGuid": "21AD3FCE-4B41-113E-AFAC-1EA18000D81D",
-                    "MaterialAssetPath": "/Game/Models/Mimikyu/Untitled.mtl",
+                    "MeshAssetGuid": "499ED9C7-4B4D-1CE6-FF65-9F9793186C47",
+                    "MeshAssetPath": "/Game/Models/Sponza-master/sponza.bin",
+                    "MaterialAssetGuid": "B7B26546-42EF-6382-72C4-FEB984231CE1",
+                    "MaterialAssetPath": "/Game/Models/Sponza-master/sponza.mtl",
                     "PipelineAssetGuid": "653C7285-C0DE-4239-808E-015A9EF47624",
-                    "PipelineAssetPath": "/Game/Pipeline/TexturedTest.json"
+                    "PipelineAssetPath": "/Game/Pipeline/TexturedBase.json"
                 },
                 {
-                    "Guid": "E4F6E2DA-4681-38E6-E9CE-B7B7109ED39D",
+                    "Guid": "48FFCF7E-4D80-AA91-41BF-81BFF3A61AF9",
                     "TypeName": "UNameTagComponent",
                     "Name": "",
                     "bActive": false,
@@ -159,13 +159,13 @@
                         "bAbsoluteRotation": false,
                         "bAbsoluteScale": false
                     },
-                    "Parent": "C294277B-4C47-8F4B-0806-13A5B632DADC",
+                    "Parent": "3EF47993-4F56-372E-B0C0-EFA544D3D702",
                     "bVisible": true,
                     "FontAssetGuid": "0C6D5C06-6626-4BCF-A653-83ED3FF5280F",
                     "FontAssetPath": "/Game/Font/NotoSansKR-Medium.ttf",
                     "PipelineAssetGuid": "E41C36DD-3CF1-4FC0-9C14-7F7C20714597",
                     "PipelineAssetPath": "/Game/Pipeline/Text.json",
-                    "Text": "F0F23F63-425C-0F06-CF69-51950B55F20C",
+                    "Text": "25CCC428-4E34-D3F4-97BF-728340871C38",
                     "Color": [
                         1.0,
                         1.0,
@@ -183,7 +183,7 @@
                     ]
                 }
             ],
-            "GuidRootComponent": "C294277B-4C47-8F4B-0806-13A5B632DADC"
+            "GuidRootComponent": "3EF47993-4F56-372E-B0C0-EFA544D3D702"
         }
     ]
 }

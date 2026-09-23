@@ -95,10 +95,6 @@ void FRenderer::RenderScene(IRenderSurface& Target, FRenderProbe& Probe, const C
 	RenderActorList(Probe.ActorProbes, Camera, false, Settings.bRenderSky);
 	RenderOutline(Probe.ActorProbes, Camera, Settings.bRenderSky);
 
-	if (AssetRegistry != nullptr) {
-		//TextRenderer.Render(DeviceContext.Get(), Probe.TextProbes, Camera, AssetRegistry);
-		//BillboardRenderer.Render(DeviceContext.Get(), Probe.BillboardProbes, Camera, AssetRegistry);
-	}
 }
 
 bool FRenderer::UploadLightContext(const FRenderProbe& Probe) {
@@ -168,14 +164,19 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 
         const auto AddDrawItem = [&DrawItems, &Probe, this](FAssetHandle MaterialHandle, uint32 MaterialGroupIndex, uint32 FirstIndex, uint32 IndexCount) {
             UMaterial* Material = AssetRegistry->ResolveAsset<UMaterial>(MaterialHandle);
-            if (Material == nullptr || Material->GetGPUIndex(MaterialGroupIndex) == UINT32_MAX || IndexCount == 0) {
+            if (Material == nullptr || IndexCount == 0) {
+                return;
+            }
+
+            const uint32 ResolvedGroupIndex{ Material->GetGPUIndex(MaterialGroupIndex) != UINT32_MAX ? MaterialGroupIndex : 0u };
+            if (Material->GetGPUIndex(ResolvedGroupIndex) == UINT32_MAX) {
                 return;
             }
 
             DrawItems.push_back(FDrawItem{
                 .Probe = Probe,
                 .MaterialHandle = MaterialHandle,
-                .MaterialGroupIndex = MaterialGroupIndex,
+                .MaterialGroupIndex = ResolvedGroupIndex,
                 .FirstIndex = FirstIndex,
                 .IndexCount = IndexCount
             });
@@ -275,7 +276,13 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 		
 		UMesh* Mesh = AssetRegistry->ResolveAsset<UMesh>(First.Probe.MeshHandle);
 		
-		Pipeline->Bind(DeviceContext.Get());
+		const bool bLitWireframe{ !bOutline && Pipeline->GetRenderMode() == ERenderMode::LitWireframe };
+		if (bLitWireframe) {
+			Pipeline->Bind(DeviceContext.Get(), ERenderMode::Lit);
+		}
+		else {
+			Pipeline->Bind(DeviceContext.Get());
+		}
 
 		if (!bTextureSetBound || BoundTextureSet != Signature) {
 			std::array<ID3D11ShaderResourceView*, MAX_MATERIAL_TEXTURE_FIELDS> TextureSRVs{};
@@ -317,26 +324,27 @@ void FRenderer::RenderActorList(TArray<FActorProbe>& ActorProbes, const CameraPr
 
 		RootConstants.SetGraphicsRoot32BitConstant(InstanceCount, 48);
 
-		//current frame 업데이트
 		if (ImGui::GetCurrentContext() != nullptr)
 		{
 			auto& io = ImGui::GetIO();
 			float DT = io.DeltaTime;
 			CountTime += DT;
-			//Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "%f", DT);
-			if (CountTime >= 0.05f)
+			if (CountTime >= 0.1f)
 			{
 				CurrentFrame = (CurrentFrame + 1) % 250;
 				CountTime = 0.f;
 			}
 		}
 
-		//Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "%d", CurrentFrame);
 		RootConstants.SetGraphicsRoot32BitConstant(CurrentFrame, 50);
 
 		RootConstants.Commit(DeviceContext.Get());
 
 		DeviceContext->DrawIndexedInstanced(First.IndexCount, static_cast<uint32>(g.size()), First.FirstIndex, 0, 0);
+		if (bLitWireframe) {
+			Pipeline->Bind(DeviceContext.Get(), ERenderMode::LitWireframe);
+			DeviceContext->DrawIndexedInstanced(First.IndexCount, static_cast<uint32>(g.size()), First.FirstIndex, 0, 0);
+		}
 
 		InstanceCount += static_cast<uint32>(g.size());
 	}
@@ -370,24 +378,21 @@ void FRenderer::ReportLiveObjects() const {
 }
 
 void FRenderer::CreateDeviceAndSwapChain(HWND WindowHandle) {
-	// 지원하는 Direct3D 기능 레벨을 정의
 	D3D_FEATURE_LEVEL featurelevels[] = { D3D_FEATURE_LEVEL_11_0 };
 
-	// 스왑 체인 설정 구조체 초기화
 	DXGI_SWAP_CHAIN_DESC swapchaindesc = {};
-	swapchaindesc.BufferDesc.Width = BackBufferWidth; // 창 크기에 맞게 자동으로 설정
-	swapchaindesc.BufferDesc.Height = BackBufferHeight; // 창 크기에 맞게 자동으로 설정
-	swapchaindesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 색상 포맷
-	swapchaindesc.SampleDesc.Count = 1; // 멀티 샘플링 비활성화
-	swapchaindesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; // 렌더 타겟으로 사용
-	swapchaindesc.BufferCount = 2; // 더블 버퍼링
-	swapchaindesc.OutputWindow = WindowHandle; // 렌더링할 창 핸들
-	swapchaindesc.Windowed = TRUE; // 창 모드
-	swapchaindesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // 스왑 방식
-	swapchaindesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; // 모드 전환 허용
+	swapchaindesc.BufferDesc.Width = BackBufferWidth;
+	swapchaindesc.BufferDesc.Height = BackBufferHeight;
+	swapchaindesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapchaindesc.SampleDesc.Count = 1;
+	swapchaindesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapchaindesc.BufferCount = 2;
+	swapchaindesc.OutputWindow = WindowHandle;
+	swapchaindesc.Windowed = TRUE;
+	swapchaindesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapchaindesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 	
 #ifdef _DEBUG
-	// Direct3D 장치와 스왑 체인을 생성
 	ErrorHandler::ReportHRESULT(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
 		featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION,
@@ -398,7 +403,6 @@ void FRenderer::CreateDeviceAndSwapChain(HWND WindowHandle) {
 		featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION,
 		&swapchaindesc, &SwapChain, &Device, nullptr, &DeviceContext), "[ FRenderer ]", "Failed to create Direct3D device and swap chain.", ErrorHandler::EErrorLevel::Critical);
 #endif 
-	// 생성된 스왑 체인의 정보 가져오기
 	SwapChain->GetDesc(&swapchaindesc);
 
 }

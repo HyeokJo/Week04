@@ -14,7 +14,6 @@ class FRenderer;
 class FAssetRegistry;
 class FAssetThumbnailRenderer;
 
-// 메인 뷰포트와 무관한 독립 공간에 모델 하나만 그려 보여주는 패널.
 class FViewerPanel final : public FEditorWindow {
 public:
 	FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle, FMessageChannel::FSender InEditorToWorldSender, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer);
@@ -30,8 +29,8 @@ public:
 	void ReleaseRenderResources() override;
 	void SetMesh(FAssetHandle InMeshHandle);
 	void SetMaterial(FAssetHandle InMaterialHandle);
+	bool HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition);
 
-	// 보여줄 메시를 바꾼다. 무효 핸들이면 CubeMesh 로 대체된다.
 private:
 	void DrawContents() override;
 	void DrawMenuBar();
@@ -41,12 +40,10 @@ private:
 	FRenderProbe BuildPreviewProbe();
 	CameraProbe BuildPreviewCamera() const;
 	void ProcessInput();
-	// 미리보기 서피스 좌상단에 월드 기저를 표시한다.
 	void RenderOrientationAxis(ID3D11DeviceContext* Context);
-	// 카메라의 월드 행렬을 직접 만든다. FTransform 을 거치지 않으므로
-	// 메시 소스 기저 변환에 영향받지 않는다.
 	FMatrix MakeCameraWorldMatrix(const FVector3& Eye) const;
 	FString OpenFileDialog(const FString& FilePath, const OPENFILENAMEA& OFN) const;
+	bool OpenViewerFile(const std::filesystem::path& FilePath);
 
 private:
 	FAssetRegistry* mRegistry{ nullptr };
@@ -61,11 +58,12 @@ private:
 	bool mLineRendererInitialized{ false };
 	uint32 mSurfaceWidth{};
 	uint32 mSurfaceHeight{};
-	// DrawPanel 이 잰 크기. 다음 RenderOffscreen 이 이 값으로 서피스를 맞춘다
 	uint32 mDesiredWidth{};
 	uint32 mDesiredHeight{};
 	float mDistance{ 5.0f };
 	FVector3 mTarget{ 0.0f, 0.0f, 0.0f };
-	float mFieldOfView{ 1.0472f }; // 60도
+	float mFieldOfView{ 1.0472f };
 	FQuat mOrbitRotation{};
+	ImVec2 mDropTargetMin{};
+	ImVec2 mDropTargetMax{};
 };

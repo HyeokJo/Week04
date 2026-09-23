@@ -2,6 +2,7 @@
 
 #include "UPrimitiveComponent.h"
 #include "Core/Asset/FAssetPath.h"
+#include <array>
 
 struct FMatrix;
 
@@ -42,6 +43,7 @@ public:
     const FVector4& GetColor() const;
 
     bool MakeBillboardRender(FBillboardProbe& OutProbe) const;
+    bool GetWorldCorners(const FMatrix& CameraWorld, std::array<FVector3, 4>& OutCorners) const;
     void DrawPanels(FPropertyEditorContext& Context) override;
 
     void OnRegister() override;

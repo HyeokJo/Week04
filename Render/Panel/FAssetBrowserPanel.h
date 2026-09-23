@@ -34,6 +34,7 @@ private:
     FString SelectedFolder{ "/Game" };
     FAssetHandle SelectedAsset{};
     ImGuiTextFilter AssetFilter{};
+    EAssetType mSelectedAssetType{ EAssetType::END };
     ImVec2 DropTargetMin{};
     ImVec2 DropTargetMax{};
     bool bDropTargetActive{ false };

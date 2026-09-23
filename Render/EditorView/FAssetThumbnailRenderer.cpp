@@ -14,7 +14,7 @@ namespace {
 	constexpr const char* DefaultMaterialPath = "/Game/System/Material/Default.mtl";
 	constexpr const char* SphereMeshPath = "/Game/System/Mesh/Sphere.bin";
 	constexpr const char* StaticMeshPipelinePath = "/Game/Pipeline/Base";
-	constexpr const char* MaterialPipelinePath = "/Game/Pipeline/TexturedTest.json";
+	constexpr const char* MaterialPipelinePath = "/Game/Pipeline/TexturedBase.json";
 }
 
 void FAssetThumbnailRenderer::Create(FRenderer* InRenderer, FAssetRegistry* InAssetRegistry) {

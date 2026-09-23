@@ -14,24 +14,9 @@ bool UPipeline::Initialize(ID3D11Device* Device, const std::filesystem::path& Pi
 		return false;
 	}
 
-	Reset();
-
-	FPipelineDescription Description{};
-	if (!LoadPipelineDescription(PipelinePath, Description)) {
-		return false;
-	}
-
-	Pipelines.emplace_back();
-	if (!Make(Device, Description, Pipelines.back())) {
-		Reset();
-		return false;
-	}
-
-	OptionFilePath = PipelinePath;
-	PrimaryIndex = 0;
-	ModeIndex = 0;
-
-	return true;
+	std::array<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)> ModePaths{};
+	ModePaths[static_cast<size_t>(ERenderMode::Lit)] = PipelinePath;
+	return InitializeModes(Device, ModePaths);
 }
 
 bool UPipeline::InitializeFamily(ID3D11Device* Device, const std::filesystem::path& FamilyDirectory) {
@@ -39,44 +24,69 @@ bool UPipeline::InitializeFamily(ID3D11Device* Device, const std::filesystem::pa
 		return false;
 	}
 
-	std::vector<std::filesystem::path> UnitPaths{};
-	const FString FamilyName = FamilyDirectory.filename().generic_string().c_str();
-	const FString UnitPrefix = FamilyName + "_";
-	std::error_code ErrorCode{};
-	for (const std::filesystem::directory_entry& Entry : std::filesystem::directory_iterator(FamilyDirectory, ErrorCode)) {
-		if (ErrorCode) {
-			return false;
-		}
-
-		const std::filesystem::path& Path = Entry.path();
-		if (Entry.is_regular_file(ErrorCode) && Path.extension() == ".json" && Path.stem().generic_string().starts_with(UnitPrefix)) {
-			UnitPaths.emplace_back(Path);
+	constexpr std::array<const char*, static_cast<size_t>(ERenderMode::Max)> ModeNames{ "Lit", "Outline", "Unlit", "Wireframe", "LitWireframe" };
+	std::array<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)> ModePaths{};
+	const std::string FamilyName{ FamilyDirectory.filename().generic_string() };
+	for (size_t Index{ 0 }; Index < ModeNames.size(); ++Index) {
+		const std::filesystem::path Path{ FamilyDirectory / (FamilyName + "_" + ModeNames[Index] + ".json") };
+		if (std::filesystem::is_regular_file(Path)) {
+			ModePaths[Index] = Path;
 		}
 	}
-
-	if (ErrorCode || UnitPaths.empty()) {
+	if (ModePaths[static_cast<size_t>(ERenderMode::Lit)].empty()) {
 		return false;
 	}
+	return InitializeModes(Device, ModePaths);
+}
 
-	std::ranges::sort(UnitPaths, {}, [](const std::filesystem::path& Path) {
-		return Path.filename().generic_string();
-	});
+bool UPipeline::InitializeModes(ID3D11Device* Device, const std::array<std::filesystem::path, static_cast<size_t>(ERenderMode::Max)>& ModePaths) {
+	std::array<FPipelineDescription, static_cast<size_t>(ERenderMode::Max)> Descriptions{};
+	const size_t LitIndex{ static_cast<size_t>(ERenderMode::Lit) };
+	if (!LoadPipelineDescription(ModePaths[LitIndex], Descriptions[LitIndex])) {
+		return false;
+	}
+	for (size_t Index{ 0 }; Index < Descriptions.size(); ++Index) {
+		if (Index == LitIndex) {
+			continue;
+		}
+		if (!ModePaths[Index].empty()) {
+			if (!LoadPipelineDescription(ModePaths[Index], Descriptions[Index])) {
+				return false;
+			}
+			continue;
+		}
+		Descriptions[Index] = Descriptions[LitIndex];
+		if (Descriptions[Index].PrimitiveTopology != EPrimitiveTopology::TriangleList && Descriptions[Index].PrimitiveTopology != EPrimitiveTopology::TriangleStrip) {
+			continue;
+		}
+		if (Index == static_cast<size_t>(ERenderMode::Outline)) {
+			Descriptions[Index].PixelShader.Source = "./Content/Shader/OutlineFill.hlsl";
+			Descriptions[Index].PixelShader.EntryPoint = "MainPS";
+			Descriptions[Index].Rasterizer.FillMode = EFillMode::Solid;
+			Descriptions[Index].Rasterizer.CullMode = ECullMode::Front;
+			Descriptions[Index].DepthStencil.DepthWriteEnable = false;
+		}
+		else if (Index == static_cast<size_t>(ERenderMode::Wireframe) || Index == static_cast<size_t>(ERenderMode::LitWireframe)) {
+			Descriptions[Index].Rasterizer.FillMode = EFillMode::Wireframe;
+			if (Index == static_cast<size_t>(ERenderMode::LitWireframe)) {
+				Descriptions[Index].PixelShader.Source = "./Content/Shader/OutlineFill.hlsl";
+				Descriptions[Index].PixelShader.EntryPoint = "MainPS";
+				Descriptions[Index].DepthStencil.DepthWriteEnable = false;
+			}
+		}
+	}
 
 	Reset();
-
-	for (const std::filesystem::path& UnitPath : UnitPaths) {
-		FPipelineDescription Description{};
-		Pipelines.emplace_back();
-		if (!LoadPipelineDescription(UnitPath, Description) || !Make(Device, Description, Pipelines.back())) {
+	Pipelines.resize(Descriptions.size());
+	for (size_t Index{ 0 }; Index < Descriptions.size(); ++Index) {
+		if (!Make(Device, Descriptions[Index], Pipelines[Index])) {
 			Reset();
 			return false;
 		}
 	}
-
-	OptionFilePath = FamilyDirectory;
-	PrimaryIndex = 0;
-	ModeIndex = 0;
-
+	OptionFilePath = ModePaths[LitIndex];
+	PrimaryIndex = LitIndex;
+	ModeIndex = LitIndex;
 	return true;
 }
 
@@ -87,7 +97,6 @@ bool UPipeline::Make(ID3D11Device* Device, const FPipelineDescription& Descripti
         return false;
     }
 
-    // Reset();
 
     if (!Pipeline.VertexShader.Initialize(Device, Description.VertexShader)) {
         return false;
@@ -198,28 +207,33 @@ bool UPipeline::Make(ID3D11Device* Device, const FPipelineDescription& Descripti
 }
 
 void UPipeline::Bind(ID3D11DeviceContext* Context) const {
+	Bind(Context, static_cast<ERenderMode>(ModeIndex));
+}
+
+void UPipeline::Bind(ID3D11DeviceContext* Context, ERenderMode Mode) const {
     if (Context == nullptr) {
         ErrorHandler::Report("Pipeline::Bind", "A valid Direct3D device context is required to bind a pipeline.", ErrorHandler::EErrorLevel::Error);
         return;
     }
 
-    if (ModeIndex >= Pipelines.size() || !Pipelines[ModeIndex].Initialized) {
+    const size_t Index{ static_cast<size_t>(Mode) };
+    if (Index >= Pipelines.size() || !Pipelines[Index].Initialized) {
         return;
     }
 
-    Context->IASetInputLayout(Pipelines[ModeIndex].InputLayout.Get());
-    Context->IASetPrimitiveTopology(Pipelines[ModeIndex].PrimitiveTopology);
+    Context->IASetInputLayout(Pipelines[Index].InputLayout.Get());
+    Context->IASetPrimitiveTopology(Pipelines[Index].PrimitiveTopology);
 
-    Context->VSSetShader(Pipelines[ModeIndex].VertexShader.GetVertexShader(), nullptr, 0);
-    Context->PSSetShader(Pipelines[ModeIndex].PixelShader.GetPixelShader(), nullptr, 0);
+    Context->VSSetShader(Pipelines[Index].VertexShader.GetVertexShader(), nullptr, 0);
+    Context->PSSetShader(Pipelines[Index].PixelShader.GetPixelShader(), nullptr, 0);
 
-    Context->GSSetShader(Pipelines[ModeIndex].GeometryShader.GetGeometryShader(), nullptr, 0);
+    Context->GSSetShader(Pipelines[Index].GeometryShader.GetGeometryShader(), nullptr, 0);
     Context->HSSetShader(nullptr, nullptr, 0);
     Context->DSSetShader(nullptr, nullptr, 0);
 
-    Context->RSSetState(Pipelines[ModeIndex].RasterizerState.Get());
-    Context->OMSetBlendState(Pipelines[ModeIndex].BlendState.Get(), nullptr, 0xffffffff);
-    Context->OMSetDepthStencilState(Pipelines[ModeIndex].DepthStencilState.Get(), 1);
+    Context->RSSetState(Pipelines[Index].RasterizerState.Get());
+    Context->OMSetBlendState(Pipelines[Index].BlendState.Get(), nullptr, 0xffffffff);
+    Context->OMSetDepthStencilState(Pipelines[Index].DepthStencilState.Get(), 1);
 }
 
 void UPipeline::Reset() {
@@ -241,9 +255,9 @@ void UPipeline::Reset() {
 	ModeIndex = 0;
 }
 
-void UPipeline::SetRenderMode(ERenderMode mode)
+void UPipeline::SetRenderMode(ERenderMode Mode)
 {
-    const size_t RequestedIndex = static_cast<size_t>(mode);
+    const size_t RequestedIndex = static_cast<size_t>(Mode);
     if (RequestedIndex < Pipelines.size() && Pipelines[RequestedIndex].Initialized) {
         ModeIndex = RequestedIndex;
     }
@@ -252,10 +266,14 @@ void UPipeline::SetRenderMode(ERenderMode mode)
     }
 }
 
-bool UPipeline::RenderModeSettable(ERenderMode mode)
+bool UPipeline::RenderModeSettable(ERenderMode Mode)
 {
-    const size_t RequestedIndex = static_cast<size_t>(mode);
+    const size_t RequestedIndex = static_cast<size_t>(Mode);
     return RequestedIndex < Pipelines.size() && Pipelines[RequestedIndex].Initialized;
+}
+
+ERenderMode UPipeline::GetRenderMode() const {
+	return static_cast<ERenderMode>(ModeIndex);
 }
 
 bool UPipeline::LoadPipelineDescription(const std::filesystem::path& Path, FPipelineDescription& OutDescription) {

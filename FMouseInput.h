@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -28,7 +28,7 @@ public:
 
 	void ProcessWindowMessage(UINT Message, WPARAM WParam, LPARAM LParam);
 
-	FViewportMouseNavigationInput DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, bool bMouseCaptureByUI);
+	FViewportMouseNavigationInput DispatchPendingViewportCommands(std::int32_t ViewportLeft, std::int32_t ViewportTop, std::uint32_t ViewportWidth, std::uint32_t ViewportHeight, const FMatrix& ViewProjection, const FMatrix& View, bool bMouseCaptureByUI);
 
     EKeyState GetKeyState(EMouseSide Side) const;
     bool IsWorldDragActive(EMouseSide Side) const;

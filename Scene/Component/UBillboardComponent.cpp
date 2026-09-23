@@ -153,6 +153,27 @@ bool UBillboardComponent::MakeBillboardRender(FBillboardProbe& OutProbe) const
     return true;
 }
 
+bool UBillboardComponent::GetWorldCorners(const FMatrix& CameraWorld, std::array<FVector3, 4>& OutCorners) const {
+    FBillboardProbe Probe{};
+    if (!MakeBillboardRender(Probe) || Probe.Size.x <= 0.0f || Probe.Size.y <= 0.0f) {
+        return false;
+    }
+
+    FVector3 Right{ CameraWorld.m[0][0], CameraWorld.m[0][1], CameraWorld.m[0][2] };
+    FVector3 Up{ CameraWorld.m[1][0], CameraWorld.m[1][1], CameraWorld.m[1][2] };
+    if (Right.LengthSquared() <= 0.0f || Up.LengthSquared() <= 0.0f) {
+        return false;
+    }
+    Right.Normalize();
+    Up.Normalize();
+
+    const FVector3 Origin{ Probe.World.Translation() };
+    const FVector3 Horizontal{ Right * (Probe.Size.x * 0.5f) };
+    const FVector3 Vertical{ Up * (Probe.Size.y * 0.5f) };
+    OutCorners = { Origin - Horizontal + Vertical, Origin - Horizontal - Vertical, Origin + Horizontal + Vertical, Origin + Horizontal - Vertical };
+    return true;
+}
+
 void UBillboardComponent::DrawPanels(FPropertyEditorContext& Context)
 {
 	UPrimitiveComponent::DrawPanels(Context);

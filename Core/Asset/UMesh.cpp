@@ -7,8 +7,7 @@
 #include "../../Serialize/FObjSerializer.h"
 
 bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& SourceObjPath, const std::filesystem::path& BinaryPath, const FMaterialResolver& MaterialResolver, const FMaterialGroupResolver& MaterialGroupResolver, bool FlipUV) {
-	const std::filesystem::path& AssetPath = SourceObjPath.empty() ? BinaryPath : SourceObjPath;
-	if (!UAsset::Initialize(Device, AssetPath) || BinaryPath.empty()) {
+	if (Device == nullptr || (SourceObjPath.empty() && BinaryPath.empty())) {
 		Console::AddLog(Console::STDOutHandle, ELogLevel::Error, ELogCategory::Etc, "Model load rejected: device or asset path is invalid.");
 		return false;
 	}
@@ -17,7 +16,7 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 	FGeometry Geometry{};
 
 	std::error_code FileSystemError{};
-	const bool bHasBinary = std::filesystem::is_regular_file(BinaryPath, FileSystemError);
+	const bool bHasBinary = !BinaryPath.empty() && std::filesystem::is_regular_file(BinaryPath, FileSystemError);
 	const bool bLoadedFromBinary = bHasBinary && FObjSerializer::LoadBinary(BinaryPath.string().c_str(), Geometry);
 
 	if (bLoadedFromBinary) {
@@ -39,12 +38,17 @@ bool UMesh::Initialize(ID3D11Device* Device, const std::filesystem::path& Source
 			return false;
 		}
 
-		if (!FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
+		if (!BinaryPath.empty() && !FObjSerializer::SaveBinary(Geometry, BinaryPath.string().c_str())) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Warning, ELogCategory::Etc, "[UMesh] Failed to create model binary: %s", BinaryPath.generic_string().c_str());
 		}
-		else {
+		else if (!BinaryPath.empty()) {
 			Console::AddLog(Console::STDOutHandle, ELogLevel::Log, ELogCategory::Etc, "[UMesh] Created model binary: %s", BinaryPath.generic_string().c_str());
 		}
+	}
+
+	const std::filesystem::path AssetPath{ bLoadedFromBinary ? BinaryPath : SourceObjPath };
+	if (!UAsset::Initialize(Device, AssetPath)) {
+		return false;
 	}
 
 	if (bLoadedFromBinary && Geometry.SubMeshIndexCounts.empty() && !Geometry.Indices.empty()) {

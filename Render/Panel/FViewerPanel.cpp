@@ -6,6 +6,7 @@
 #include "Core/Asset/FAssetRegistry.h"
 #include "Core/Asset/UMaterial.h"
 #include "Core/Asset/UMesh.h"
+#include "Core/Asset/USurfaceOpaque.h"
 #include "Core/Console/Console.h"
 #include "Render/Pipeline/UPipeline.h"
 #include "Scene/FWorldEditorContext.h"
@@ -15,10 +16,11 @@
 
 namespace {
     constexpr float MinimumDistance{ 0.10f };
-    constexpr float MaximumDistance{ 500.0f };
+    constexpr float MaximumDistance{ 1000000.0f };
     constexpr char DefaultMeshPath[]{ "/Game/System/Mesh/Cube.bin" };
     constexpr char DefaultMaterialPath[]{ "/Game/System/Material/Green.mtl" };
     constexpr char DefaultPipelinePath[]{ "/Game/Pipeline/Base" };
+    constexpr char TexturedPipelinePath[]{ "/Game/Pipeline/TexturedBase.json" };
 }
 
 FViewerPanel::FViewerPanel(FAssetRegistry& InRegistry, HWND InputWindowHandle, FMessageChannel::FSender InEditorToWorldSender, FWorldEditorContext& InEditorContext, FAssetThumbnailRenderer* InThumbnailRenderer)
@@ -43,7 +45,59 @@ void FViewerPanel::SetMaterial(FAssetHandle InMaterialHandle) {
     }
 }
 
+bool FViewerPanel::OpenViewerFile(const std::filesystem::path& FilePath) {
+    if (mRegistry == nullptr) {
+        return false;
+    }
+
+    std::string Extension{ FilePath.extension().string() };
+    std::ranges::transform(Extension, Extension.begin(), [](unsigned char Character) { return static_cast<char>(std::tolower(Character)); });
+    if (Extension != ".obj" && Extension != ".bin" && Extension != ".mtl") {
+        return false;
+    }
+
+    const FAssetHandle Handle{ mRegistry->LoadViewerAsset(FilePath) };
+    if (Extension == ".mtl" && mRegistry->ResolveAsset<UMesh>(mMeshHandle) != nullptr && mRegistry->ResolveAsset<UMaterial>(Handle) != nullptr) {
+        SetMaterial(Handle);
+        return true;
+    }
+    if (Extension != ".mtl" && mRegistry->ResolveAsset<UMesh>(Handle) != nullptr) {
+        SetMesh(Handle);
+        const UMesh* Mesh{ mRegistry->ResolveAsset<UMesh>(mMeshHandle) };
+        const uint32 VertexCount{ Mesh->GetVertexAttributeCount(EVertexAttribute::Position) };
+        const uint32 VertexStride{ Mesh->GetVertexStride(EVertexAttribute::Position) };
+        const std::byte* VertexData{ static_cast<const std::byte*>(Mesh->GetVertexData(EVertexAttribute::Position)) };
+        if (VertexData != nullptr && VertexCount > 0 && VertexStride >= sizeof(FVector3)) {
+            FVector3 Minimum{ *reinterpret_cast<const FVector3*>(VertexData) };
+            FVector3 Maximum{ Minimum };
+            for (uint32 Index{ 1 }; Index < VertexCount; ++Index) {
+                const FVector3& Position{ *reinterpret_cast<const FVector3*>(VertexData + static_cast<size_t>(Index) * VertexStride) };
+                Minimum.x = std::min(Minimum.x, Position.x);
+                Minimum.y = std::min(Minimum.y, Position.y);
+                Minimum.z = std::min(Minimum.z, Position.z);
+                Maximum.x = std::max(Maximum.x, Position.x);
+                Maximum.y = std::max(Maximum.y, Position.y);
+                Maximum.z = std::max(Maximum.z, Position.z);
+            }
+            mTarget = (Minimum + Maximum) * 0.5f;
+            mDistance = std::clamp((Maximum - Minimum).Length() / std::tan(mFieldOfView * 0.5f), MinimumDistance, MaximumDistance);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool FViewerPanel::HandleExternalFileDrop(const std::filesystem::path& FilePath, const ImVec2& ScreenPosition) {
+    if (!IsVisible() || ScreenPosition.x < mDropTargetMin.x || ScreenPosition.x >= mDropTargetMax.x || ScreenPosition.y < mDropTargetMin.y || ScreenPosition.y >= mDropTargetMax.y) {
+        return false;
+    }
+    return OpenViewerFile(FilePath);
+}
+
 void FViewerPanel::DrawContents() {
+    mDropTargetMin = ImGui::GetWindowPos();
+    const ImVec2 WindowSize{ ImGui::GetWindowSize() };
+    mDropTargetMax = ImVec2{ mDropTargetMin.x + WindowSize.x, mDropTargetMin.y + WindowSize.y };
     if (const FAssetHandle PreviewMesh{ mEditorContext.ConsumePreviewMesh() }; PreviewMesh) {
         SetMesh(PreviewMesh);
     }
@@ -51,7 +105,6 @@ void FViewerPanel::DrawContents() {
     DrawMenuBar();
     DrawProperties();
     ImGui::Separator();
-    //MeshHandle = Registry != nullptr ? Registry->GetAsset(FString("ObjImport")) : FAssetHandle{};
     DrawPreview();
 }
 
@@ -61,28 +114,32 @@ void FViewerPanel::DrawMenuBar() {
     }
 
     if (ImGui::BeginMenu("File")) {
+#ifdef OBJ_VIEWER
+        if (ImGui::MenuItem("Open Model or Material...")) {
+#else
         if (ImGui::MenuItem("Import OBJ...")) {
+#endif
             OPENFILENAMEA OpenFileName{};
             OpenFileName.lStructSize = sizeof(OpenFileName);
             OpenFileName.hwndOwner = mWindowHandle;
+#ifdef OBJ_VIEWER
+            OpenFileName.lpstrFilter = "Model and Material Files\0*.bin;*.obj;*.mtl\0All Files\0*.*\0";
+#else
             OpenFileName.lpstrFilter = "OBJ Files(*.obj)\0*.obj\0All Files(*.*)\0*.*\0";
+            OpenFileName.lpstrDefExt = "obj";
+#endif
             OpenFileName.nMaxFile = MAX_PATH;
             OpenFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
-            OpenFileName.lpstrDefExt = "obj";
 
             FString FilePath{ OpenFileDialog(FString{ "./Content/ModelingFiles" }, OpenFileName) };
             if (!FilePath.empty()) {
+#ifdef OBJ_VIEWER
+                OpenViewerFile(std::filesystem::path{ FilePath.c_str() });
+#else
                 mEditorToWorldSender.TryEmplace<FMessageImportMesh>(FString{ "ObjImport" }, std::move(FilePath), FString{});
+#endif
             }
         }
-        //for (const char* Name : MeshNames)
-        //{
-        //    if (ImGui::MenuItem(Name))
-        //    {
-        //        //MeshHandle = Registry != nullptr ? Registry->GetAsset(Name) : FAssetHandle{};
-        //        MeshHandle = Registry != nullptr ? Registry->FindAsset(FAssetPath{ Name }) : FAssetHandle{};
-        //    }
-        //}
         ImGui::EndMenu();
     }
 
@@ -150,7 +207,6 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() {
         return Probe;
     }
 
-    //지정된게 없으면 기본 큐브로
     if (mRegistry->ResolveAsset<UMesh>(mMeshHandle) == nullptr) {
         SetMesh({});
     }
@@ -158,7 +214,16 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() {
         SetMaterial({});
     }
 
-    const FAssetHandle PipelineHandle{ mRegistry->FindAsset(FAssetPath{ DefaultPipelinePath }) };
+    bool HasTexture{};
+    if (const USurfaceOpaque* Material{ mRegistry->ResolveAsset<USurfaceOpaque>(mMaterialHandle) }; Material != nullptr) {
+        for (uint32 GroupIndex{}; GroupIndex < Material->GetGroups().size() && !HasTexture; ++GroupIndex) {
+            const FMaterialChunkSignature Signature{ Material->BuildChunkSignature(GroupIndex) };
+            for (uint8 TextureIndex{}; TextureIndex < Signature.TextureFieldCount; ++TextureIndex) {
+                HasTexture = HasTexture || static_cast<bool>(Signature.GetTextureHandle(TextureIndex));
+            }
+        }
+    }
+    const FAssetHandle PipelineHandle{ mRegistry->FindAsset(FAssetPath{ HasTexture ? TexturedPipelinePath : DefaultPipelinePath }) };
     UPipeline* Pipeline{ mRegistry->ResolveAsset<UPipeline>(PipelineHandle) };
     if (mMeshHandle && mMaterialHandle && Pipeline != nullptr) {
         Pipeline->SetRenderMode(ERenderMode::Lit);
@@ -169,7 +234,6 @@ FRenderProbe FViewerPanel::BuildPreviewProbe() {
         Probe.ActorProbes.push_back(ActorProbe);
     }
 
-    // 프리뷰 전용 디렉셔널 라이트
     FLightProbe LightProbe{};
     LightProbe.Type = ELightType::Directional;
     LightProbe.Color = FVector3{ 1.0f, 1.0f, 1.0f };
@@ -188,7 +252,7 @@ CameraProbe FViewerPanel::BuildPreviewCamera() const {
     const float Aspect{ static_cast<float>(mSurfaceWidth) / static_cast<float>(mSurfaceHeight) };
     CameraProbe Camera{};
     Camera.View = MakeCameraWorldMatrix(Eye).Invert();
-    Camera.Projection = FMatrix::CreatePerspectiveFieldOfView(mFieldOfView, Aspect, 0.1f, 1000.0f);
+    Camera.Projection = FMatrix::CreatePerspectiveFieldOfView(mFieldOfView, Aspect, 0.1f, std::max(1000.0f, mDistance * 4.0f));
     Camera.ViewProjection = Camera.View * Camera.Projection;
     return Camera;
 }
@@ -198,14 +262,10 @@ void FViewerPanel::ProcessInput() {
     if (ImGui::IsItemActive()) {
         const float DeltaYaw{ Input.MouseDelta.x * 0.01f };
         const float DeltaPitch{ Input.MouseDelta.y * 0.01f };
-        // 월드 Z축을 기준으로 회전
         const FQuat YawRotation{ FQuat::CreateFromAxisAngle(FVector::UnitZ, DeltaYaw) };
         const FMatrix CurrentRotation{ FMatrix::CreateFromQuaternion(mOrbitRotation) };
-        //현재 Orbit의 Right 축을 구한다.
         const FVector Right{ CurrentRotation.TransformDirection(FVector::UnitY) };
-        //현재 Right 축을 기준으로 Pitch
         const FQuat PitchRotation{ FQuat::CreateFromAxisAngle(Right, DeltaPitch) };
-        // 회전 누적
         mOrbitRotation = PitchRotation * YawRotation * mOrbitRotation;
         mOrbitRotation.Normalize();
     }
@@ -226,19 +286,15 @@ void FViewerPanel::RenderOffscreen(FRenderer& InRenderer, FAssetRegistry&) {
         return;
     }
 
-    // 디바이스는 생성자 시점에 없으므로 첫 렌더에서 초기화한다.
     if (!mLineRendererInitialized) {
         mLineRenderer->Initialize(InRenderer.GetDevice());
         mLineRendererInitialized = true;
     }
 
-    // 아웃라이너에서 더블클릭한 메시를 넘겨받는다. 핸들만 복사하므로
-    // 액터가 사라져도 뷰어는 영향받지 않는다.
     FRenderProbe PreviewProbe{ BuildPreviewProbe() };
     FRenderSettings PreviewSettings{};
     PreviewSettings.ClearColor = FVector4{ 0.12f, 0.13f, 0.15f, 1.0f };
     InRenderer.RenderScene(mSurface, PreviewProbe, BuildPreviewCamera(), PreviewSettings);
-    // RenderScene 이 서피스를 Bind/Clear 하므로 반드시 그 뒤에 그려야 남는다.
     RenderOrientationAxis(InRenderer.GetDeviceContext());
 }
 
@@ -255,11 +311,8 @@ void FViewerPanel::DrawPreview() {
     const ImVec2 Size{ static_cast<float>(mDesiredWidth), static_cast<float>(mDesiredHeight) };
     const ImVec2 TopLeft{ ImGui::GetCursorScreenPos() };
     const ImGuiViewport* Viewport{ ImGui::GetWindowViewport() };
-    // 이미지 영역을 아이템으로 선점한다. ImGui::Image 는 상호작용 아이템이 아니라서
-    // 그 위에서 드래그하면 클릭이 창 배경으로 흘러가 창 자체가 움직인다.
     ImGui::InvisibleButton("##PreviewViewport", Size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
 
-    // 첫 프레임에는 아직 서피스가 없으므로 건너뛴다.
     if (ID3D11ShaderResourceView* PreviewSRV{ mSurface.GetShaderResourceView() }; PreviewSRV != nullptr) {
         ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(PreviewSRV), TopLeft, ImVec2{ TopLeft.x + Size.x, TopLeft.y + Size.y });
     }
@@ -303,12 +356,9 @@ void FViewerPanel::RenderOrientationAxis(ID3D11DeviceContext* Context) {
     }
 
     FMatrix View{ BuildPreviewCamera().View };
-    // 카메라의 회전만 남기고 위치는 고정한다. 그래야 축이 화면 구석에 붙박이로 있으면서
-    // 방향만 따라 돈다.
     View.Translation(FVector3{ 0.0f, 0.0f, 3.0f });
     const FMatrix Projection{ FMatrix::CreateOrthographic(2.5f, 2.5f, 0.1f, 10.0f) };
     constexpr float AxisSize{ 100.0f };
-    // 직교 투영이라 세 축 길이가 항상 같게 보인다.
     const D3D11_VIEWPORT AxisViewport{ 5.0f, 5.0f, AxisSize, AxisSize, 0.0f, 1.0f };
     Context->RSSetViewports(1, &AxisViewport);
 
@@ -318,6 +368,5 @@ void FViewerPanel::RenderOrientationAxis(ID3D11DeviceContext* Context) {
     mLineRenderer->Render(Context, FLineViewData{ .ViewProjection = View * Projection, .ViewportSize = FVector2D{ AxisSize, AxisSize } });
 
     const D3D11_VIEWPORT FullViewport{ 0.0f, 0.0f, static_cast<float>(mSurfaceWidth), static_cast<float>(mSurfaceHeight), 0.0f, 1.0f };
-    // 뷰포트를 되돌리지 않으면 이후 메인 렌더링이 이 100x100 안에 그려진다.
     Context->RSSetViewports(1, &FullViewport);
 }

@@ -1,30 +1,27 @@
-struct FModelContext
-{
+struct FModelContext {
     row_major float4x4 World;
     uint MaterialIndex;
     uint Flags;
 };
 
-struct FMaterial
-{
-    float4 BaseColor;
-    
-    // Paddings
-    float4 Parameters0;
-    float4 Parameters1;
-    float4 Parameters2;
-    float4 Parameters3;
-    float4 Parameters4;
-    float4 Parameters5;
-    float4 Parameters6;
+struct FSurfaceOpaqueMaterial {
+    float4 DiffuseColorAndOpacity;
+    float4 AmbientColorAndShininess;
+    float4 SpecularColorAndRefractionIndex;
+    float4 EmissiveColorAndSharpness;
+    float4 TransmissionFilter;
+    int IlluminationModel;
+    uint DissolveHalo;
+    float2 Padding;
+    float4 Reserved1;
+    float4 Reserved2;
 };
 
-StructuredBuffer<FModelContext> ModelContexts : register(t0); // ModelContext[]
-StructuredBuffer<FMaterial> MaterialBuffer : register(t1);
+StructuredBuffer<FModelContext> ModelContexts : register(t0);
+StructuredBuffer<FSurfaceOpaqueMaterial> MaterialBuffer : register(t1);
 #include "Lighting.hlsli"
 
-cbuffer RootConstants : register(b0)
-{
+cbuffer RootConstants : register(b0) {
     row_major float4x4 View;
     row_major float4x4 Projection;
     row_major float4x4 ViewProjection;
@@ -33,15 +30,13 @@ cbuffer RootConstants : register(b0)
     uint LightCount;
 };
 
-struct VS_INPUT
-{
+struct VS_INPUT {
     float3 Position : POSITION;
     float3 Normal : NORMAL;
     float2 UV : TEXCOORD0;
 };
 
-struct PS_INPUT
-{
+struct PS_INPUT {
     float4 Position : SV_POSITION;
     float3 Normal : NORMAL;
     float2 UV : TEXCOORD0;
@@ -51,8 +46,7 @@ struct PS_INPUT
     nointerpolation uint Flags : Jungle3;
 };
 
-PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
-{
+PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID) {
     PS_INPUT Output;
 
     FModelContext ModelContext = ModelContexts[ModelContextStart + InstanceID];
@@ -65,27 +59,19 @@ PS_INPUT mainVS(VS_INPUT Input, uint InstanceID : SV_InstanceID)
     Output.WorldPosition = WorldPosition.xyz;
     Output.MaterialIndex = ModelContext.MaterialIndex;
     Output.Flags = ModelContext.Flags;
-   
-
     Output.ColorCoefficient = float3(1.0f, 1.0f, 1.0f);
-    
-   
-    
-
     return Output;
 }
 
-float4 mainPS(PS_INPUT Input) : SV_TARGET
-{
-    float4 Color = MaterialBuffer[Input.MaterialIndex].BaseColor;
+float4 mainPS(PS_INPUT Input) : SV_TARGET {
+    FSurfaceOpaqueMaterial Material = MaterialBuffer[Input.MaterialIndex];
+    float4 BaseColor = Material.DiffuseColorAndOpacity;
 
-    if ((Input.Flags & 2u) != 0)
-    {
-        Color.rgb *= Input.ColorCoefficient;
+    if ((Input.Flags & 2u) != 0) {
+        BaseColor.rgb *= Input.ColorCoefficient;
     }
-    else
-    {
-        Color.rgb *= Input.ColorCoefficient * CalculateDirectLighting(Input.WorldPosition, Input.Normal, LightCount);
+    else {
+        BaseColor.rgb *= Input.ColorCoefficient * CalculateDirectLighting(Input.WorldPosition, Input.Normal, LightCount);
     }
-    return Color;
+    return BaseColor;
 }

@@ -7,6 +7,8 @@
 
 class USurfaceOpaque : public UMaterial {
 public:
+	using FTextureResolver = std::function<FAssetHandle(const std::filesystem::path& TexturePath)>;
+
 	USurfaceOpaque() = default;
 	virtual ~USurfaceOpaque() = default;
 
@@ -19,24 +21,21 @@ public:
 public:
 	JG_DECLARE_DERIVED_TYPEINFO(USurfaceOpaque, UMaterial);
 
-	using FTextureResolver = std::function<FAssetHandle(const std::filesystem::path& TexturePath)>;
-
 	bool Initialize(ID3D11Device* Device, const std::filesystem::path& MtlPath, const FTextureResolver& TextureResolver);
 	void BuildGPUData(FMaterialGPUSlot& OutSlot) const override;
 	void BuildGPUData(uint32 GroupIndex, FMaterialGPUSlot& OutSlot) const override;
 	FMaterialChunkSignature BuildChunkSignature() const override;
 	FMaterialChunkSignature BuildChunkSignature(uint32 GroupIndex) const override;
-	uint32 GetGPUDataCount() const override { return Groups.empty() ? 1 : static_cast<uint32>(Groups.size()); }
+	uint32 GetGPUDataCount() const override;
 	std::optional<uint32> FindGroupIndex(const FString& Name) const override;
 
 	const TArray<FMaterialGroup>& GetGroups() const;
 	bool ModifyGroup(uint32 GroupIndex, const std::function<void(FMaterialGroup&)>& Modifier);
 
-protected:
-	void Serialize(FArchive& Ar) override;
-
 private:
+	void Serialize(FArchive& Ar) override;
 	void Reset();
 
-	TArray<FMaterialGroup> Groups{};
+private:
+	TArray<FMaterialGroup> mGroups{};
 };
